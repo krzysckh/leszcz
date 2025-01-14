@@ -10,7 +10,7 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo apt update
-          sudo apt install -y sbcl build-essential sbcl wine wine32:i386 wget libturbojpeg0-dev tk tklib tcllib libtk-img libsdl2-dev libgl-dev libsdl2-ttf-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev
+          sudo apt install -y xvfb build-essential sbcl wine wine32:i386 wget libturbojpeg0-dev tk tklib tcllib libtk-img libsdl2-dev libgl-dev libsdl2-ttf-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev
       - name: install quicklisp
         run: |
           wget https://beta.quicklisp.org/quicklisp.lisp
@@ -24,12 +24,13 @@ jobs:
           sudo make install
       - name: install sbcl for windows & build
         run: |
+          Xvfb :1
           pushd .
           cd /tmp
           wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
-          wine msiexec /i sbcl-installer.msi /qn || true
+          DISPLAY=:1 wine msiexec /i sbcl-installer.msi /qn || true
           popd
-          make
+          DISPLAY=:1 make
       - name: upload as artifact
         uses: actions/upload-artifact@v3
         with:
