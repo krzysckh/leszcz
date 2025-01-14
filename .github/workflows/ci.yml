@@ -24,7 +24,7 @@ jobs:
           sudo make install
       - name: install sbcl for windows & build
         run: |
-          Xvfb :1
+          Xvfb :1 &
           pushd .
           cd /tmp
           wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
