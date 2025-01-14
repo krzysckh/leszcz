@@ -13,12 +13,12 @@ jobs:
       - name: install requirements
         run: |
           sudo apt update
-          sudo apt install -y sbcl build-essential sbcl wine wget
+          sudo apt install -y sbcl build-essential sbcl wine wget xvfb
       - name: install sbcl for windows
         run: |
           cd /tmp
           wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
-          wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn
+          xvfb-run -a wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn
       - name: install buildapp
         run: |
           cd /tmp
