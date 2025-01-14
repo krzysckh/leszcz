@@ -17,6 +17,10 @@ jobs:
           wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
           wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn || true
           # why does wine return 2 even if it manages to msiexec the damn thing
+      - name: install quicklisp
+        run: |
+          wget https://beta.quicklisp.org/quicklisp.lisp
+          sbcl --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --quit
       - name: install buildapp
         run: |
           cd /tmp
