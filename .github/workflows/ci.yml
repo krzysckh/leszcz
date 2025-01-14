@@ -27,9 +27,8 @@ jobs:
           pushd .
           cd /tmp
           wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
-          wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn || true
+          wine msiexec /i sbcl-installer.msi /qn || true
           popd
-          # why does wine return 2 even if it manages to msiexec the damn thing
           make
       - name: upload as artifact
         uses: actions/upload-artifact@v3
