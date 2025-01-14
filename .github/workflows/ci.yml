@@ -15,7 +15,8 @@ jobs:
         run: |
           cd /tmp
           wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
-          xvfb-run -a wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn
+          Xvfb :0 -screen 0 1024x768x16 &
+          DISPLAY=:0 wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn
       - name: install buildapp
         run: |
           cd /tmp
