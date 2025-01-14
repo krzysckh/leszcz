@@ -11,12 +11,6 @@ jobs:
           sudo dpkg --add-architecture i386
           sudo apt update
           sudo apt install -y sbcl build-essential sbcl wine wine32:i386 wget libturbojpeg0-dev tk tklib tcllib libtk-img libsdl2-dev libgl-dev libsdl2-ttf-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev
-      - name: install sbcl for windows
-        run: |
-          cd /tmp
-          wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
-          wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn || true
-          # why does wine return 2 even if it manages to msiexec the damn thing
       - name: install quicklisp
         run: |
           wget https://beta.quicklisp.org/quicklisp.lisp
@@ -28,8 +22,12 @@ jobs:
           tar xvzf buildapp.tgz
           cd buildapp*/
           sudo make install
-      - name: build linux version
+      - name: install sbcl for windows & build
         run: |
+          cd /tmp
+          wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
+          wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn || true
+          # why does wine return 2 even if it manages to msiexec the damn thing
           make
       - name: upload as artifact
         uses: actions/upload-artifact@v3
