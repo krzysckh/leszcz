@@ -1,0 +1,36 @@
+name: build binaries
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        emacs-version:
+          - 28.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: install requirements
+        run: |
+          sudo apt update
+          sudo apt install -y sbcl build-essential sbcl wine wget
+      - name: install sbcl for windows
+        run: |
+          cd /tmp
+          wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
+          wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn
+      - name: install buildapp
+        run: |
+          cd /tmp
+          wget http://www.xach.com/lisp/buildapp.tgz
+          tar xvzf buildapp.tgz
+          cd buildapp
+          make install
+      - name: build linux version
+        run: |
+          make
+      - name: upload as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: build/
