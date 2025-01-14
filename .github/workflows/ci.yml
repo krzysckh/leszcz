@@ -22,8 +22,8 @@ jobs:
           cd /tmp
           wget http://www.xach.com/lisp/buildapp.tgz
           tar xvzf buildapp.tgz
-          cd buildapp
-          make install
+          cd buildapp*/
+          sudo make install
       - name: build linux version
         run: |
           make
