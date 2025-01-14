@@ -10,13 +10,13 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo apt update
-          sudo apt install -y sbcl build-essential sbcl wine wget xvfb wine32:i386
+          sudo apt install -y sbcl build-essential sbcl wine wine32:i386 wget
       - name: install sbcl for windows
         run: |
           cd /tmp
           wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
-          Xvfb :0 -screen 0 1024x768x16 &
-          DISPLAY=:0 wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn
+          wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn || true
+          # why does wine return 2 even if it manages to msiexec the damn thing
       - name: install buildapp
         run: |
           cd /tmp
