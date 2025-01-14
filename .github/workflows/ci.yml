@@ -10,7 +10,7 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo apt update
-          sudo apt install -y sbcl build-essential sbcl wine wine32:i386 wget libturbojpeg0-dev tk tklib tcllib libtk-img libsdl2-dev libgl-dev
+          sudo apt install -y sbcl build-essential sbcl wine wine32:i386 wget libturbojpeg0-dev tk tklib tcllib libtk-img libsdl2-dev libgl-dev libsdl2-ttf-dev libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-net-dev
       - name: install sbcl for windows
         run: |
           cd /tmp
