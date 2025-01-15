@@ -25,11 +25,8 @@ jobs:
       - name: install sbcl for windows & build
         run: |
           Xvfb :1 &
-          pushd .
-          cd /tmp
-          wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
-          DISPLAY=:1 wine msiexec /i sbcl-installer.msi /qn || true
-          popd
+          wget https://pub.krzysckh.org/msc25/sbcl.exe
+          wget https://pub.krzysckh.org/msc25/sbcl.core
           DISPLAY=:1 make
       - name: upload as artifact
         uses: actions/upload-artifact@v3
