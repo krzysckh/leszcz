@@ -4,7 +4,7 @@ BUILDAPP=buildapp
 .PHONY: build
 
 all:
-	$(MAKE) build TARGET=build/leszcz
+	# $(MAKE) build TARGET=build/leszcz
 	$(MAKE) build BUILDAPP="buildapp --sbcl './winesbcl.sh'" TARGET=build/leszcz.exe
 
 build: *.lisp
