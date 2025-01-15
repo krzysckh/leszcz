@@ -27,6 +27,8 @@ jobs:
           Xvfb :1 &
           wget https://pub.krzysckh.org/msc25/sbcl.exe
           wget https://pub.krzysckh.org/msc25/sbcl.core
+          wget https://pub.krzysckh.org/msc25/contrib.tgz
+          tar xvzf contrib.tgz
           DISPLAY=:1 make
       - name: upload as artifact
         uses: actions/upload-artifact@v3

@@ -1,2 +1,6 @@
 build
 *.~undo-tree~
+*.fasl
+contrib*
+*.exe
+*.core

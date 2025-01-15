@@ -2,10 +2,10 @@
 
 set -xe
 
-SBCL="$HOME/.wine/drive_c/Program Files/Steel Bank Common Lisp/sbcl.exe"
+SBCL="$HOME/.wine/drive_c/Program Files/Steel Bank Common Lisp/asbcl.exe"
 
 if [ ! -f "$SBCL" ]; then
-  SBCL=sbcl.exe
+  SBCL="./sbcl.exe --core sbcl.core"
 fi
 
-`which wine` "$SBCL" $@
+exec `which wine` $SBCL $@
