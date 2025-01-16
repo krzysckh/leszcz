@@ -30,6 +30,7 @@ jobs:
           wget https://pub.krzysckh.org/msc25/sbcl.core
           wget https://pub.krzysckh.org/msc25/contrib.tgz
           wget https://pub.krzysckh.org/msc25/raylib5.5.dll
+          wget https://pub.krzysckh.org/msc25/raylib5.5.so
           wget https://pub.krzysckh.org/msc25/libffi-8.dll
           file sbcl.exe
           tar xvzf contrib.tgz
