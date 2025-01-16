@@ -12,7 +12,7 @@ jobs:
           sudo apt install -y wine build-essential git clang libasound2-dev \
             libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev \
             libxcursor-dev libxinerama-dev xxd libglfw3-dev mingw-w64 mingw-w64-tools \
-            wget sbcl
+            wget sbcl unzip
       - name: install quicklisp
         run: |
           wget https://beta.quicklisp.org/quicklisp.lisp
@@ -32,9 +32,12 @@ jobs:
           wget https://pub.krzysckh.org/msc25/raylib5.5.dll
           wget https://pub.krzysckh.org/msc25/raylib5.5.so
           wget https://pub.krzysckh.org/msc25/libffi-8.dll
+          wget "https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54001_64bit_UCRT/strawberry-perl-5.40.0.1-64bit.msi"
+          wine msiexec /i strawberry-perl-5.40.0.1-64bit.msi /qn
           file sbcl.exe
           tar xvzf contrib.tgz
-          DISPLAY=:1 make
+          CFLAGS="-I." LDFLAGS="-L." make
+
           cp libffi-8.dll build/
           cp raylib5.5.dll build/
       - name: upload as artifact
