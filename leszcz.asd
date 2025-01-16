@@ -1,3 +1,3 @@
 (defsystem "leszcz"
-  :depends-on ("nodgui")
+  :depends-on ("cffi" "cffi-libffi")
   :components ((:file "leszcz")))

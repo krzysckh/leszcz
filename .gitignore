@@ -4,3 +4,5 @@ build
 contrib*
 *.exe
 *.core
+*.dll
+*.so
