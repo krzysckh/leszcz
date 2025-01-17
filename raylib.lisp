@@ -14,7 +14,9 @@
    draw-rectangle-lines
    clear-background
    draw-text
+   draw-line
    mouse-pressed-p
+   mouse-released-p
    ))
 
 (in-package :raylib)
@@ -68,6 +70,13 @@
   (h :int)
   (c (:struct color)))
 
+(defcfun ("DrawLine" draw-line) :void
+  (x1 :int)
+  (y1 :int)
+  (x2 :int)
+  (y2 :int)
+  (c (:struct color)))
+
 (defcfun ("ClearBackground" clear-background) :bool
   (color (:struct color)))
 
@@ -79,6 +88,9 @@
   (color (:struct color)))
 
 (defcfun ("IsMouseButtonPressed" mouse-pressed-p) :bool
+  (b :int))
+
+(defcfun ("IsMouseButtonReleased" mouse-released-p) :bool
   (b :int))
 
 (defun type-color-p (l)

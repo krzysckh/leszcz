@@ -51,6 +51,7 @@
 (defconstant +piece-size+ 32)
 (defparameter +color-white+ '(255 255 255 255))
 (defparameter +color-black+ '(0 0 0 255))
+(defparameter +color-purple+ '(200 0 200 255))
 (defparameter +color-grayish+ '(127 127 127 255))
 
 (defun draw-piece (p)
@@ -70,6 +71,14 @@
    :point (make-instance 'point :x 1 :y 0)
    :color 'white
    :type 'queen))
+
+;; TODO
+;; (define-constant piece-move-alist
+;;     '((pawn (0 1) (0 2))
+
+;;       )
+;;   :test #'equal)
+
 
 (defun fen->game (fen)
   (declare (type string fen))
@@ -145,20 +154,40 @@
 (defun whitep (p) (eq (piece-color p) 'white))
 (defun blackp (p) (eq (piece-color p) 'black))
 
-(defun maybe-move1 (game)
-  (when (mouse-pressed-p 0)
-    (multiple-value-bind (px py)
-        (coords->point (mouse-x) (mouse-y))
-      (when-let ((p (piece-at-point game px py)))
-        (setf (piece-point p)
-              (make-instance
-               'point
-               :x (point-x (piece-point p))
-               :y (+ (point-y (piece-point p))
-                     (if (whitep p) -1 1))))))))
+;; (defun maybe-move1 (game)
+;;   (when (mouse-pressed-p 0)
+;;     (multiple-value-bind (px py)
+;;         (coords->point (mouse-x) (mouse-y))
+;;       (when-let ((p (piece-at-point game px py)))
+;;         (setf (piece-point p)
+;;               (make-instance
+;;                'point
+;;                :x (point-x (piece-point p))
+;;                :y (+ (point-y (piece-point p))
+;;                      (if (whitep p) -1 1))))))))
+
+(defparameter maybe-drag/piece nil)
+(defun maybe-drag (game)
+  (multiple-value-bind (px py)
+      (coords->point (mouse-x) (mouse-y))
+    (cond
+      ((mouse-pressed-p 0)  ; begin dragging
+       (when-let ((p (piece-at-point game px py)))
+         (setf maybe-drag/piece p)))
+      ((mouse-released-p 0) ; end dragging
+       (setf (piece-point maybe-drag/piece)
+             (make-instance 'point :x px :y py))
+       (setq maybe-drag/piece nil))
+      (maybe-drag/piece
+       (draw-line
+        (+ (* +piece-size+ (point-x (piece-point maybe-drag/piece))) (/ +piece-size+ 2))
+        (+ (* +piece-size+ (point-y (piece-point maybe-drag/piece))) (/ +piece-size+ 2))
+        (mouse-x) (mouse-y)
+        +color-purple+)))))
 
 (push #'show-point-at-cursor mainloop-draw-hooks)
-(push #'maybe-move1 mainloop-draw-hooks)
+(push #'maybe-drag mainloop-draw-hooks)
+;; (push #'maybe-move1 mainloop-draw-hooks)
 
 (defun main (&optional argv)
   (declare (ignore argv))
