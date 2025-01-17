@@ -1,2 +1,9 @@
 build
 *.~undo-tree~
+*.fasl
+contrib*
+*.exe
+*.core
+*.dll
+*.so
+system-index.txt

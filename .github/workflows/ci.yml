@@ -4,31 +4,47 @@ on: push
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        emacs-version:
-          - 28.2
     steps:
       - uses: actions/checkout@v4
       - name: install requirements
         run: |
+          sudo dpkg --add-architecture i386
           sudo apt update
-          sudo apt install -y sbcl build-essential sbcl wine wget
-      - name: install sbcl for windows
+          sudo apt install -y wine32 wine64 build-essential git clang libasound2-dev \
+            libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev \
+            libxcursor-dev libxinerama-dev xxd libglfw3-dev wget sbcl unzip \
+            winetricks
+      - name: install quicklisp
         run: |
-          cd /tmp
-          wget https://pub.krzysckh.org/msc25/sbcl-installer.msi
-          wine msiexec /i sbcl-2.5.0-x86-64-windows-binary.msi /qn
-      - name: install buildapp
+          wget https://beta.quicklisp.org/quicklisp.lisp
+          sbcl --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --quit
+      - name: install sbcl for windows & build
         run: |
-          cd /tmp
-          wget http://www.xach.com/lisp/buildapp.tgz
-          tar xvzf buildapp.tgz
-          cd buildapp
-          make install
-      - name: build linux version
-        run: |
-          make
+          Xvfb :1 &
+          wget https://pub.krzysckh.org/msc25/sbcl.exe
+          wget https://pub.krzysckh.org/msc25/sbcl.core
+          wget https://pub.krzysckh.org/msc25/contrib.tgz
+          wget https://pub.krzysckh.org/msc25/raylib5.5.dll
+          wget https://pub.krzysckh.org/msc25/raylib5.5.so
+          wget https://pub.krzysckh.org/msc25/libffi-8.dll
+          file sbcl.exe
+          tar xvzf contrib.tgz
+          wget -nc https://beta.quicklisp.org/quicklisp.lisp
+          # claim ownership
+          mkdir /tmp/x
+          export DISPLAY=:1
+          export WINEPREFIX=/tmp/x/w
+          export WINEARCH=win64
+          wine sbcl.exe --core sbcl.core --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql:add-to-init-file)' --quit
+          pushd .
+          cd $WINEPREFIX
+          wget https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_5380_5361/strawberry-perl-5.38.0.1-64bit-portable.zip
+          unzip strawberry-perl-5.38.0.1-64bit-portable.zip
+          popd
+          CC="$WINEPREFIX/c/bin/gcc.exe" CFLAGS="-I." LDFLAGS="-L." make
+
+          cp libffi-8.dll build/
+          cp raylib5.5.dll build/
       - name: upload as artifact
         uses: actions/upload-artifact@v3
         with:

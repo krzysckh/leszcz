@@ -1,5 +1,11 @@
 #!/bin/sh
 
-WIN_SBCL="$HOME/.wine/drive_c/Program Files/Steel Bank Common Lisp/sbcl.exe"
+set -xe
 
-`which wine` "$WIN_SBCL" $@
+SBCL="$HOME/.wine/drive_c/Program Files/Steel Bank Common Lisp/asbcl.exe"
+
+if [ ! -f "$SBCL" ]; then
+  SBCL="./sbcl.exe --core sbcl.core"
+fi
+
+exec `which wine` $SBCL $@

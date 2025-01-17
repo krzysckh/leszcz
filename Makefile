@@ -1,20 +1,8 @@
-TARGET=build/leszcz
-BUILDAPP=buildapp
-
-.PHONY: build
+.PHONY: build all
 
 all:
-	$(MAKE) build TARGET=build/leszcz
-	$(MAKE) build BUILDAPP="buildapp --sbcl './winesbcl.sh'" TARGET=build/leszcz.exe
-
-build: *.lisp
 	mkdir -p build
-
-	CL_SOURCE_REGISTRY=$(PWD) $(BUILDAPP) \
-		--output $(TARGET) \
-		--load ~/quicklisp/setup.lisp \
-		--eval '(ql:quickload :leszcz)' \
-		--entry leszcz::main
-
+	sbcl --load build.lisp --quit
+	wine sbcl.exe --core sbcl.core --load build.lisp --quit
 clean:
 	rm -fr build
