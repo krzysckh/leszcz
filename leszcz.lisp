@@ -28,23 +28,23 @@
   (with-foreign-slots ((r g b a) pointer (:struct color))
    (list r g b a)))
 
-(defcfun "BeginDrawing" :void)
-(defcfun "EndDrawing" :void)
+(defcfun ("BeginDrawing" begin-drawing) :void)
+(defcfun ("EndDrawing" end-drawing) :void)
 
-;; TODO: rename to kebab-case
-(defcfun "InitWindow" :void
+(defcfun ("InitWindow" init-window) :void
   (width :int)
   (height :int)
   (title :string))
 
-(defcfun "CloseWindow" :void)
+(defcfun ("CloseWindow" close-window) :void)
 
-(defcfun "WindowShouldClose" :bool)
+(defcfun ("WindowShouldClose" window-close-p) :bool)
 
-(defcfun "ClearBackground" :bool
+
+(defcfun ("ClearBackground" clear-background) :bool
   (color (:struct color)))
 
-(defcfun "DrawText" :void
+(defcfun ("DrawText" draw-text) :void
   (text :string)
   (x :int)
   (y :int)
@@ -58,15 +58,58 @@
 (deftype color ()
   '())
 
+(defclass point ()
+  ((x
+    :initarg :x
+    :accessor point-x)
+   (y
+    :initarg :y
+    :accessor point-y)))
+
+(defclass piece ()
+  ((type
+    :initarg :type
+    :accessor piece-type)
+   (point
+    :initarg :point
+    :accessor piece-point)))
+
+(defun piece->value (p)
+  (declare (type piece p))
+  (case (piece-type p)
+    (king 1000)
+    (queen 9)
+    (rook 5)
+    (bishop 3)
+    (knight 3)
+    (pawn 1)))
+
+(defconstant +piece-size+ 32)
+(defparameter +color-white+ '(255 255 255 255))
+(defparameter +color-black+ '(0 0 0 255))
+
+(defun draw-piece (p)
+  (declare (type piece p))
+  (let* ((point (piece-point p))
+         (x (* +piece-size+ (point-x point)))
+         (y (* +piece-size+ (point-y point))))
+    (draw-text (string (char (string (piece-type p)) 0)) x y +piece-size+ '(0 0 0 255))))
+
+(defparameter example-queen
+  (make-instance
+   'piece
+   :point (make-instance 'point :x 1 :y 0)
+   :type 'queen))
+
 (defun main (&optional argv)
   (declare (ignore argv))
 
-  (initwindow 600 600 "*hello*")
+  (init-window (* +piece-size+ 8) (* +piece-size+ 8) "hello")
 
-  (loop :while (not (windowshouldclose)) :do
-    (begindrawing)
-    (clearbackground '(255 255 255 255))
-    (drawtext "elo pozdro" 10 10 32 '(0 0 0 255))
-    (enddrawing))
+  (loop :while (not (window-close-p)) :do
+    (begin-drawing)
+    (clear-background +color-white+)
+    (draw-piece example-queen)
+    (end-drawing))
 
-  (closewindow))
+  (close-window))
