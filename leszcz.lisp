@@ -1,75 +1,9 @@
 (defpackage :leszcz
-  (:use :common-lisp :cffi :alexandria :cl-ppcre)
+  (:use :common-lisp :raylib :alexandria :cl-ppcre)
   (:export
    :main))
 
 (in-package :leszcz)
-
-(define-foreign-library raylib
-  (:unix    "raylib5.5.so")
-  (:windows "raylib5.5.dll"))
-
-(use-foreign-library raylib)
-
-(defcstruct (color :class type-color)
-  (r :uint8)
-  (g :uint8)
-  (b :uint8)
-  (a :uint8))
-
-(defmethod translate-into-foreign-memory (l (type type-color) pointer)
-  (with-foreign-slots ((r g b a) pointer (:struct color))
-    (setf r (nth 0 l))
-    (setf g (nth 1 l))
-    (setf b (nth 2 l))
-    (setf a (nth 3 l))))
-
-(defmethod translate-from-foreign (pointer (type type-color))
-  (with-foreign-slots ((r g b a) pointer (:struct color))
-   (list r g b a)))
-
-(defcfun ("BeginDrawing" begin-drawing) :void)
-(defcfun ("EndDrawing" end-drawing) :void)
-(defcfun ("SetTargetFPS" set-target-fps!) :void (fps :int))
-
-(defcfun ("InitWindow" init-window) :void
-  (width :int)
-  (height :int)
-  (title :string))
-
-(defcfun ("CloseWindow" close-window) :void)
-
-(defcfun ("WindowShouldClose" window-close-p) :bool)
-
-(defcfun ("GetMouseX" mouse-x) :int)
-(defcfun ("GetMouseY" mouse-y) :int)
-
-(defun mouse-pos ()
-  (values (mouse-x) (mouse-y)))
-
-(defcfun ("DrawRectangleLines" rectangle-lines) :void
-  (x :int)
-  (y :int)
-  (w :int)
-  (h :int)
-  (c (:struct color)))
-
-(defcfun ("ClearBackground" clear-background) :bool
-  (color (:struct color)))
-
-(defcfun ("DrawText" draw-text) :void
-  (text :string)
-  (x :int)
-  (y :int)
-  (font-size :int)
-  (color (:struct color)))
-
-(defun type-color-p (l)
-  (and (listp l) (= (length l) 4)))
-
-;; todo: ?
-(deftype color ()
-  '())
 
 (defclass point ()
   ((x
@@ -198,9 +132,33 @@
 (defun show-point-at-cursor (&optional game)
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
-    (rectangle-lines (* px +piece-size+) (* py +piece-size+) +piece-size+ +piece-size+ +color-black+)))
+    (draw-rectangle-lines (* px +piece-size+) (* py +piece-size+) +piece-size+ +piece-size+ +color-black+)))
+
+(defun piece-at-point (game x y)
+  (let ((pieces (game-pieces game)))
+    (dolist (p pieces)
+      (when (and (= (point-x (piece-point p)) x)
+                 (= (point-y (piece-point p)) y))
+        (return-from piece-at-point p)))
+    nil))
+
+(defun whitep (p) (eq (piece-color p) 'white))
+(defun blackp (p) (eq (piece-color p) 'black))
+
+(defun maybe-move1 (game)
+  (when (mouse-pressed-p 0)
+    (multiple-value-bind (px py)
+        (coords->point (mouse-x) (mouse-y))
+      (when-let ((p (piece-at-point game px py)))
+        (setf (piece-point p)
+              (make-instance
+               'point
+               :x (point-x (piece-point p))
+               :y (+ (point-y (piece-point p))
+                     (if (whitep p) -1 1))))))))
 
 (push #'show-point-at-cursor mainloop-draw-hooks)
+(push #'maybe-move1 mainloop-draw-hooks)
 
 (defun main (&optional argv)
   (declare (ignore argv))
