@@ -48,7 +48,7 @@ jobs:
           wget https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_5380_5361/strawberry-perl-5.38.0.1-64bit-portable.zip
           unzip strawberry-perl-5.38.0.1-64bit-portable.zip
           popd
-          CC="c:\\c\\bin\\gcc.exe" CFLAGS="-I." LDFLAGS="-L." make
+          CC="$WINEPREFIX/c/bin/gcc.exe" CFLAGS="-I." LDFLAGS="-L." make
 
           cp libffi-8.dll build/
           cp raylib5.5.dll build/
