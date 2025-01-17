@@ -41,7 +41,7 @@ jobs:
           mkdir /tmp/x
           export DISPLAY=:1
           export WINEPREFIX=/tmp/x/w
-          export winearch=win32
+          export WINEARCH=win32
           winetricks arch=32 -q mingw
           wine sbcl.exe --core sbcl.core --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql:add-to-init-file)' --quit
           CFLAGS="-I." LDFLAGS="-L." make
