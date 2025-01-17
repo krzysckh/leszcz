@@ -41,6 +41,18 @@
 
 (defcfun ("WindowShouldClose" window-close-p) :bool)
 
+(defcfun ("GetMouseX" mouse-x) :int)
+(defcfun ("GetMouseY" mouse-y) :int)
+
+(defun mouse-pos ()
+  (values (mouse-x) (mouse-y)))
+
+(defcfun ("DrawRectangleLines" rectangle-lines) :void
+  (x :int)
+  (y :int)
+  (w :int)
+  (h :int)
+  (c (:struct color)))
 
 (defcfun ("ClearBackground" clear-background) :bool
   (color (:struct color)))
@@ -81,6 +93,17 @@
     :initarg :point
     :accessor piece-point)))
 
+(defclass game ()
+  ((pieces
+    :initarg :pieces
+    :accessor game-pieces)
+   (move-of
+    :initarg :move-of
+    :accessor game-move-of)
+   (move-history
+    :initarg :move-history
+    :accessor game-move-history)))
+
 (defun piece->value (p)
   (declare (type piece p))
   (case (piece-type p)
@@ -114,8 +137,7 @@
    :color 'white
    :type 'queen))
 
-;; TODO: castling rules, move spec last move halfmove clock etc
-(defun fen->pieces (fen)
+(defun fen->game (fen)
   (declare (type string fen))
 
   (let* ((l (split "\\s" fen))
@@ -148,10 +170,37 @@
            (incf y))
           (t
            (incf x (- (char-int c) (char-int #\0)))))))
-    acc))
+    ;; TODO: king castling, move count, last move
+    (make-instance
+     'game
+     :pieces acc
+     :move-of (if (equal (nth 1 l) "w") 'white 'black)
+     :move-history nil)))
 
 (define-constant *initial-fen* "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" :test #'equal)
-(defparameter +initial-board+ (fen->pieces *initial-fen*))
+
+(defparameter mainloop-draw-hooks nil)
+
+(defun draw-game (g)
+  (declare (type game g))
+  (let ((pieces (game-pieces g)))
+    (dolist (p pieces)
+      (draw-piece p))))
+
+(defun coord->value (v)
+  (floor (/ v +piece-size+)))
+
+(defun coords->point (x y)
+  (values
+   (coord->value x)
+   (coord->value y)))
+
+(defun show-point-at-cursor (&optional game)
+  (multiple-value-bind (px py)
+      (coords->point (mouse-x) (mouse-y))
+    (rectangle-lines (* px +piece-size+) (* py +piece-size+) +piece-size+ +piece-size+ +color-black+)))
+
+(push #'show-point-at-cursor mainloop-draw-hooks)
 
 (defun main (&optional argv)
   (declare (ignore argv))
@@ -159,11 +208,15 @@
   (init-window (* +piece-size+ 8) (* +piece-size+ 8) "hello")
   (set-target-fps! 30)
 
-  (loop :while (not (window-close-p)) :do
-    (begin-drawing)
-    (clear-background +color-grayish+)
-    (dolist (p +initial-board+)
-      (draw-piece p))
-    (end-drawing))
+  (let ((game (fen->game *initial-fen*)))
+    (loop :while (not (window-close-p)) :do
+      (begin-drawing)
+      ;; in a progn to show block
+      (progn
+        (clear-background +color-grayish+)
+        (draw-game game)
+        (dolist (h mainloop-draw-hooks)
+          (funcall h game)))
+      (end-drawing)))
 
   (close-window))
