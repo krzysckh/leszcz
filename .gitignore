@@ -6,3 +6,4 @@ contrib*
 *.core
 *.dll
 *.so
+system-index.txt

@@ -11,4 +11,7 @@
       "build/leszcz.exe"
       "build/leszcz"))
 
-(sb-ext:save-lisp-and-die *bin-path* :executable t :toplevel #'leszcz:main)
+(sb-ext:save-lisp-and-die
+ *bin-path*
+ :executable t
+ :toplevel #'leszcz:main)
