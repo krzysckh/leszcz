@@ -8,8 +8,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: install requirements
         run: |
+          sudo dpkg --add-architecture i386
           sudo apt update
-          sudo apt install -y wine build-essential git clang libasound2-dev \
+          sudo apt install -y wine32 wine64 build-essential git clang libasound2-dev \
             libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev \
             libxcursor-dev libxinerama-dev xxd libglfw3-dev wget sbcl unzip \
             winetricks
