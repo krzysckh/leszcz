@@ -1,12 +1,8 @@
-TARGET=build/leszcz
-BUILDAPP=buildapp
-WINE=wine
-
 .PHONY: build all
 
 all:
 	# $(MAKE) build TARGET=build/leszcz
-	$(WINE) sbcl.exe --core sbcl.core --load build.lisp --quit
+	wine sbcl.exe --core sbcl.core --load build.lisp --quit
 
 # build: *.lisp
 # 	mkdir -p build

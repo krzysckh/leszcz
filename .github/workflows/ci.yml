@@ -36,15 +36,19 @@ jobs:
           wget https://pub.krzysckh.org/msc25/libffi-8.dll
           file sbcl.exe
           tar xvzf contrib.tgz
-          wget https://beta.quicklisp.org/quicklisp.lisp
+          wget -nc https://beta.quicklisp.org/quicklisp.lisp
           # claim ownership
           mkdir /tmp/x
           export DISPLAY=:1
           export WINEPREFIX=/tmp/x/w
-          export WINEARCH=win32
-          winetricks arch=32 -q mingw
-          wine64 sbcl.exe --core sbcl.core --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql:add-to-init-file)' --quit
-          WINE=wine64 CFLAGS="-I." LDFLAGS="-L." make
+          export WINEARCH=win64
+          wine sbcl.exe --core sbcl.core --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql:add-to-init-file)' --quit
+          pushd .
+          cd $WINEPREFIX
+          wget https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_5380_5361/strawberry-perl-5.38.0.1-64bit-portable.zip
+          unzip strawberry-perl-5.38.0.1-64bit-portable.zip
+          popd
+          CC="c:\\c\\bin\\gcc.exe" CFLAGS="-I." LDFLAGS="-L." make
 
           cp libffi-8.dll build/
           cp raylib5.5.dll build/
