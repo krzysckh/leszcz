@@ -43,8 +43,8 @@ jobs:
           export WINEPREFIX=/tmp/x/w
           export WINEARCH=win32
           winetricks arch=32 -q mingw
-          wine sbcl.exe --core sbcl.core --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql:add-to-init-file)' --quit
-          CFLAGS="-I." LDFLAGS="-L." make
+          wine64 sbcl.exe --core sbcl.core --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql:add-to-init-file)' --quit
+          WINE=wine64 CFLAGS="-I." LDFLAGS="-L." make
 
           cp libffi-8.dll build/
           cp raylib5.5.dll build/
