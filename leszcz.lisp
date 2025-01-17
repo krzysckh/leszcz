@@ -58,7 +58,7 @@
 (deftype color ()
   '())
 
-(defun main (argv)
+(defun main (&optional argv)
   (declare (ignore argv))
 
   (initwindow 600 600 "*hello*")
