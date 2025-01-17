@@ -38,6 +38,7 @@ jobs:
           tar xvzf contrib.tgz
           wget https://beta.quicklisp.org/quicklisp.lisp
           export DISPLAY=:1
+          export winearch=win32
           winetricks -q mingw
           wine sbcl.exe --core sbcl.core --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql:add-to-init-file)' --quit
           CFLAGS="-I." LDFLAGS="-L." make
