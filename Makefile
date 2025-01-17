@@ -1,7 +1,7 @@
 TARGET=build/leszcz
 BUILDAPP=buildapp
 
-.PHONY: build
+.PHONY: build all
 
 all:
 	# $(MAKE) build TARGET=build/leszcz

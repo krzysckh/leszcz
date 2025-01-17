@@ -36,8 +36,11 @@ jobs:
           wget https://pub.krzysckh.org/msc25/libffi-8.dll
           file sbcl.exe
           tar xvzf contrib.tgz
-          DISPLAY=:1 winetricks -q mingw
-          DISPLAY=:1 CFLAGS="-I." LDFLAGS="-L." make
+          wget https://beta.quicklisp.org/quicklisp.lisp
+          export DISPLAY=:1
+          winetricks -q mingw
+          wine sbcl.exe --core sbcl.core --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql:add-to-init-file)' --quit
+          CFLAGS="-I." LDFLAGS="-L." make
 
           cp libffi-8.dll build/
           cp raylib5.5.dll build/
