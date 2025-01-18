@@ -12,6 +12,7 @@
    mouse-y
    mouse-pos
    draw-rectangle-lines
+   draw-rectangle
    clear-background
    draw-text
    draw-line
@@ -64,6 +65,13 @@
   (values (mouse-x) (mouse-y)))
 
 (defcfun ("DrawRectangleLines" draw-rectangle-lines) :void
+  (x :int)
+  (y :int)
+  (w :int)
+  (h :int)
+  (c (:struct color)))
+
+(defcfun ("DrawRectangle" draw-rectangle) :void
   (x :int)
   (y :int)
   (w :int)

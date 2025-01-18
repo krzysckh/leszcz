@@ -174,16 +174,23 @@
       ((mouse-pressed-p 0)  ; begin dragging
        (when-let ((p (piece-at-point game px py)))
          (setf maybe-drag/piece p)))
-      ((mouse-released-p 0) ; end dragging
+      ((and (mouse-released-p 0) maybe-drag/piece); end dragging
        (setf (piece-point maybe-drag/piece)
              (make-instance 'point :x px :y py))
        (setq maybe-drag/piece nil))
       (maybe-drag/piece
-       (draw-line
-        (+ (* +piece-size+ (point-x (piece-point maybe-drag/piece))) (/ +piece-size+ 2))
-        (+ (* +piece-size+ (point-y (piece-point maybe-drag/piece))) (/ +piece-size+ 2))
-        (mouse-x) (mouse-y)
-        +color-purple+)))))
+       (draw-rectangle
+        (* +piece-size+ (point-x (piece-point maybe-drag/piece)))
+        (* +piece-size+ (point-y (piece-point maybe-drag/piece)))
+        +piece-size+
+        +piece-size+
+        '(80 80 80 129))
+       (draw-rectangle
+        (* +piece-size+ px)
+        (* +piece-size+ py)
+        +piece-size+
+        +piece-size+
+        '(80 80 80 80))))))
 
 (push #'show-point-at-cursor mainloop-draw-hooks)
 (push #'maybe-drag mainloop-draw-hooks)
