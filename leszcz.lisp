@@ -184,8 +184,13 @@
                (+ (cadr v) (point-y (piece-point p))))))
    (cdr (assoc (piece-type p) piece-move-alist))))
 
-(defun move-possible-p (p px py)
-  (hasp (list px py) (possible-moves-for p)))
+(defun move-possible-p (p px py game)
+  (let ((p* (piece-at-point game px py)))
+    (and
+     (hasp (list px py) (possible-moves-for p))
+     (or
+      (null p*)
+      (not (eq (piece-color p) (piece-color p*)))))))
 
 (defparameter maybe-drag/piece nil)
 (defun maybe-drag (game)
@@ -196,7 +201,7 @@
        (when-let ((p (piece-at-point game px py)))
          (setf maybe-drag/piece p)))
       ((and (mouse-released-p 0) maybe-drag/piece); end dragging
-       (when (move-possible-p maybe-drag/piece px py)
+       (when (move-possible-p maybe-drag/piece px py game)
          (setf (piece-point maybe-drag/piece)
                (make-instance 'point :x px :y py)))
        (setq maybe-drag/piece nil))
