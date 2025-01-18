@@ -13,7 +13,18 @@
       "build/leszcz.exe"
       "build/leszcz"))
 
-(sb-ext:save-lisp-and-die
- *bin-path*
- :executable t
- :toplevel #'leszcz:main)
+(defparameter *base-build-options*
+  `(:executable t
+    :toplevel ,#'leszcz:main
+    ))
+
+(defparameter *build-options*
+  (append
+   *base-build-options*
+   (if (uiop/os:os-windows-p)
+       '(:application-type :gui
+         )
+       '(
+         ))))
+
+(apply #'sb-ext:save-lisp-and-die (append (list *bin-path*) *build-options*))
