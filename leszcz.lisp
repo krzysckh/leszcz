@@ -5,6 +5,9 @@
 
 (in-package :leszcz)
 
+(defun hasp (el l)
+  (member el l :test #'equal))
+
 (defclass point ()
   ((x
     :initarg :x
@@ -53,6 +56,7 @@
 (defparameter +color-black+ '(0 0 0 255))
 (defparameter +color-purple+ '(200 0 200 255))
 (defparameter +color-grayish+ '(127 127 127 255))
+(defparameter +color-greenish+ '(0 200 0 128))
 
 (defun draw-piece (p)
   (declare (type piece p))
@@ -72,13 +76,30 @@
    :color 'white
    :type 'queen))
 
-;; TODO
-;; (define-constant piece-move-alist
-;;     '((pawn (0 1) (0 2))
+(define-constant +rook-moves+
+    '((1 0) (2 0) (3 0) (4 0) (5 0) (6 0) (7 0) (8 0)
+      (-1 0) (-2 0) (-3 0) (-4 0) (-5 0) (-6 0) (-7 0) (-8 0)
+      (0 1) (0 2) (0 3) (0 4) (0 5) (0 6) (0 7) (0 8)
+      (0 -1) (0 -2) (0 -3) (0 -4) (0 -5) (0 -6) (0 -7) (0 -8))
+  :test #'equal)
 
-;;       )
-;;   :test #'equal)
+(define-constant +bishop-moves+
+    '((1 1) (2 2) (3 3) (4 4) (5 5) (6 6) (7 7) (8 8)
+      (1 -1) (2 -2) (3 -3) (4 -4) (5 -5) (6 -6) (7 -7) (8 -8)
+      (-1 1) (-2 2) (-3 3) (-4 4) (-5 5) (-6 6) (-7 7) (-8 8)
+      (-1 -1) (-2 -2) (-3 -3) (-4 -4) (-5 -5) (-6 -6) (-7 -7) (-8 -8))
+  :test #'equal)
 
+(define-constant piece-move-alist
+    `((pawn (0 1) (0 2) (1 1) (-1 1))
+      (rook ,@+rook-moves+)
+      (bishop ,@+bishop-moves+)
+      (queen ,@(append +bishop-moves+ +rook-moves+))
+      (king (1 0) (-1 0) (0 1) (0 -1) (-1 -1) (1 -1) (-1 1) (1 1))
+      (knight (1 2) (1 -2) (-1 2) (-1 -2)
+              (2 1) (-2 1) (2 -1) (-2 -1))
+      )
+  :test #'equal)
 
 (defun fen->game (fen)
   (declare (type string fen))
@@ -153,18 +174,18 @@
 
 (defun whitep (p) (eq (piece-color p) 'white))
 (defun blackp (p) (eq (piece-color p) 'black))
+(defun possible-moves-for (p)
+  (mapcar
+   #'(lambda (pos)
+       (let ((v (if (whitep p)
+                    (list (- (car pos)) (- (cadr pos)))
+                    pos)))
+         (list (+ (car v) (point-x (piece-point p)))
+               (+ (cadr v) (point-y (piece-point p))))))
+   (cdr (assoc (piece-type p) piece-move-alist))))
 
-;; (defun maybe-move1 (game)
-;;   (when (mouse-pressed-p 0)
-;;     (multiple-value-bind (px py)
-;;         (coords->point (mouse-x) (mouse-y))
-;;       (when-let ((p (piece-at-point game px py)))
-;;         (setf (piece-point p)
-;;               (make-instance
-;;                'point
-;;                :x (point-x (piece-point p))
-;;                :y (+ (point-y (piece-point p))
-;;                      (if (whitep p) -1 1))))))))
+(defun move-possible-p (p px py)
+  (hasp (list px py) (possible-moves-for p)))
 
 (defparameter maybe-drag/piece nil)
 (defun maybe-drag (game)
@@ -175,8 +196,9 @@
        (when-let ((p (piece-at-point game px py)))
          (setf maybe-drag/piece p)))
       ((and (mouse-released-p 0) maybe-drag/piece); end dragging
-       (setf (piece-point maybe-drag/piece)
-             (make-instance 'point :x px :y py))
+       (when (move-possible-p maybe-drag/piece px py)
+         (setf (piece-point maybe-drag/piece)
+               (make-instance 'point :x px :y py)))
        (setq maybe-drag/piece nil))
       (maybe-drag/piece
        (draw-rectangle
@@ -192,9 +214,21 @@
         +piece-size+
         '(80 80 80 80))))))
 
+(defun highlight-possible-moves (&optional game)
+  (when-let ((p maybe-drag/piece))
+    (let ((px (point-x (piece-point p)))
+          (py (point-y (piece-point p))))
+      (dolist (pos (possible-moves-for p))
+          (draw-rectangle
+           (* +piece-size+ (car pos))
+           (* +piece-size+ (cadr pos))
+           +piece-size+
+           +piece-size+
+           +color-greenish+)))))
+
 (push #'show-point-at-cursor mainloop-draw-hooks)
 (push #'maybe-drag mainloop-draw-hooks)
-;; (push #'maybe-move1 mainloop-draw-hooks)
+(push #'highlight-possible-moves mainloop-draw-hooks)
 
 (defun main (&optional argv)
   (declare (ignore argv))
