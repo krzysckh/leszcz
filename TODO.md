@@ -1,6 +1,11 @@
 * [ ] grafika
-  * [ ] plansza typu dwukolorowa
+  * [x] plansza typu dwukolorowa
   * [ ] ładniejsze figury
+    * [x] ładniejsze figury I
+    * [ ] ładniejsze figury II (nałóż filtry poprawnie)
+    * [ ] możliwość wybrania figur i kolorów
+  * [ ] menu
+  * [ ] opcje
 * [ ] "gameplay"
   * [ ] tury
   * [x] zbijanie figur
