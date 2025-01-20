@@ -41,6 +41,37 @@
     :initarg :move-history
     :accessor game-move-history)))
 
+(defun file->vec (fname)
+  (let* ((f (open fname :element-type '(unsigned-byte 8)))
+         (n (file-length f))
+         (vec (make-sequence 'vector n)))
+    (read-sequence vec f)
+    (close f)
+    vec))
+
+(defparameter white-texture-data-list
+  (list
+   (cons 'pawn   (file->vec "res/png/pl.png"))
+   (cons 'rook   (file->vec "res/png/rl.png"))
+   (cons 'knight (file->vec "res/png/nl.png"))
+   (cons 'bishop (file->vec "res/png/bl.png"))
+   (cons 'queen  (file->vec "res/png/ql.png"))
+   (cons 'king   (file->vec "res/png/kl.png"))))
+
+(defparameter black-texture-data-list
+  (list
+   (cons 'pawn   (file->vec "res/png/pd.png"))
+   (cons 'rook   (file->vec "res/png/rd.png"))
+   (cons 'knight (file->vec "res/png/nd.png"))
+   (cons 'bishop (file->vec "res/png/bd.png"))
+   (cons 'queen  (file->vec "res/png/qd.png"))
+   (cons 'king   (file->vec "res/png/kd.png"))))
+
+(defparameter +texture-size+ 1024)
+
+(defparameter white-texture-alist nil)
+(defparameter black-texture-alist nil)
+
 (defun piece->value (p)
   (declare (type piece p))
   (case (piece-type p)
@@ -51,12 +82,13 @@
     (knight 3)
     (pawn 1)))
 
-(defconstant +piece-size+ 32)
+(defconstant +piece-size+ 64)
 (defparameter +color-white+ '(255 255 255 255))
 (defparameter +color-black+ '(0 0 0 255))
 (defparameter +color-purple+ '(200 0 200 255))
 (defparameter +color-grayish+ '(127 127 127 255))
 (defparameter +color-greenish+ '(0 200 0 128))
+(defparameter +color-redish+ '(200 30 0 128))
 
 ;; assuming a "vector" or "vector2" is a (list a b)
 (defun v2+ (a b)
@@ -64,16 +96,24 @@
    (+ (car a) (car b))
    (+ (cadr a) (cadr b))))
 
+(defun floatize (l)
+  (mapcar #'float l))
+
 (defun draw-piece (p)
   (declare (type piece p))
+
   (let* ((point (piece-point p))
          (x (* +piece-size+ (point-x point)))
          (y (* +piece-size+ (point-y point)))
-         (c (if (eq (piece-color p) 'white) +color-white+ +color-black+))
-         (sym (if (eq (piece-type p) 'knight)
-                  "N"
-                  (string (char (string (piece-type p)) 0)) )))
-    (draw-text sym x y +piece-size+ c)))
+         (al (if (whitep p) white-texture-alist black-texture-alist))
+         (texture (cdr (assoc (piece-type p) al))))
+    (draw-texture
+     texture
+     (floatize (list 0 0 +texture-size+ +texture-size+))
+     (floatize (list x y +piece-size+ +piece-size+))
+     (floatize (list 0 0))
+     (float 0)
+     +color-white+)))
 
 (defparameter example-queen
   (make-instance
@@ -135,8 +175,18 @@
 
 (defparameter mainloop-draw-hooks nil)
 
+(defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
+(defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
+
 (defun draw-game (g)
   (declare (type game g))
+  (let ((i 0))
+    (loop for y from 0 to 7 do
+      (loop for x from 0 to 8 do
+        (let ((color (if (= (mod i 2) 0) +color-bg-light+ +color-bg-dark+)))
+          (draw-rectangle (* +piece-size+ x) (* +piece-size+ y) +piece-size+ +piece-size+ color)
+          (incf i)))))
+
   (let ((pieces (game-pieces g)))
     (dolist (p pieces)
       (draw-piece p))))
@@ -270,7 +320,7 @@
            (* +piece-size+ (cadr pos))
            +piece-size+
            +piece-size+
-           +color-greenish+)))))
+           +color-redish+)))))
 
 (defun add-draw-hook (fn)
   (push fn mainloop-draw-hooks))
@@ -282,11 +332,23 @@
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
 
+(defun load-textures ()
+  (dolist (e white-texture-data-list)
+    (push (cons (car e) (make-texture (cdr e) ".png")) white-texture-alist))
+  (dolist (e black-texture-data-list)
+    (push (cons (car e) (make-texture (cdr e) ".png")) black-texture-alist))
+  (format t "loaded textures~%"))
+
 (defun main (&optional argv)
   (declare (ignore argv))
 
   (init-window (* +piece-size+ 8) (* +piece-size+ 8) "hello")
   (set-target-fps! 30)
+
+  (load-textures)
+
+  (format t "white-texture-alist: ~a~%" white-texture-alist)
+  (format t "black-texture-alist: ~a~%" black-texture-alist)
 
   (let ((game (fen->game *initial-fen*)))
     (loop :while (not (window-close-p)) :do

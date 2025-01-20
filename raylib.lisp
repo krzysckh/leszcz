@@ -18,6 +18,10 @@
    draw-line
    mouse-pressed-p
    mouse-released-p
+   load-image-from-memory
+   image->texture
+   make-texture
+   draw-texture
    ))
 
 (in-package :raylib)
@@ -34,16 +38,77 @@
   (b :uint8)
   (a :uint8))
 
-(defmethod translate-into-foreign-memory (l (type type-color) pointer)
-  (with-foreign-slots ((r g b a) pointer (:struct color))
-    (setf r (nth 0 l))
-    (setf g (nth 1 l))
-    (setf b (nth 2 l))
-    (setf a (nth 3 l))))
+(defcstruct (image :class type-image)
+  (data :pointer)
+  (width :int)
+  (height :int)
+  (mipmaps :int)
+  (format :int))
 
-(defmethod translate-from-foreign (pointer (type type-color))
-  (with-foreign-slots ((r g b a) pointer (:struct color))
-   (list r g b a)))
+(defcstruct (texture :class type-texture)
+  (id :uint)
+  (width :int)
+  (height :int)
+  (mipmaps :int)
+  (format :int))
+
+(defcstruct (vec2 :class type-vec2)
+  (x :float)
+  (y :float))
+
+(defcstruct (rectangle :class type-rectangle)
+  (x :float)
+  (y :float)
+  (w :float)
+  (h :float))
+
+(defmacro make-trans (type stype slots)
+  `(progn
+     (defmethod translate-into-foreign-memory (l (type ,type) pointer)
+       (with-foreign-slots (,slots pointer (:struct ,stype))
+         ,@(loop for i from 0 to (- (length slots) 1)
+                 collect (list 'setf (nth i slots) `(nth ,i l)))))
+
+     (defmethod translate-from-foreign (pointer (type ,type))
+       (with-foreign-slots (,slots pointer (:struct ,stype))
+         (list ,@slots)))))
+
+(make-trans type-color color (r g b a))
+(make-trans type-image image (data width height mipmaps format))
+(make-trans type-texture texture (id width height mipmaps format))
+(make-trans type-vec2 vec2 (x y))
+(make-trans type-rectangle rectangle (x y w h))
+
+;; (defmethod translate-into-foreign-memory (l (type type-color) pointer)
+;;   (with-foreign-slots ((r g b a) pointer (:struct color))
+;;     (setf r (nth 0 l))
+;;     (setf g (nth 1 l))
+;;     (setf b (nth 2 l))
+;;     (setf a (nth 3 l))))
+
+
+(defcfun ("LoadImageFromMemory" load-image-from-memory) (:struct image)
+  (type :string)
+  (data :pointer)
+  (data-size :int))
+
+(defcfun ("LoadTextureFromImage" image->texture) (:struct texture)
+  (img (:struct image)))
+
+(defun make-texture (texture-data data-type)
+  (with-foreign-object (data :uint8 (length texture-data))
+    (loop for i from 0 to (- (length texture-data) 1) do
+      (setf (mem-aref data :uint8 i) (aref texture-data i)))
+    (let ((image (load-image-from-memory data-type data (length texture-data))))
+      (image->texture image))))
+
+(defcfun ("DrawTexturePro" draw-texture) :void
+  (texture (:struct texture))
+  (src (:struct rectangle))
+  (dst (:struct rectangle))
+  (origin (:struct vec2))
+  (rotation :float)
+  (tint (:struct color)))
 
 (defcfun ("BeginDrawing" begin-drawing) :void)
 (defcfun ("EndDrawing" end-drawing) :void)
