@@ -202,6 +202,10 @@
          (setf maybe-drag/piece p)))
       ((and (mouse-released-p 0) maybe-drag/piece); end dragging
        (when (move-possible-p maybe-drag/piece px py game)
+         ;; assuming move impossible if piece at point is same color
+         (when-let ((p (piece-at-point game px py)))
+           (setf (game-pieces game)
+                 (remove p (game-pieces game) :test #'equal)))
          (setf (piece-point maybe-drag/piece)
                (make-instance 'point :x px :y py)))
        (setq maybe-drag/piece nil))
@@ -231,9 +235,15 @@
            +piece-size+
            +color-greenish+)))))
 
-(push #'show-point-at-cursor mainloop-draw-hooks)
-(push #'maybe-drag mainloop-draw-hooks)
-(push #'highlight-possible-moves mainloop-draw-hooks)
+(defun add-draw-hook (fn)
+  (push fn mainloop-draw-hooks))
+
+(defun remove-draw-hook (name)
+  (setf mainloop-draw-hooks (remove name mainloop-draw-hooks)))
+
+(add-draw-hook 'show-point-at-cursor)
+(add-draw-hook 'maybe-drag)
+(add-draw-hook 'highlight-possible-moves)
 
 (defun main (&optional argv)
   (declare (ignore argv))
