@@ -58,6 +58,12 @@
 (defparameter +color-grayish+ '(127 127 127 255))
 (defparameter +color-greenish+ '(0 200 0 128))
 
+;; assuming a "vector" or "vector2" is a (list a b)
+(defun v2+ (a b)
+  (list
+   (+ (car a) (car b))
+   (+ (cadr a) (cadr b))))
+
 (defun draw-piece (p)
   (declare (type piece p))
   (let* ((point (piece-point p))
@@ -76,30 +82,14 @@
    :color 'white
    :type 'queen))
 
-(define-constant +rook-moves+
-    '((1 0) (2 0) (3 0) (4 0) (5 0) (6 0) (7 0) (8 0)
-      (-1 0) (-2 0) (-3 0) (-4 0) (-5 0) (-6 0) (-7 0) (-8 0)
-      (0 1) (0 2) (0 3) (0 4) (0 5) (0 6) (0 7) (0 8)
-      (0 -1) (0 -2) (0 -3) (0 -4) (0 -5) (0 -6) (0 -7) (0 -8))
-  :test #'equal)
+;; can be <1..8> * vec ("sliding")
+(define-constant +rook-offsets+ '((1 0) (-1 0) (0 1) (0 -1)) :test #'equal)
+(define-constant +bishop-offsets+ '((1 1) (1 -1) (-1 1) (-1 -1)) :test #'equal)
+(define-constant +queen-offsets+ (append +rook-offsets+ +bishop-offsets+) :test #'equal)
 
-(define-constant +bishop-moves+
-    '((1 1) (2 2) (3 3) (4 4) (5 5) (6 6) (7 7) (8 8)
-      (1 -1) (2 -2) (3 -3) (4 -4) (5 -5) (6 -6) (7 -7) (8 -8)
-      (-1 1) (-2 2) (-3 3) (-4 4) (-5 5) (-6 6) (-7 7) (-8 8)
-      (-1 -1) (-2 -2) (-3 -3) (-4 -4) (-5 -5) (-6 -6) (-7 -7) (-8 -8))
-  :test #'equal)
-
-(define-constant piece-move-alist
-    `((pawn (0 1) (0 2) (1 1) (-1 1))
-      (rook ,@+rook-moves+)
-      (bishop ,@+bishop-moves+)
-      (queen ,@(append +bishop-moves+ +rook-moves+))
-      (king (1 0) (-1 0) (0 1) (0 -1) (-1 -1) (1 -1) (-1 1) (1 1))
-      (knight (1 2) (1 -2) (-1 2) (-1 -2)
-              (2 1) (-2 1) (2 -1) (-2 -1))
-      )
-  :test #'equal)
+(define-constant +king-moves+ '((1 0) (-1 0) (0 1) (0 -1) (-1 -1) (1 -1) (-1 1) (1 1)) :test #'equal)
+(define-constant +knight-moves+ '((1 2) (1 -2) (-1 2) (-1 -2) (2 1) (-2 1) (2 -1) (-2 -1)) :test #'equal)
+;; not defining pawn moves because they "depend" :3
 
 (defun fen->game (fen)
   (declare (type string fen))
@@ -159,6 +149,12 @@
    (coord->value x)
    (coord->value y)))
 
+(defun position-of (p)
+  (declare (type piece p))
+  (values
+   (point-x (piece-point p))
+   (point-y (piece-point p))))
+
 (defun show-point-at-cursor (&optional game)
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
@@ -174,23 +170,62 @@
 
 (defun whitep (p) (eq (piece-color p) 'white))
 (defun blackp (p) (eq (piece-color p) 'black))
-(defun possible-moves-for (p)
-  (mapcar
+
+(defun filter-own-pieces (game p move-list)
+  (remove-if
    #'(lambda (pos)
-       (let ((v (if (whitep p)
-                    (list (- (car pos)) (- (cadr pos)))
-                    pos)))
-         (list (+ (car v) (point-x (piece-point p)))
-               (+ (cadr v) (point-y (piece-point p))))))
-   (cdr (assoc (piece-type p) piece-move-alist))))
+       (when-let ((p* (piece-at-point game (car pos) (cadr pos))))
+         (eq (piece-color p*) (piece-color p))))
+   move-list))
+
+;; i used 100% of my brain for this name
+(defun enposition-moveset (position moveset)
+  (mapcar #'(lambda (p) (v2+ p position)) moveset))
+
+(defun generate-sliding-moves (game p moveset)
+  (declare (type game game)
+           (type piece p))
+
+  (multiple-value-bind (x y)
+      (position-of p)
+    (let ((acc nil))
+      (loop for m in moveset do
+        (block brk
+          (loop for i from 1 to 8 do
+            (let* ((x* (+ x (* i (car m))))
+                   (y* (+ y (* i (cadr m))))
+                   (p* (piece-at-point game x* y*)))
+              (cond
+                ((< x* 0)  (return-from brk))
+                ((< y* 0)  (return-from brk))
+                ((>= x* 8) (return-from brk))
+                ((>= y* 8) (return-from brk))
+                ((and p* (eq (piece-color p) (piece-color p*))) ; same-colored piece, no more moves
+                 (return-from brk))
+                (p* ; diff-colored piece, can be captured but no more
+                 (push `(,x* ,y*) acc)
+                 (return-from brk))
+                (t ; empty square, can go there and possibly further
+                 (push `(,x* ,y*) acc)))))))
+      acc)))
+
+(defun possible-moves-for (game p)
+  (declare (type piece p))
+
+  (multiple-value-bind (x y)
+      (position-of p)
+    (case (piece-type p)
+      (pawn   (list (v2+ (list x y) (list 0 (if (whitep p) -1 1)))))
+      (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+)))
+      (king   (filter-own-pieces game p (enposition-moveset (list x y) +king-moves+)))
+      (rook   (generate-sliding-moves game p +rook-offsets+))
+      (bishop (generate-sliding-moves game p +bishop-offsets+))
+      (queen  (generate-sliding-moves game p +queen-offsets+))
+      (t
+       (warn "unreachable reached D:")))))
 
 (defun move-possible-p (p px py game)
-  (let ((p* (piece-at-point game px py)))
-    (and
-     (hasp (list px py) (possible-moves-for p))
-     (or
-      (null p*)
-      (not (eq (piece-color p) (piece-color p*)))))))
+  (hasp (list px py) (possible-moves-for game p)))
 
 (defparameter maybe-drag/piece nil)
 (defun maybe-drag (game)
@@ -223,11 +258,13 @@
         +piece-size+
         '(80 80 80 80))))))
 
-(defun highlight-possible-moves (&optional game)
+(defun highlight-possible-moves (game)
+  (declare (type game game))
+
   (when-let ((p maybe-drag/piece))
     (let ((px (point-x (piece-point p)))
           (py (point-y (piece-point p))))
-      (dolist (pos (possible-moves-for p))
+      (dolist (pos (possible-moves-for game p))
           (draw-rectangle
            (* +piece-size+ (car pos))
            (* +piece-size+ (cadr pos))

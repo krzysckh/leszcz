@@ -3,11 +3,20 @@
   * [ ] ładniejsze figury
 * [ ] "gameplay"
   * [ ] tury
-  * [ ] zbijanie figur
+  * [x] zbijanie figur
   * [ ] generowanie i podświetlanie możliwych ruchów
+    * [ ] pion
+      * [x] ruchy typu o 1
+      * [ ] ruchy typu o 2
+      * [ ] zmiana w hetmana
+      * [ ] bicie w przelocie
+    * [x] wieża
+    * [x] goniec
+    * [x] skoczek
+    * [x] hetman
+    * [x] król
+    * [ ] szachy (nawiązanie do gry szachy)
   * [ ] :3 meow meow meow meow
-  * [ ] pamietaj o biciu w przelocie
-  * [ ] sigmatyzacja pionów
   * [ ] roszada
   * [ ] szachmat
 * [ ] "bot"
