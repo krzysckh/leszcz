@@ -13,7 +13,20 @@ jobs:
           sudo apt install -y wine32 wine64 build-essential git clang libasound2-dev \
             libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev \
             libxcursor-dev libxinerama-dev xxd libglfw3-dev wget sbcl unzip \
-            winetricks
+            winetricks pandoc \
+            texlive-base texlive-binaries texlive-fonts-recommended \
+            texlive-latex-base texlive-latex-extra texlive-latex-recommended \
+            texlive-luatex texlive-pictures texlive-plain-generic \
+            texlive-xetex
+      - name: download fonts
+        run: |
+          sudo mkdir -p /usr/share/fonts
+          sudo wget https://pub.krzysckh.org/_fonts/lg/LucidaGrande-Regular.otf -O /usr/share/fonts/LucidaGrande-Regular.otf
+          sudo wget https://pub.krzysckh.org/_fonts/lg/LucidaGrande-Bold.otf -O /usr/share/fonts/LucidaGrande-Bold.otf
+          sudo wget https://pub.krzysckh.org/_fonts/lg/LucidaGrande-Italic.otf -O /usr/share/fonts/LucidaGrande-Italic.otf
+          sudo wget https://pub.krzysckh.org/_fonts/lg/LucidaGrande-BoldItalic.otf -O /usr/share/fonts/LucidaGrande-BoldItalic.otf
+          sudo wget https://pub.krzysckh.org/_fonts/Apl385.ttf -O /usr/share/fonts/Apl385.ttf
+          fc-cache -fv
       - name: install quicklisp
         run: |
           wget https://beta.quicklisp.org/quicklisp.lisp
@@ -43,8 +56,12 @@ jobs:
           popd
           CC="$WINEPREFIX/c/bin/gcc.exe" CFLAGS="-I." LDFLAGS="-L." make all
 
-          cp libffi-8.dll build/
-          cp raylib5.5.dll build/
+          cp -v libffi-8.dll build/
+          cp -v raylib5.5.dll build/
+      - name: build docs
+        run: |
+          make docs
+          cp -v docs/*.pdf build/
       - name: upload as artifact
         uses: actions/upload-artifact@v3
         with:

@@ -7,3 +7,5 @@ contrib*
 *.dll
 *.so
 system-index.txt
+*.pdf
+*.html

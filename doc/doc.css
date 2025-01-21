@@ -1,0 +1,54 @@
+<style>
+@font-face {
+  font-family: 'lucida-grande';
+  src: url('/_fonts/lg/LucidaGrande-Regular.otf');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'lucida-grande';
+  src: url('/_fonts/lg/LucidaGrande-Bold.otf');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'lucida-grande';
+  src: url('/_fonts/lg/LucidaGrande-Italic.otf');
+  font-weight: normal;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'lucida-grande';
+  src: url('/_fonts/lg/LucidaGrande-BoldItalic.otf');
+  font-weight: bold;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'apl';
+  src: url('/_fonts/Apl385.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+* {
+  font-family: lucida-grande !important;
+}
+
+body {
+  max-width: 50em !important;
+}
+
+pre, code, .sourceCode, .sourceCode * {
+  font-family: apl, monospace !important;
+}
+
+kbd {
+  border-radius: 2px;
+  padding: 2px;
+  border: 1px solid black;
+}
+</style>
