@@ -221,11 +221,11 @@
 (defun whitep (p) (eq (piece-color p) 'white))
 (defun blackp (p) (eq (piece-color p) 'black))
 
-(defun filter-own-pieces (game p move-list)
+(defun filter-own-pieces (game p move-list &optional disallow-taking)
   (remove-if
    #'(lambda (pos)
        (when-let ((p* (piece-at-point game (car pos) (cadr pos))))
-         (eq (piece-color p*) (piece-color p))))
+         (or (eq (piece-color p*) (piece-color p)) disallow-taking)))
    move-list))
 
 ;; i used 100% of my brain for this name
@@ -265,7 +265,24 @@
   (multiple-value-bind (x y)
       (position-of p)
     (case (piece-type p)
-      (pawn   (list (v2+ (list x y) (list 0 (if (whitep p) -1 1)))))
+      (pawn (let ((ps (filter-own-pieces
+                       game p
+                       (list (v2+ (list x y) (list 0 (if (whitep p) -1 1))))
+                       t)))
+              (if ps
+                  (append
+                   ps
+                   (filter-own-pieces
+                    game p
+                    (append
+                     (if (and (whitep p) (= (point-y (piece-point p)) 6))
+                         (list (v2+ (list x y) '(0 -2)))
+                         nil)
+                     (if (and (blackp p) (= (point-y (piece-point p)) 1))
+                         (list (v2+ (list x y) '(0 2)))
+                         nil))
+                    t))
+                  nil)))
       (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+)))
       (king   (filter-own-pieces game p (enposition-moveset (list x y) +king-moves+)))
       (rook   (generate-sliding-moves game p +rook-offsets+))

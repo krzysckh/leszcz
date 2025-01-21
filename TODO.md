@@ -12,9 +12,10 @@
   * [ ] generowanie i podświetlanie możliwych ruchów
     * [ ] pion
       * [x] ruchy typu o 1
-      * [ ] ruchy typu o 2
+      * [x] ruchy typu o 2
+      * [ ] bicie
       * [ ] zmiana w hetmana
-      * [ ] bicie w przelocie
+      * [ ] ę pasą (bicie w przelocie)
     * [x] wieża
     * [x] goniec
     * [x] skoczek
