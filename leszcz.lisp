@@ -259,30 +259,44 @@
                  (push `(,x* ,y*) acc)))))))
       acc)))
 
-(defun possible-moves-for (game p)
-  (declare (type piece p))
-
+(defun pre--possible-moves-for (game p)
   (multiple-value-bind (x y)
       (position-of p)
     (case (piece-type p)
-      (pawn (let ((ps (filter-own-pieces
-                       game p
-                       (list (v2+ (list x y) (list 0 (if (whitep p) -1 1))))
-                       t)))
-              (if ps
-                  (append
-                   ps
-                   (filter-own-pieces
-                    game p
-                    (append
-                     (if (and (whitep p) (= (point-y (piece-point p)) 6))
-                         (list (v2+ (list x y) '(0 -2)))
-                         nil)
-                     (if (and (blackp p) (= (point-y (piece-point p)) 1))
-                         (list (v2+ (list x y) '(0 2)))
-                         nil))
-                    t))
-                  nil)))
+      ;; TODO: ale swietny kod
+      (pawn (let* ((m (filter-own-pieces game p (list (v2+ (list x y) (list 0 (if (whitep p) -1 1)))) t))
+                   (m (if m
+                          (append
+                           m
+                           (filter-own-pieces
+                            game p
+                            (append
+                             (if (and (whitep p) (= (point-y (piece-point p)) 6))
+                                 (list (v2+ (list x y) '(0 -2)))
+                                 nil)
+                             (if (and (blackp p) (= (point-y (piece-point p)) 1))
+                                 (list (v2+ (list x y) '(0 2)))
+                                 nil))
+                            t))
+                          nil)))
+              ;; going forwards done, generate capturing moves
+              ;; TODO: dry
+              (if (whitep p)
+                  (progn
+                    (when-let ((p* (piece-at-point game (- x 1) (- y 1))))
+                      (when (blackp p*)
+                        (push `(,(- x 1) ,(- y 1)) m)))
+                    (when-let ((p* (piece-at-point game (+ x 1) (- y 1))))
+                      (when (blackp p*)
+                        (push `(,(+ x 1) ,(- y 1)) m))))
+                  (progn
+                    (when-let ((p* (piece-at-point game (- x 1) (+ y 1))))
+                      (when (whitep p*)
+                        (push `(,(- x 1) ,(+ y 1)) m)))
+                    (when-let ((p* (piece-at-point game (+ x 1) (+ y 1))))
+                      (when (whitep p*)
+                        (push `(,(+ x 1) ,(+ y 1)) m)))))
+              m))
       (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+)))
       (king   (filter-own-pieces game p (enposition-moveset (list x y) +king-moves+)))
       (rook   (generate-sliding-moves game p +rook-offsets+))
@@ -290,6 +304,18 @@
       (queen  (generate-sliding-moves game p +queen-offsets+))
       (t
        (warn "unreachable reached D:")))))
+
+(defun possible-moves-for (game p)
+  (declare (type piece p)
+           (type game game))
+  (remove-if
+   #'(lambda (pos)
+       (or
+        (< (car pos) 0)
+        (< (cadr pos) 0)
+        (> (car pos) 7)
+        (> (cadr pos) 7)))
+   (pre--possible-moves-for game p)))
 
 (defun move-possible-p (p px py game)
   (hasp (list px py) (possible-moves-for game p)))

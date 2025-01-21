@@ -61,7 +61,7 @@ jobs:
       - name: build docs
         run: |
           make docs
-          cp -v docs/*.pdf build/
+          cp -v doc/*.pdf build/
       - name: upload as artifact
         uses: actions/upload-artifact@v3
         with:

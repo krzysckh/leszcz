@@ -13,7 +13,7 @@
     * [ ] pion
       * [x] ruchy typu o 1
       * [x] ruchy typu o 2
-      * [ ] bicie
+      * [x] bicie
       * [ ] zmiana w hetmana
       * [ ] ę pasą (bicie w przelocie)
     * [x] wieża
