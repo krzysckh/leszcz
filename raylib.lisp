@@ -27,7 +27,7 @@
 (in-package :raylib)
 
 (define-foreign-library raylib
-  (:unix    "raylib5.5.so")
+  (:unix    "./raylib5.5.so")
   (:windows "raylib5.5.dll"))
 
 (use-foreign-library raylib)
