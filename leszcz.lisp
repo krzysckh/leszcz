@@ -23,9 +23,6 @@
    (color
     :initarg :color
     :accessor piece-color)
-   (castle-p
-    :initarg :castle-p
-    :accessor piece-can-castle-p)
    (point
     :initarg :point
     :accessor piece-point)))
@@ -39,7 +36,19 @@
     :accessor game-move-of)
    (move-history
     :initarg :move-history
-    :accessor game-move-history)))
+    :accessor game-move-history)
+   (black-can-castle-queenside-p
+    :initarg :bcq-p
+    :accessor game-black-can-castle-queenside-p)
+   (black-can-castle-kingside-p
+    :initarg :bck-p
+    :accessor game-black-can-castle-kingside-p)
+   (white-can-castle-queenside-p
+    :initarg :wcq-p
+    :accessor game-white-can-castle-queenside-p)
+   (white-can-castle-kingside-p
+    :initarg :wck-p
+    :accessor game-white-can-castle-kingside-p)))
 
 (defun file->vec (fname)
   (let* ((f (open fname :element-type '(unsigned-byte 8)))
@@ -89,6 +98,11 @@
 (defparameter +color-grayish+ '(127 127 127 255))
 (defparameter +color-greenish+ '(0 200 0 128))
 (defparameter +color-redish+ '(200 30 0 128))
+(defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
+(defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
+
+(defparameter mainloop-draw-hooks nil)
+
 
 ;; assuming a "vector" or "vector2" is a (list a b)
 (defun v2+ (a b)
@@ -115,13 +129,6 @@
      (float 0)
      +color-white+)))
 
-(defparameter example-queen
-  (make-instance
-   'piece
-   :point (make-instance 'point :x 1 :y 0)
-   :color 'white
-   :type 'queen))
-
 ;; can be <1..8> * vec ("sliding")
 (define-constant +rook-offsets+ '((1 0) (-1 0) (0 1) (0 -1)) :test #'equal)
 (define-constant +bishop-offsets+ '((1 1) (1 -1) (-1 1) (-1 -1)) :test #'equal)
@@ -131,14 +138,24 @@
 (define-constant +knight-moves+ '((1 2) (1 -2) (-1 2) (-1 -2) (2 1) (-2 1) (2 -1) (-2 -1)) :test #'equal)
 ;; not defining pawn moves because they "depend" :3
 
+(defun print-castle-rules (g)
+  (declare (type game g))
+  (format t "white: (Q: ~a, K: ~a), black: (Q: ~a, K: ~a)~%"
+          (game-white-can-castle-queenside-p g)
+          (game-white-can-castle-kingside-p g)
+          (game-black-can-castle-queenside-p g)
+          (game-black-can-castle-kingside-p g)))
+
 (defun fen->game (fen)
   (declare (type string fen))
 
   (let* ((l (split "\\s" fen))
          (fens (nth 0 l))
+         (castle-rules (nth 2 l))
          (acc nil)
          (x 0)
          (y 0))
+
     (dolist (c (coerce fens 'list))
       (let ((color (if (lower-case-p c) 'black 'white))
             (type (case (char-downcase c)
@@ -155,7 +172,6 @@
                     'piece
                     :point (make-instance 'point :x x :y y)
                     :color color
-                    :castle-p nil
                     :type type)
                    acc)
              (incf x)))
@@ -169,14 +185,14 @@
      'game
      :pieces acc
      :move-of (if (equal (nth 1 l) "w") 'white 'black)
-     :move-history nil)))
+     :move-history nil
+     :wck-p (eq (aref castle-rules 0) #\K)
+     :wcq-p (eq (aref castle-rules 1) #\Q)
+     :bck-p (eq (aref castle-rules 2) #\k)
+     :bcq-p (eq (aref castle-rules 3) #\q)
+     )))
 
-(define-constant *initial-fen* "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" :test #'equal)
-
-(defparameter mainloop-draw-hooks nil)
-
-(defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
-(defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
+(define-constant +initial-fen+ "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" :test #'equal)
 
 (defun draw-game (g)
   (declare (type game g))
@@ -259,6 +275,65 @@
                  (push `(,x* ,y*) acc)))))))
       acc)))
 
+(defun maybe-castling-moves (game p)
+  (declare (type game game)
+           (type piece p))
+  ;; TODO: checks!!!!
+  (append
+   ;; white
+   (when (and
+          (whitep p)
+          (game-white-can-castle-kingside-p game)
+          (null (piece-at-point game 5 7))
+          (null (piece-at-point game 6 7))
+          (eq (piece-type (piece-at-point game 7 7)) 'rook))
+     (list
+      (list 6 7 #'(lambda ()
+                    (let ((r (piece-at-point game 7 7)))
+                      (setf (game-white-can-castle-kingside-p game) nil)
+                      (setf (game-white-can-castle-queenside-p game) nil)
+                      (setf (piece-point r) (make-instance 'point :x 5 :y 7)))))))
+   (when (and
+          (whitep p)
+          (game-white-can-castle-queenside-p game)
+          (null (piece-at-point game 1 7))
+          (null (piece-at-point game 2 7))
+          (null (piece-at-point game 3 7))
+          (eq (piece-type (piece-at-point game 0 7)) 'rook))
+     (list
+      (list 2 7 #'(lambda ()
+                    (let ((r (piece-at-point game 0 7)))
+                      (setf (game-white-can-castle-kingside-p game) nil)
+                      (setf (game-white-can-castle-queenside-p game) nil)
+                      (setf (piece-point r) (make-instance 'point :x 3 :y 7)))))))
+   ;; black
+   (when (and
+          (blackp p)
+          (game-black-can-castle-kingside-p game)
+          (null (piece-at-point game 5 0))
+          (null (piece-at-point game 6 0))
+          (eq (piece-type (piece-at-point game 7 0)) 'rook))
+     (list
+      (list 6 0 #'(lambda ()
+                    (let ((r (piece-at-point game 7 0)))
+                      (setf (game-black-can-castle-kingside-p game) nil)
+                      (setf (game-black-can-castle-queenside-p game) nil)
+                      (setf (piece-point r) (make-instance 'point :x 5 :y 0)))))))
+   (when (and
+          (blackp p)
+          (game-black-can-castle-queenside-p game)
+          (null (piece-at-point game 1 0))
+          (null (piece-at-point game 2 0))
+          (null (piece-at-point game 3 0))
+          (eq (piece-type (piece-at-point game 0 0)) 'rook))
+     (list
+      (list 2 0 #'(lambda ()
+                    (let ((r (piece-at-point game 0 0)))
+                      (setf (game-black-can-castle-kingside-p game) nil)
+                      (setf (game-black-can-castle-queenside-p game) nil)
+                      (setf (piece-point r) (make-instance 'point :x 3 :y 0)))))))
+   ))
+
 (defun pre--possible-moves-for (game p)
   (multiple-value-bind (x y)
       (position-of p)
@@ -298,7 +373,9 @@
                         (push `(,(+ x 1) ,(+ y 1)) m)))))
               m))
       (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+)))
-      (king   (filter-own-pieces game p (enposition-moveset (list x y) +king-moves+)))
+      (king   (append
+               (filter-own-pieces game p (enposition-moveset (list x y) +king-moves+))
+               (maybe-castling-moves game p)))
       (rook   (generate-sliding-moves game p +rook-offsets+))
       (bishop (generate-sliding-moves game p +bishop-offsets+))
       (queen  (generate-sliding-moves game p +queen-offsets+))
@@ -318,9 +395,15 @@
    (pre--possible-moves-for game p)))
 
 (defun move-possible-p (p px py game)
-  (hasp (list px py) (possible-moves-for game p)))
+  (block b
+    (loop for m in (possible-moves-for game p) do
+      (when (and (eq px (car m)) (eq py (cadr m)))
+        (return-from b (if (caddr m) (caddr m) t))))
+    nil))
 
 (defparameter maybe-drag/piece nil)
+;; woah
+;; so idk how the (functionp (caddr thing)) will work in the future lol !
 (defun maybe-drag (game)
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
@@ -329,13 +412,54 @@
        (when-let ((p (piece-at-point game px py)))
          (setf maybe-drag/piece p)))
       ((and (mouse-released-p 0) maybe-drag/piece); end dragging
-       (when (move-possible-p maybe-drag/piece px py game)
-         ;; assuming move impossible if piece at point is same color
+       (when-let ((f (move-possible-p maybe-drag/piece px py game)))
          (when-let ((p (piece-at-point game px py)))
            (setf (game-pieces game)
                  (remove p (game-pieces game) :test #'equal)))
+
+         (when (and
+                (game-white-can-castle-kingside-p game)
+                (eq (piece-type maybe-drag/piece) 'rook)
+                (= (point-x (piece-point maybe-drag/piece)) 7)
+                (= (point-y (piece-point maybe-drag/piece)) 7))
+           (setf (game-white-can-castle-kingside-p game) nil))
+
+         (when (and
+                (game-white-can-castle-queenside-p game)
+                (eq (piece-type maybe-drag/piece) 'rook)
+                (= (point-x (piece-point maybe-drag/piece)) 0)
+                (= (point-y (piece-point maybe-drag/piece)) 7))
+           (setf (game-white-can-castle-queenside-p game) nil))
+
+         (when (and
+                (game-black-can-castle-kingside-p game)
+                (eq (piece-type maybe-drag/piece) 'rook)
+                (= (point-x (piece-point maybe-drag/piece)) 7)
+                (= (point-y (piece-point maybe-drag/piece)) 0))
+           (setf (game-black-can-castle-kingside-p game) nil))
+
+         (when (and
+                (game-black-can-castle-queenside-p game)
+                (eq (piece-type maybe-drag/piece) 'rook)
+                (= (point-x (piece-point maybe-drag/piece)) 0)
+                (= (point-y (piece-point maybe-drag/piece)) 0))
+           (setf (game-black-can-castle-queenside-p game) nil))
+
+         ; move thing
          (setf (piece-point maybe-drag/piece)
-               (make-instance 'point :x px :y py)))
+               (make-instance 'point :x px :y py))
+
+         (when (eq (piece-type maybe-drag/piece) 'king)
+           (if (blackp maybe-drag/piece)
+               (progn
+                 (setf (game-black-can-castle-kingside-p game) nil)
+                 (setf (game-black-can-castle-queenside-p game) nil))
+               (progn
+                 (setf (game-white-can-castle-kingside-p game) nil)
+                 (setf (game-white-can-castle-queenside-p game) nil))))
+
+         (when (functionp f) ;; TODO: this is a freaky hack
+           (funcall f)))
        (setq maybe-drag/piece nil))
       (maybe-drag/piece
        (draw-rectangle
@@ -376,24 +500,29 @@
 (add-draw-hook 'highlight-possible-moves)
 
 (defun load-textures ()
+  (setf white-texture-alist nil)
+  (setf black-texture-alist nil)
   (dolist (e white-texture-data-list)
     (push (cons (car e) (make-texture (cdr e) ".png")) white-texture-alist))
   (dolist (e black-texture-data-list)
     (push (cons (car e) (make-texture (cdr e) ".png")) black-texture-alist))
   (format t "loaded textures~%"))
 
+;; (define-constant +test-fen+ "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1" :test #'equal)
+
 (defun main (&optional argv)
   (declare (ignore argv))
 
   (init-window (* +piece-size+ 8) (* +piece-size+ 8) "hello")
-  (set-target-fps! 30)
+  (set-target-fps! 50)
 
   (load-textures)
 
   (format t "white-texture-alist: ~a~%" white-texture-alist)
   (format t "black-texture-alist: ~a~%" black-texture-alist)
 
-  (let ((game (fen->game *initial-fen*)))
+  (let ((game (fen->game +initial-fen+)))
+
     (loop :while (not (window-close-p)) :do
       (begin-drawing)
       ;; in a progn to show block

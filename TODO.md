@@ -24,6 +24,8 @@
     * [ ] szachy (nawiązanie do gry szachy)
   * [ ] :3 meow meow meow meow
   * [ ] roszada
+    * [x] roszada typu roszada
+    * [ ] szach !!!!! !!! ! ! ! 
   * [ ] szachmat
 * [ ] "bot"
   * [ ] AAAAAAAAAAA !!!!!!
