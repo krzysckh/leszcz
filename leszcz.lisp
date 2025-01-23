@@ -404,10 +404,8 @@
                            `(let* ((ts (game-en-passant-target-square game))
                                    (pt (when ts
                                          (if (whitep p)
-                                             (v2- (game-en-passant-target-square game)
-                                                  (list 0 1))
-                                             (v2+ (game-en-passant-target-square game)
-                                                  (list 0 1))))))
+                                             (v2- (game-en-passant-target-square game) '(0 1))
+                                             (v2+ (game-en-passant-target-square game) '(0 1))))))
                               (if (and ts (equal (list ,x* ,y*) pt))
                                   (push
                                    (list ,x*
