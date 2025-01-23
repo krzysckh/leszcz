@@ -399,7 +399,7 @@
                           nil)))
 
               ;; going forwards done, generate capturing moves
-              (macrolet ((maybe-pushmove (game x* y*)
+              (macrolet ((maybe-pushmove (x* y*)
                            ;; en passant?
                            `(let* ((ts (game-en-passant-target-square game))
                                    (pt (when ts
@@ -423,11 +423,11 @@
                                       (push (list ,x* ,y*) m)))))))
                 (if (whitep p)
                     (progn
-                      (maybe-pushmove game (- x 1) (- y 1))
-                      (maybe-pushmove game (+ x 1) (- y 1)))
+                      (maybe-pushmove (- x 1) (- y 1))
+                      (maybe-pushmove (+ x 1) (- y 1)))
                     (progn
-                      (maybe-pushmove game (- x 1) (+ y 1))
-                      (maybe-pushmove game (+ x 1) (+ y 1)))))
+                      (maybe-pushmove (- x 1) (+ y 1))
+                      (maybe-pushmove (+ x 1) (+ y 1)))))
               m))
       (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+)))
       (king   (append
