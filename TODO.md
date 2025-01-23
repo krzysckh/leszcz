@@ -15,7 +15,7 @@
       * [x] ruchy typu o 2
       * [x] bicie
       * [ ] zmiana w hetmana
-      * [ ] ę pasą (bicie w przelocie)
+      * [x] ę pasą (bicie w przelocie)
     * [x] wieża
     * [x] goniec
     * [x] skoczek

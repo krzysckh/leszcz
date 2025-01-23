@@ -31,9 +31,6 @@
   ((pieces
     :initarg :pieces
     :accessor game-pieces)
-   (move-of
-    :initarg :move-of
-    :accessor game-move-of)
    (move-history
     :initarg :move-history
     :accessor game-move-history)
@@ -49,6 +46,9 @@
    (white-can-castle-kingside-p
     :initarg :wck-p
     :accessor game-white-can-castle-kingside-p)
+   (en-passant-target-square
+    :initarg :en-passant-target-square
+    :accessor game-en-passant-target-square)
    (ticker
     :initarg :ticker
     :initform 0
@@ -126,6 +126,11 @@
    (+ (car a) (car b))
    (+ (cadr a) (cadr b))))
 
+(defun v2- (a b)
+  (list
+   (- (car a) (car b))
+   (- (cadr a) (cadr b))))
+
 (defun floatize (l)
   (mapcar #'float l))
 
@@ -161,6 +166,14 @@
           (game-white-can-castle-kingside-p g)
           (game-black-can-castle-queenside-p g)
           (game-black-can-castle-kingside-p g)))
+
+;; e4 -> (4 4)
+(defun pos->lst (s)
+  (declare (type string s))
+  (when (= (length s) 2)
+    (list
+     (- (char-int (aref s 0)) (char-int #\a))
+     (- 8 (- (char-int (aref s 1)) (char-int #\0))))))
 
 (defun fen->game (fen)
   (declare (type string fen))
@@ -200,12 +213,14 @@
     (make-instance
      'game
      :pieces acc
-     :move-of (if (equal (nth 1 l) "w") 'white 'black)
+     :ticker (if (equal (nth 1 l) "w") 0 1)
+     ;; TODO: ^ to nie jest prawda, ticker powinien sie zgadzać z fenem
      :move-history nil
      :wck-p (eq (aref castle-rules 0) #\K)
      :wcq-p (eq (aref castle-rules 1) #\Q)
      :bck-p (eq (aref castle-rules 2) #\k)
      :bcq-p (eq (aref castle-rules 3) #\q)
+     :en-passant-target-square (pos->lst (nth 3 l))
      )))
 
 (define-constant +initial-fen+ "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" :test #'equal)
@@ -304,7 +319,8 @@
           (null (piece-at-point game 6 7))
           (eq (piece-type (piece-at-point game 7 7)) 'rook))
      (list
-      (list 6 7 #'(lambda ()
+      (list 6 7 #'(lambda (&rest _)
+                    (declare (ignore _))
                     (let ((r (piece-at-point game 7 7)))
                       (setf (game-white-can-castle-kingside-p game) nil)
                       (setf (game-white-can-castle-queenside-p game) nil)
@@ -317,7 +333,8 @@
           (null (piece-at-point game 3 7))
           (eq (piece-type (piece-at-point game 0 7)) 'rook))
      (list
-      (list 2 7 #'(lambda ()
+      (list 2 7 #'(lambda (&rest _)
+                    (declare (ignore _))
                     (let ((r (piece-at-point game 0 7)))
                       (setf (game-white-can-castle-kingside-p game) nil)
                       (setf (game-white-can-castle-queenside-p game) nil)
@@ -330,7 +347,8 @@
           (null (piece-at-point game 6 0))
           (eq (piece-type (piece-at-point game 7 0)) 'rook))
      (list
-      (list 6 0 #'(lambda ()
+      (list 6 0 #'(lambda (&rest _)
+                    (declare (ignore _))
                     (let ((r (piece-at-point game 7 0)))
                       (setf (game-black-can-castle-kingside-p game) nil)
                       (setf (game-black-can-castle-queenside-p game) nil)
@@ -343,7 +361,8 @@
           (null (piece-at-point game 3 0))
           (eq (piece-type (piece-at-point game 0 0)) 'rook))
      (list
-      (list 2 0 #'(lambda ()
+      (list 2 0 #'(lambda (&rest _)
+                    (declare (ignore _))
                     (let ((r (piece-at-point game 0 0)))
                       (setf (game-black-can-castle-kingside-p game) nil)
                       (setf (game-black-can-castle-queenside-p game) nil)
@@ -363,30 +382,52 @@
                             game p
                             (append
                              (if (and (whitep p) (= (point-y (piece-point p)) 6))
-                                 (list (v2+ (list x y) '(0 -2)))
+                                 (let ((pos (v2+ (list x y) '(0 -2))))
+                                   (list (append
+                                          pos
+                                          (list
+                                           #'(lambda (game) (setf (game-en-passant-target-square game) pos))))))
                                  nil)
                              (if (and (blackp p) (= (point-y (piece-point p)) 1))
-                                 (list (v2+ (list x y) '(0 2)))
+                                 (let ((pos (v2+ (list x y) '(0 2))))
+                                   (list (append
+                                          pos
+                                          (list
+                                           #'(lambda (game) (setf (game-en-passant-target-square game) pos))))))
                                  nil))
                             t))
                           nil)))
+
               ;; going forwards done, generate capturing moves
-              ;; TODO: dry
-              (if (whitep p)
-                  (progn
-                    (when-let ((p* (piece-at-point game (- x 1) (- y 1))))
-                      (when (blackp p*)
-                        (push `(,(- x 1) ,(- y 1)) m)))
-                    (when-let ((p* (piece-at-point game (+ x 1) (- y 1))))
-                      (when (blackp p*)
-                        (push `(,(+ x 1) ,(- y 1)) m))))
-                  (progn
-                    (when-let ((p* (piece-at-point game (- x 1) (+ y 1))))
-                      (when (whitep p*)
-                        (push `(,(- x 1) ,(+ y 1)) m)))
-                    (when-let ((p* (piece-at-point game (+ x 1) (+ y 1))))
-                      (when (whitep p*)
-                        (push `(,(+ x 1) ,(+ y 1)) m)))))
+              (macrolet ((maybe-pushmove (game x* y*)
+                           ;; en passant?
+                           `(let* ((ts (game-en-passant-target-square game))
+                                   (pt (when ts
+                                         (if (whitep p)
+                                             (v2- (game-en-passant-target-square game)
+                                                  (list 0 1))
+                                             (v2+ (game-en-passant-target-square game)
+                                                  (list 0 1))))))
+                              (if (and ts (equal (list ,x* ,y*) pt))
+                                  (push
+                                   (list ,x*
+                                         ,y*
+                                         #'(lambda (game)
+                                             (let ((p (piece-at-point game (car ts) (cadr ts))))
+                                               (setf (game-pieces game)
+                                                     (remove p (game-pieces game) :test #'equal)))))
+                                   m)
+                                  ;; normal capturing
+                                  (when-let ((p* (piece-at-point game ,x* ,y*)))
+                                    (when (not (eq (piece-color p) (piece-color p*)))
+                                      (push (list ,x* ,y*) m)))))))
+                (if (whitep p)
+                    (progn
+                      (maybe-pushmove game (- x 1) (- y 1))
+                      (maybe-pushmove game (+ x 1) (- y 1)))
+                    (progn
+                      (maybe-pushmove game (- x 1) (+ y 1))
+                      (maybe-pushmove game (+ x 1) (+ y 1)))))
               m))
       (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+)))
       (king   (append
@@ -463,6 +504,9 @@
                 (= (point-y (piece-point maybe-drag/piece)) 0))
            (setf (game-black-can-castle-queenside-p game) nil))
 
+         ;; (format t "en-passant-target-square was ~a~%" (game-en-passant-target-square game))
+         (setf (game-en-passant-target-square game) nil)
+
          ; move thing
          (setf (piece-point maybe-drag/piece)
                (make-instance 'point :x px :y py))
@@ -478,7 +522,12 @@
                  (setf (game-white-can-castle-queenside-p game) nil))))
 
          (when (functionp f) ;; TODO: this is a freaky hack
-           (funcall f)))
+           ;; this funcall can:
+           ;;  * move rook after castling
+           ;;  * set en-passant-target-square
+           ;;  * delete a pawn after en passant
+           (funcall f game)))
+
        (setq maybe-drag/piece nil))
       (maybe-drag/piece
        (draw-rectangle
@@ -517,7 +566,6 @@
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
-
 
 (defun load-textures ()
   (setf white-texture-alist nil)
