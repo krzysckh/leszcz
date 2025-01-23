@@ -48,7 +48,24 @@
     :accessor game-white-can-castle-queenside-p)
    (white-can-castle-kingside-p
     :initarg :wck-p
-    :accessor game-white-can-castle-kingside-p)))
+    :accessor game-white-can-castle-kingside-p)
+   (ticker
+    :initarg :ticker
+    :initform 0
+    :accessor game-ticker)
+  ))
+
+(defmethod game-tick ((g game))
+  (incf (game-ticker g)))
+
+(defmethod game-turn ((g game))
+  (if (= (mod (game-ticker g) 2) 0) 'white 'black))
+
+(defmethod game-turn-white-p ((g game))
+  (eq (game-turn g) 'white))
+
+(defmethod game-turn-black-p ((g game))
+  (eq (game-turn g) 'black))
 
 (defun file->vec (fname)
   (let* ((f (open fname :element-type '(unsigned-byte 8)))
@@ -102,7 +119,6 @@
 (defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
 
 (defparameter mainloop-draw-hooks nil)
-
 
 ;; assuming a "vector" or "vector2" is a (list a b)
 (defun v2+ (a b)
@@ -405,12 +421,14 @@
 ;; woah
 ;; so idk how the (functionp (caddr thing)) will work in the future lol !
 (defun maybe-drag (game)
+  (declare (type game game))
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
     (cond
       ((mouse-pressed-p 0)  ; begin dragging
        (when-let ((p (piece-at-point game px py)))
-         (setf maybe-drag/piece p)))
+         (when (eq (piece-color p) (game-turn game))
+           (setf maybe-drag/piece p))))
       ((and (mouse-released-p 0) maybe-drag/piece); end dragging
        (when-let ((f (move-possible-p maybe-drag/piece px py game)))
          (when-let ((p (piece-at-point game px py)))
@@ -448,6 +466,7 @@
          ; move thing
          (setf (piece-point maybe-drag/piece)
                (make-instance 'point :x px :y py))
+         (game-tick game)
 
          (when (eq (piece-type maybe-drag/piece) 'king)
            (if (blackp maybe-drag/piece)
@@ -499,14 +518,21 @@
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
 
+
 (defun load-textures ()
   (setf white-texture-alist nil)
   (setf black-texture-alist nil)
-  (dolist (e white-texture-data-list)
-    (push (cons (car e) (make-texture (cdr e) ".png")) white-texture-alist))
-  (dolist (e black-texture-data-list)
-    (push (cons (car e) (make-texture (cdr e) ".png")) black-texture-alist))
-  (format t "loaded textures~%"))
+  (macrolet ((load* (data-list alist)
+               `(dolist (e ,data-list)
+                  (let ((texture (make-texture (cdr e) ".png")))
+                    ;; TODO: czemu tekstury są tak rozpikselizowane lol
+                    (set-texture-filter! texture +TEXTURE-FILTER-POINT+)
+                    (push (cons (car e) texture) ,alist)))))
+
+    (load* white-texture-data-list white-texture-alist)
+    (load* black-texture-data-list black-texture-alist)
+
+    (format t "loaded textures~%")))
 
 ;; (define-constant +test-fen+ "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1" :test #'equal)
 
@@ -515,6 +541,7 @@
 
   (init-window (* +piece-size+ 8) (* +piece-size+ 8) "hello")
   (set-target-fps! 50)
+  (set-exit-key! -1)
 
   (load-textures)
 

@@ -1,6 +1,7 @@
 (defpackage :raylib
   (:use :common-lisp :cffi)
   (:export
+   ;; Functions and whatnot
    color
    init-window
    close-window
@@ -22,6 +23,16 @@
    image->texture
    make-texture
    draw-texture
+   set-exit-key!
+   set-texture-filter!
+
+   ;; Constants
+   +TEXTURE-FILTER-POINT+
+   +TEXTURE-FILTER-BILINEAR+
+   +TEXTURE-FILTER-TRILINEAR+
+   +TEXTURE-FILTER-ANISOTROPIC-4X+
+   +TEXTURE-FILTER-ANISOTROPIC-8X+
+   +TEXTURE-FILTER-ANISOTROPIC-16X+
    ))
 
 (in-package :raylib)
@@ -165,6 +176,21 @@
 
 (defcfun ("IsMouseButtonReleased" mouse-released-p) :bool
   (b :int))
+
+(defcfun ("SetExitKey" set-exit-key!) :void
+  (k :int))
+
+(defcfun ("SetTextureFilter" set-texture-filter!) :void
+  (texture (:struct texture))
+  (filter :int))
+
+
+(defconstant +TEXTURE-FILTER-POINT+ 0)
+(defconstant +TEXTURE-FILTER-BILINEAR+ 1)
+(defconstant +TEXTURE-FILTER-TRILINEAR+ 2)
+(defconstant +TEXTURE-FILTER-ANISOTROPIC-4X+ 3)
+(defconstant +TEXTURE-FILTER-ANISOTROPIC-8X+ 4)
+(defconstant +TEXTURE-FILTER-ANISOTROPIC-16X+ 5)
 
 (defun type-color-p (l)
   (and (listp l) (= (length l) 4)))
