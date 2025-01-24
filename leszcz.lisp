@@ -507,7 +507,7 @@
     (block brk
       (loop for p in checkers do
         (when (move-possible-p p px py game :check-mode t)
-          (format t "point (~a, ~a) is checkable by ~a (~a)~%" px py p (piece-type p))
+          ;; (format t "point (~a, ~a) is checkable by ~a (~a)~%" px py p (piece-type p))
           (return-from brk t)))
       nil)))
 
@@ -616,18 +616,18 @@
 (defun remove-draw-hook (name)
   (setf mainloop-draw-hooks (remove name mainloop-draw-hooks)))
 
-(defun describe-checked (game)
-  (multiple-value-bind (px py)
-      (coords->point (mouse-x) (mouse-y))
-    (draw-text
-     (if (point-checked-p game px py 'black)
-         "yes"
-         "no")
-     0
-     100
-     32
-     +color-white+)))
-(add-draw-hook 'describe-checked)
+;; (defun describe-checked (game)
+;;   (multiple-value-bind (px py)
+;;       (coords->point (mouse-x) (mouse-y))
+;;     (draw-text
+;;      (if (point-checked-p game px py 'black)
+;;          "yes"
+;;          "no")
+;;      0
+;;      100
+;;      32
+;;      +color-white+)))
+;; (add-draw-hook 'describe-checked)
 
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
