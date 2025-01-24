@@ -21,13 +21,14 @@
     * [x] skoczek
     * [x] hetman
     * [x] król
-    * [ ] szachy (nawiązanie do gry szachy)
+    * [x] szachy (nawiązanie do gry szachy)
       * [x] szachy prawie wszystkie
-      * [ ] patrz roszada -> szach
+      * [x] patrz roszada -> szach
+    * [ ] maty
   * [ ] :3 meow meow meow meow
-  * [ ] roszada
+  * [x] roszada
     * [x] roszada typu roszada
-    * [ ] szach !!!!! !!! ! ! ! 
+    * [x] szach !!!!! !!! ! ! ! 
   * [ ] szachmat
 * [ ] "bot"
   * [ ] AAAAAAAAAAA !!!!!!

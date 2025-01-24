@@ -27,6 +27,12 @@
     :initarg :point
     :accessor piece-point)))
 
+(defmethod print-object ((p piece) s)
+  (format s "piece(~a[~a])" (piece-type p) (piece-color p)))
+
+(defmethod print-object ((p point) s)
+  (format s "point(~a ~a)" (point-x p) (point-y p)))
+
 (defclass game ()
   ((pieces
     :initarg :pieces
@@ -53,10 +59,15 @@
     :initarg :ticker
     :initform 0
     :accessor game-ticker)
+   (possible-moves-cache
+    :initarg :possible-moves-cache
+    :initform nil
+    :accessor game-possible-moves-cache)
   ))
 
 (defmethod game-tick ((g game))
-  (incf (game-ticker g)))
+  (incf (game-ticker g))
+  (game-update-possible-moves-cache g))
 
 (defmethod game-turn ((g game))
   (if (= (mod (game-ticker g) 2) 0) 'white 'black))
@@ -175,6 +186,7 @@
      (- (char-int (aref s 0)) (char-int #\a))
      (- 8 (- (char-int (aref s 1)) (char-int #\0))))))
 
+;; TODO: roszady są oznaczane nie ---- tylko - - itd sprawdz se na lichess
 (defun fen->game (fen)
   (declare (type string fen))
 
@@ -317,7 +329,6 @@
 (defun maybe-castling-moves (game p)
   (declare (type game game)
            (type piece p))
-  ;; TODO: checks!!!!
   (append
    ;; white
    (when (and
@@ -325,6 +336,8 @@
           (game-white-can-castle-kingside-p game)
           (null (piece-at-point game 5 7))
           (null (piece-at-point game 6 7))
+          (not (point-checked-p game 5 7 'black))
+          (not (point-checked-p game 6 7 'black))
           (eq (piece-type (piece-at-point game 7 7)) 'rook))
      (list
       (list 6 7 #'(lambda (game)
@@ -338,6 +351,8 @@
           (null (piece-at-point game 1 7))
           (null (piece-at-point game 2 7))
           (null (piece-at-point game 3 7))
+          (not (point-checked-p game 2 7 'black))
+          (not (point-checked-p game 3 7 'black))
           (eq (piece-type (piece-at-point game 0 7)) 'rook))
      (list
       (list 2 7 #'(lambda (game)
@@ -351,6 +366,8 @@
           (game-black-can-castle-kingside-p game)
           (null (piece-at-point game 5 0))
           (null (piece-at-point game 6 0))
+          (not (point-checked-p game 5 0 'white))
+          (not (point-checked-p game 6 0 'white))
           (eq (piece-type (piece-at-point game 7 0)) 'rook))
      (list
       (list 6 0 #'(lambda (game)
@@ -364,6 +381,8 @@
           (null (piece-at-point game 1 0))
           (null (piece-at-point game 2 0))
           (null (piece-at-point game 3 0))
+          (not (point-checked-p game 2 0 'white))
+          (not (point-checked-p game 3 0 'white))
           (eq (piece-type (piece-at-point game 0 0)) 'rook))
      (list
       (list 2 0 #'(lambda (game)
@@ -458,32 +477,45 @@
         (return-from b p)))
     nil))
 
-(defun possible-moves-for (game p &key check-mode)
+;; game-possible-moves-cache: ((x y ((x' y') ...)))
+(defmethod game-update-possible-moves-cache ((g game))
+  (setf (game-possible-moves-cache g) nil)
+  (dolist (p (game-pieces g))
+    (when (eq (piece-color p) (game-turn g))
+      (setf (game-possible-moves-cache g)
+            (acons (piece-point p)
+                   (possible-moves-for g p :recache t)
+                   (game-possible-moves-cache g)))))
+  (format t "cache is ~a~%" (game-possible-moves-cache g)))
+
+(defun possible-moves-for (game p &key check-mode recache)
   (declare (type piece p)
            (type game game))
-  (let ((point (piece-point p)))
-    (remove-if
-     #'(lambda (pos)
-         (when (not check-mode)
-           (let ((p-was (piece-at-point game (car pos) (cadr pos))))
-             (setf (piece-point p) (make-instance 'point :x (car pos) :y (cadr pos)))
-             (let* ((king (king-of game (piece-color p)))
-                    (king-point (piece-point king)))
-               (when p-was
-                 (setf (game-pieces game) (remove p-was (game-pieces game) :test #'equal)))
-               (prog1
-                   (point-checked-p game (point-x king-point) (point-y king-point) (if (whitep king) 'black 'white))
-                 (setf (piece-point p) point)
-                 (when p-was
-                   (push p-was (game-pieces game))))))))
-     (remove-if
-      #'(lambda (pos)
-          (or
-           (< (car pos) 0)
-           (< (cadr pos) 0)
-           (> (car pos) 7)
-           (> (cadr pos) 7)))
-      (pre--possible-moves-for game p check-mode)))))
+  (if (or recache check-mode)
+      (let ((point (piece-point p)))
+        (remove-if
+         #'(lambda (pos)
+             (when (not check-mode)
+               (let ((p-was (piece-at-point game (car pos) (cadr pos))))
+                 (setf (piece-point p) (make-instance 'point :x (car pos) :y (cadr pos)))
+                 (let* ((king (king-of game (piece-color p)))
+                        (king-point (piece-point king)))
+                   (when p-was
+                     (setf (game-pieces game) (remove p-was (game-pieces game) :test #'equal)))
+                   (prog1
+                       (point-checked-p game (point-x king-point) (point-y king-point) (if (whitep king) 'black 'white))
+                     (setf (piece-point p) point)
+                     (when p-was
+                       (push p-was (game-pieces game))))))))
+         (remove-if
+          #'(lambda (pos)
+              (or
+               (< (car pos) 0)
+               (< (cadr pos) 0)
+               (> (car pos) 7)
+               (> (cadr pos) 7)))
+          (pre--possible-moves-for game p check-mode))))
+      (cdr (assoc (piece-point p) (game-possible-moves-cache game) :test #'equal))))
 
 (defun move-possible-p (p px py game &key check-mode)
   (block b
@@ -506,9 +538,19 @@
                    (game-pieces game))))
     (block brk
       (loop for p in checkers do
-        (when (move-possible-p p px py game :check-mode t)
-          ;; (format t "point (~a, ~a) is checkable by ~a (~a)~%" px py p (piece-type p))
-          (return-from brk t)))
+        (if (eq (piece-type p) 'king)
+            (let ((x (point-x (piece-point p)))
+                  (y (point-y (piece-point p))))
+              (when (and (or (= px x)
+                             (= px (- x 1))
+                             (= px (+ x 1)))
+                         (or (= py y)
+                             (= py (- y 1))
+                             (= py (+ y 1))))
+                (return-from brk t)))
+            (when (move-possible-p p px py game :check-mode t)
+              ;; (format t "point (~a, ~a) is checkable by ~a (~a)~%" px py p (piece-type p))
+              (return-from brk t))))
       nil)))
 
 (defparameter maybe-drag/piece nil)
@@ -564,6 +606,8 @@
          (setf (piece-point maybe-drag/piece)
                (make-instance 'point :x px :y py))
          (game-tick game)
+
+         (format t "After move, game-pieces: ~a~%" (game-pieces game))
 
          (when (eq (piece-type maybe-drag/piece) 'king)
            (if (blackp maybe-drag/piece)
@@ -648,7 +692,7 @@
 
     (format t "loaded textures~%")))
 
-;; (define-constant +test-fen+ "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQK2R w KQkq - 0 1" :test #'equal)
+(defparameter test-fen "5qk1/1q6/8/8/8/8/8/R3K2R w KQ-- - 0 1")
 
 (defun main (&optional argv)
   (declare (ignore argv))
@@ -662,7 +706,8 @@
   (format t "white-texture-alist: ~a~%" white-texture-alist)
   (format t "black-texture-alist: ~a~%" black-texture-alist)
 
-  (let ((game (fen->game +initial-fen+)))
+  (let ((game (fen->game test-fen)))
+    (game-update-possible-moves-cache game)
 
     (loop :while (not (window-close-p)) :do
       (begin-drawing)
