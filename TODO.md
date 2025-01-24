@@ -22,6 +22,8 @@
     * [x] hetman
     * [x] król
     * [ ] szachy (nawiązanie do gry szachy)
+      * [x] szachy prawie wszystkie
+      * [ ] patrz roszada -> szach
   * [ ] :3 meow meow meow meow
   * [ ] roszada
     * [x] roszada typu roszada
