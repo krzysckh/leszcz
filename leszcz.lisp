@@ -507,8 +507,8 @@
        ;; stalemate
        (display-stalemate g))
       (t
-       (format t "cache is ~a~%"
-       (values))))))
+       (format t "cache is ~a~%" c)
+       (values)))))
 
 (defun possible-moves-for (game p &key check-mode recache)
   (declare (type piece p)
@@ -629,8 +629,6 @@
                (make-instance 'point :x px :y py))
          (game-tick game)
 
-         (format t "After move, game-pieces: ~a~%" (game-pieces game))
-
          (when (eq (piece-type maybe-drag/piece) 'king)
            (if (blackp maybe-drag/piece)
                (progn
@@ -714,7 +712,7 @@
 
     (format t "loaded textures~%")))
 
-(defparameter test-fen "5qk1/1q6/8/8/8/8/8/R3K2R w KQ-- - 0 1")
+;; (defparameter test-fen "5qk1/1q6/8/8/8/8/8/R3K2R w KQ-- - 0 1")
 
 (defun main (&optional argv)
   (declare (ignore argv))
@@ -728,7 +726,7 @@
   (format t "white-texture-alist: ~a~%" white-texture-alist)
   (format t "black-texture-alist: ~a~%" black-texture-alist)
 
-  (let ((game (fen->game test-fen)))
+  (let ((game (fen->game +initial-fen+)))
     (game-update-possible-moves-cache game)
 
     (loop :while (not (window-close-p)) :do
