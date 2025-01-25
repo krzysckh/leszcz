@@ -599,7 +599,7 @@
 (defun load-textures ()
   (setf white-texture-alist nil)
   (setf black-texture-alist nil)
-  (setf raylib:*font* (make-font spleen-data ".otf" 16 1024))
+  (setf raylib:*font* (make-font spleen-data ".otf" 18 1024))
   (macrolet ((load* (data-list alist)
                `(dolist (e ,data-list)
                   (let ((texture (make-texture (cdr e) ".png")))
@@ -619,6 +619,10 @@
 
 (defun main (&optional argv)
   (declare (ignore argv))
+
+  (setf gui::toplevel-console/console-on-screen-p nil) ;; TODO: move this somewhere else but run @ init
+  (setf gui::toplevel-console/log nil)
+  (setf gui::toplevel-console/state "")
 
   (init-window *window-width* *window-height* ":leszcz")
   (set-target-fps! 50)
@@ -641,7 +645,7 @@
         (clear-background +color-grayish+)
         (draw-game game)
         (dolist (h mainloop-draw-hooks)
-          (funcall h game #'(lambda () (remove-draw-hook h)))))
+          (funcall h game)))
       (end-drawing)))
 
   (close-window))

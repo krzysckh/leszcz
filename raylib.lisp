@@ -31,6 +31,7 @@
    get-char-pressed
    get-chars-pressed
    key-pressed-p
+   key-pressed-p-1
 
    ;; Constants
    +TEXTURE-FILTER-POINT+
