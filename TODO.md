@@ -24,7 +24,8 @@
     * [x] szachy (nawiązanie do gry szachy)
       * [x] szachy prawie wszystkie
       * [x] patrz roszada -> szach
-    * [ ] maty
+    * [x] maty
+    * [x] paty
   * [ ] :3 meow meow meow meow
   * [x] roszada
     * [x] roszada typu roszada
