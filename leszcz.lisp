@@ -477,16 +477,38 @@
         (return-from b p)))
     nil))
 
+(defun display-mate (game)
+  (declare (type game game))
+  (format t "Mate! ~a won!~%" (if (eq (game-turn game) 'white) 'black 'white)))
+
+(defun display-stalemate (game)
+  (declare (type game game)
+           (ignore game))
+  (format t "Stalemate!~%"))
+
 ;; game-possible-moves-cache: ((x y ((x' y') ...)))
 (defmethod game-update-possible-moves-cache ((g game))
   (setf (game-possible-moves-cache g) nil)
   (dolist (p (game-pieces g))
     (when (eq (piece-color p) (game-turn g))
-      (setf (game-possible-moves-cache g)
-            (acons (piece-point p)
-                   (possible-moves-for g p :recache t)
-                   (game-possible-moves-cache g)))))
-  (format t "cache is ~a~%" (game-possible-moves-cache g)))
+      (let ((possible (possible-moves-for g p :recache t)))
+        (when possible
+          (setf (game-possible-moves-cache g)
+                (acons (piece-point p)
+                       possible
+                       (game-possible-moves-cache g)))))))
+  (let ((c (game-possible-moves-cache g))
+        (k (king-of g (game-turn g))))
+    (cond
+      ((and (null c) (point-checked-p g (point-x (piece-point k)) (point-y (piece-point k)) (if (whitep k) 'black 'white)))
+       ;; mate
+       (display-mate g))
+      ((null c)
+       ;; stalemate
+       (display-stalemate g))
+      (t
+       (format t "cache is ~a~%"
+       (values))))))
 
 (defun possible-moves-for (game p &key check-mode recache)
   (declare (type piece p)
