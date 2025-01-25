@@ -42,12 +42,18 @@
    (- (car a) (car b))
    (- (cadr a) (cadr b))))
 
-(defun draw-piece (p)
-  (declare (type piece p))
+(defun maybe-reverse (g pt)
+  (if (eq (game-side g) 'white)
+      pt
+      (- 7 pt)))
+
+(defun draw-piece (g p)
+  (declare (type piece p)
+           (type game g))
 
   (let* ((point (piece-point p))
-         (x (* +piece-size+ (point-x point)))
-         (y (* +piece-size+ (point-y point)))
+         (x (* +piece-size+ (maybe-reverse g (point-x point))))
+         (y (* +piece-size+ (maybe-reverse g (point-y point))))
          (al (if (whitep p) white-texture-alist black-texture-alist))
          (texture (cdr (assoc (piece-type p) al))))
 
@@ -131,11 +137,12 @@
      :bck-p (eq (aref castle-rules 2) #\k)
      :bcq-p (eq (aref castle-rules 3) #\q)
      :en-passant-target-square (pos->lst (nth 3 l))
+     :side 'white
      )))
 
 (defun draw-game (g)
   (declare (type game g))
-  (let ((i 0))
+  (let ((i (if (eq (game-side g) 'white) 0 1)))
     (loop for y from 0 to 7 do
       (loop for x from 0 to 8 do
         (let ((color (if (= (mod i 2) 0) +color-bg-light+ +color-bg-dark+)))
@@ -144,7 +151,7 @@
 
   (let ((pieces (game-pieces g)))
     (dolist (p pieces)
-      (draw-piece p))))
+      (draw-piece g p))))
 
 (defun coord->value (v)
   (floor (/ v +piece-size+)))
@@ -295,7 +302,10 @@
       ;; TODO: ale swietny kod
       ;; TODO: no troche spaghetti
       (pawn (let* ((m (when (not check-mode)
-                        (filter-own-pieces game p (list (v2+ (list x y) (list 0 (if (whitep p) -1 1)))) :disallow-taking t)))
+                        (filter-own-pieces
+                         game p
+                         (list (v2+ (list x y) (list 0 (if (whitep p) -1 1))))
+                         :disallow-taking t)))
                    (m (when (not check-mode)
                         (if m
                             (append
@@ -308,14 +318,16 @@
                                      (list (append
                                             pos
                                             (list
-                                             #'(lambda (game) (setf (game-en-passant-target-square game) pos))))))
+                                             #'(lambda (game)
+                                                 (setf (game-en-passant-target-square game) pos))))))
                                    nil)
                                (if (and (blackp p) (= (point-y (piece-point p)) 1))
                                    (let ((pos (v2+ (list x y) '(0 2))))
                                      (list (append
                                             pos
                                             (list
-                                             #'(lambda (game) (setf (game-en-passant-target-square game) pos))))))
+                                             #'(lambda (game)
+                                                 (setf (game-en-passant-target-square game) pos))))))
                                    nil))
                               :disallow-taking t))
                             nil))))
@@ -326,8 +338,8 @@
                            `(let* ((ts (game-en-passant-target-square game))
                                    (pt (when ts
                                          (if (whitep p)
-                                             (v2- (game-en-passant-target-square game) '(0 1))
-                                             (v2+ (game-en-passant-target-square game) '(0 1))))))
+                                            (v2- (game-en-passant-target-square game) '(0 1))
+                                            (v2+ (game-en-passant-target-square game) '(0 1))))))
                               (if (and ts (equal (list ,x* ,y*) pt))
                                   (push
                                    (list ,x*
@@ -483,85 +495,87 @@
   (declare (type game game))
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
-    (cond
-      ((mouse-pressed-p 0)  ; begin dragging
-       (when-let ((p (piece-at-point game px py)))
-         (when (eq (piece-color p) (game-turn game))
-           (setf maybe-drag/piece p))))
-      ((and (mouse-released-p 0) maybe-drag/piece); end dragging
-       (when-let ((f (move-possible-p maybe-drag/piece px py game)))
+    (let ((px (maybe-reverse game px))
+          (py (maybe-reverse game py)))
+      (cond
+        ((mouse-pressed-p 0)  ; begin dragging
          (when-let ((p (piece-at-point game px py)))
-           (setf (game-pieces game)
-                 (remove p (game-pieces game) :test #'equal)))
+           (when (eq (piece-color p) (game-turn game))
+             (setf maybe-drag/piece p))))
+        ((and (mouse-released-p 0) maybe-drag/piece); end dragging
+         (when-let ((f (move-possible-p maybe-drag/piece px py game)))
+           (when-let ((p (piece-at-point game px py)))
+             (setf (game-pieces game)
+                   (remove p (game-pieces game) :test #'equal)))
 
-         (when (and
-                (game-white-can-castle-kingside-p game)
-                (eq (piece-type maybe-drag/piece) 'rook)
-                (= (point-x (piece-point maybe-drag/piece)) 7)
-                (= (point-y (piece-point maybe-drag/piece)) 7))
-           (setf (game-white-can-castle-kingside-p game) nil))
+           (when (and
+                  (game-white-can-castle-kingside-p game)
+                  (eq (piece-type maybe-drag/piece) 'rook)
+                  (= (point-x (piece-point maybe-drag/piece)) 7)
+                  (= (point-y (piece-point maybe-drag/piece)) 7))
+             (setf (game-white-can-castle-kingside-p game) nil))
 
-         (when (and
-                (game-white-can-castle-queenside-p game)
-                (eq (piece-type maybe-drag/piece) 'rook)
-                (= (point-x (piece-point maybe-drag/piece)) 0)
-                (= (point-y (piece-point maybe-drag/piece)) 7))
-           (setf (game-white-can-castle-queenside-p game) nil))
+           (when (and
+                  (game-white-can-castle-queenside-p game)
+                  (eq (piece-type maybe-drag/piece) 'rook)
+                  (= (point-x (piece-point maybe-drag/piece)) 0)
+                  (= (point-y (piece-point maybe-drag/piece)) 7))
+             (setf (game-white-can-castle-queenside-p game) nil))
 
-         (when (and
-                (game-black-can-castle-kingside-p game)
-                (eq (piece-type maybe-drag/piece) 'rook)
-                (= (point-x (piece-point maybe-drag/piece)) 7)
-                (= (point-y (piece-point maybe-drag/piece)) 0))
-           (setf (game-black-can-castle-kingside-p game) nil))
+           (when (and
+                  (game-black-can-castle-kingside-p game)
+                  (eq (piece-type maybe-drag/piece) 'rook)
+                  (= (point-x (piece-point maybe-drag/piece)) 7)
+                  (= (point-y (piece-point maybe-drag/piece)) 0))
+             (setf (game-black-can-castle-kingside-p game) nil))
 
-         (when (and
-                (game-black-can-castle-queenside-p game)
-                (eq (piece-type maybe-drag/piece) 'rook)
-                (= (point-x (piece-point maybe-drag/piece)) 0)
-                (= (point-y (piece-point maybe-drag/piece)) 0))
-           (setf (game-black-can-castle-queenside-p game) nil))
+           (when (and
+                  (game-black-can-castle-queenside-p game)
+                  (eq (piece-type maybe-drag/piece) 'rook)
+                  (= (point-x (piece-point maybe-drag/piece)) 0)
+                  (= (point-y (piece-point maybe-drag/piece)) 0))
+             (setf (game-black-can-castle-queenside-p game) nil))
 
-         ;; (format t "en-passant-target-square was ~a~%" (game-en-passant-target-square game))
-         (setf (game-en-passant-target-square game) nil)
+           (setf (game-en-passant-target-square game) nil)
 
-         ; move thing
-         (setf (piece-point maybe-drag/piece)
-               (make-instance 'point :x px :y py))
-         (game-tick game)
+           ;; move thing
+           (setf (piece-point maybe-drag/piece)
+                 (make-instance 'point :x px :y py))
+           (game-tick game)
+
+           (when (eq (piece-type maybe-drag/piece) 'king)
+             (if (blackp maybe-drag/piece)
+                 (progn
+                   (setf (game-black-can-castle-kingside-p game) nil)
+                   (setf (game-black-can-castle-queenside-p game) nil))
+                 (progn
+                   (setf (game-white-can-castle-kingside-p game) nil)
+                   (setf (game-white-can-castle-queenside-p game) nil))))
+
+           (when (functionp f) ;; TODO: this is a freaky hack
+             ;; this funcall can:
+             ;;  * move rook after castling
+             ;;  * set en-passant-target-square
+             ;;  * delete a pawn after en passant
+             (funcall f game)))
+
          (game-update-possible-moves-cache game)
          (game-check-for-mates game)
 
-         (when (eq (piece-type maybe-drag/piece) 'king)
-           (if (blackp maybe-drag/piece)
-               (progn
-                 (setf (game-black-can-castle-kingside-p game) nil)
-                 (setf (game-black-can-castle-queenside-p game) nil))
-               (progn
-                 (setf (game-white-can-castle-kingside-p game) nil)
-                 (setf (game-white-can-castle-queenside-p game) nil))))
-
-         (when (functionp f) ;; TODO: this is a freaky hack
-           ;; this funcall can:
-           ;;  * move rook after castling
-           ;;  * set en-passant-target-square
-           ;;  * delete a pawn after en passant
-           (funcall f game)))
-
-       (setq maybe-drag/piece nil))
-      (maybe-drag/piece
-       (draw-rectangle
-        (* +piece-size+ (point-x (piece-point maybe-drag/piece)))
-        (* +piece-size+ (point-y (piece-point maybe-drag/piece)))
-        +piece-size+
-        +piece-size+
-        '(80 80 80 129))
-       (draw-rectangle
-        (* +piece-size+ px)
-        (* +piece-size+ py)
-        +piece-size+
-        +piece-size+
-        '(80 80 80 80))))))
+         (setq maybe-drag/piece nil))
+        (maybe-drag/piece
+         (draw-rectangle
+          (* +piece-size+ (maybe-reverse game (point-x (piece-point maybe-drag/piece))))
+          (* +piece-size+ (maybe-reverse game (point-y (piece-point maybe-drag/piece))))
+          +piece-size+
+          +piece-size+
+          '(80 80 80 129))
+         (draw-rectangle
+          (* +piece-size+ (maybe-reverse game px))
+          (* +piece-size+ (maybe-reverse game py))
+          +piece-size+
+          +piece-size+
+          '(80 80 80 80)))))))
 
 (defun highlight-possible-moves (game &rest r)
   (declare (type game game))
@@ -571,8 +585,8 @@
           (py (point-y (piece-point p))))
       (dolist (pos (possible-moves-for game p))
           (draw-rectangle
-           (* +piece-size+ (car pos))
-           (* +piece-size+ (cadr pos))
+           (* +piece-size+ (maybe-reverse game (car pos)))
+           (* +piece-size+ (maybe-reverse game (cadr pos)))
            +piece-size+
            +piece-size+
            +color-redish+)))))
@@ -590,9 +604,16 @@
 ;;      +color-white+)))
 ;; (add-draw-hook 'describe-checked)
 
+(defun maybe-switch-sides (g)
+  (declare (type game g))
+  (when (key-pressed-p #\S)
+    (let ((s (if (eq (game-side g) 'white) 'black 'white)))
+      (setf (game-side g) s))))
+
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
+(add-draw-hook 'maybe-switch-sides)
 
 (add-draw-hook 'gui:toplevel-console-listener)
 

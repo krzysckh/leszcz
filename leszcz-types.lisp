@@ -26,6 +26,7 @@
    game-en-passant-target-square
    game-ticker
    game-possible-moves-cache
+   game-side
 
    ))
 
@@ -95,6 +96,9 @@
     :initarg :possible-moves-cache
     :initform nil
     :accessor game-possible-moves-cache)
+   (side
+    :initarg :side
+    :accessor game-side)
   ))
 
 (defmethod game-tick ((g game))

@@ -32,6 +32,8 @@
    get-chars-pressed
    key-pressed-p
    key-pressed-p-1
+   key-down-p
+   key-down-p-1
 
    ;; Constants
    +TEXTURE-FILTER-POINT+
@@ -221,8 +223,14 @@
 (defcfun ("IsKeyPressed" key-pressed-p-1) :bool
   (c :int))
 
+(defcfun ("IsKeyDown" key-down-p-1) :bool
+  (c :int))
+
 (defun key-pressed-p (ch)
   (key-pressed-p-1 (char-code ch)))
+
+(defun key-down-p (ch)
+  (key-down-p-1 (char-code ch)))
 
 ;; TODO: to można napisać ładniej
 (defun get-chars-pressed ()
