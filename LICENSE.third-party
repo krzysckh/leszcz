@@ -1,3 +1,6 @@
 res/{png,svg}/[prnbqk][ld].*
   są (c) https://commons.wikimedia.org/wiki/User:Cburnett
   z wybraną licencją BSD 3-klauzulową
+res/font/spleen-16x32.otf
+  jest Copyright (c) 2018-2024, Frederic Cambus
+  na licencji BSD 2-klauzulowej

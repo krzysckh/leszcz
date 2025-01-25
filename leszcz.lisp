@@ -1,74 +1,14 @@
 (defpackage :leszcz
-  (:use :common-lisp :raylib :alexandria :cl-ppcre)
+  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre)
   (:export
-   :main))
+   main))
 
 (in-package :leszcz)
 
 (defun hasp (el l)
   (member el l :test #'equal))
 
-(defclass point ()
-  ((x
-    :initarg :x
-    :accessor point-x)
-   (y
-    :initarg :y
-    :accessor point-y)))
-
-(defclass piece ()
-  ((type
-    :initarg :type
-    :accessor piece-type)
-   (color
-    :initarg :color
-    :accessor piece-color)
-   (point
-    :initarg :point
-    :accessor piece-point)))
-
-(defmethod print-object ((p piece) s)
-  (format s "piece(~a[~a])" (piece-type p) (piece-color p)))
-
-(defmethod print-object ((p point) s)
-  (format s "point(~a ~a)" (point-x p) (point-y p)))
-
-(defclass game ()
-  ((pieces
-    :initarg :pieces
-    :accessor game-pieces)
-   (move-history
-    :initarg :move-history
-    :accessor game-move-history)
-   (black-can-castle-queenside-p
-    :initarg :bcq-p
-    :accessor game-black-can-castle-queenside-p)
-   (black-can-castle-kingside-p
-    :initarg :bck-p
-    :accessor game-black-can-castle-kingside-p)
-   (white-can-castle-queenside-p
-    :initarg :wcq-p
-    :accessor game-white-can-castle-queenside-p)
-   (white-can-castle-kingside-p
-    :initarg :wck-p
-    :accessor game-white-can-castle-kingside-p)
-   (en-passant-target-square
-    :initarg :en-passant-target-square
-    :accessor game-en-passant-target-square)
-   (ticker
-    :initarg :ticker
-    :initform 0
-    :accessor game-ticker)
-   (possible-moves-cache
-    :initarg :possible-moves-cache
-    :initform nil
-    :accessor game-possible-moves-cache)
-  ))
-
-(defmethod game-tick ((g game))
-  (incf (game-ticker g))
-  (game-update-possible-moves-cache g))
-
+;; TODO: leszcz::white and leszcz::black is such a hack....
 (defmethod game-turn ((g game))
   (if (= (mod (game-ticker g) 2) 0) 'white 'black))
 
@@ -77,34 +17,6 @@
 
 (defmethod game-turn-black-p ((g game))
   (eq (game-turn g) 'black))
-
-(defun file->vec (fname)
-  (let* ((f (open fname :element-type '(unsigned-byte 8)))
-         (n (file-length f))
-         (vec (make-sequence 'vector n)))
-    (read-sequence vec f)
-    (close f)
-    vec))
-
-(defparameter white-texture-data-list
-  (list
-   (cons 'pawn   (file->vec "res/png/pl.png"))
-   (cons 'rook   (file->vec "res/png/rl.png"))
-   (cons 'knight (file->vec "res/png/nl.png"))
-   (cons 'bishop (file->vec "res/png/bl.png"))
-   (cons 'queen  (file->vec "res/png/ql.png"))
-   (cons 'king   (file->vec "res/png/kl.png"))))
-
-(defparameter black-texture-data-list
-  (list
-   (cons 'pawn   (file->vec "res/png/pd.png"))
-   (cons 'rook   (file->vec "res/png/rd.png"))
-   (cons 'knight (file->vec "res/png/nd.png"))
-   (cons 'bishop (file->vec "res/png/bd.png"))
-   (cons 'queen  (file->vec "res/png/qd.png"))
-   (cons 'king   (file->vec "res/png/kd.png"))))
-
-(defparameter +texture-size+ 1024)
 
 (defparameter white-texture-alist nil)
 (defparameter black-texture-alist nil)
@@ -119,18 +31,6 @@
     (knight 3)
     (pawn 1)))
 
-(defconstant +piece-size+ 64)
-(defparameter +color-white+ '(255 255 255 255))
-(defparameter +color-black+ '(0 0 0 255))
-(defparameter +color-purple+ '(200 0 200 255))
-(defparameter +color-grayish+ '(127 127 127 255))
-(defparameter +color-greenish+ '(0 200 0 128))
-(defparameter +color-redish+ '(200 30 0 128))
-(defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
-(defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
-
-(defparameter mainloop-draw-hooks nil)
-
 ;; assuming a "vector" or "vector2" is a (list a b)
 (defun v2+ (a b)
   (list
@@ -142,9 +42,6 @@
    (- (car a) (car b))
    (- (cadr a) (cadr b))))
 
-(defun floatize (l)
-  (mapcar #'float l))
-
 (defun draw-piece (p)
   (declare (type piece p))
 
@@ -153,6 +50,7 @@
          (y (* +piece-size+ (point-y point)))
          (al (if (whitep p) white-texture-alist black-texture-alist))
          (texture (cdr (assoc (piece-type p) al))))
+
     (draw-texture
      texture
      (floatize (list 0 0 +texture-size+ +texture-size+))
@@ -235,8 +133,6 @@
      :en-passant-target-square (pos->lst (nth 3 l))
      )))
 
-(define-constant +initial-fen+ "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" :test #'equal)
-
 (defun draw-game (g)
   (declare (type game g))
   (let ((i 0))
@@ -264,7 +160,7 @@
    (point-x (piece-point p))
    (point-y (piece-point p))))
 
-(defun show-point-at-cursor (&optional game)
+(defun show-point-at-cursor (&rest r)
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
     (draw-rectangle-lines (* px +piece-size+) (* py +piece-size+) +piece-size+ +piece-size+ +color-black+)))
@@ -497,17 +393,22 @@
                 (acons (piece-point p)
                        possible
                        (game-possible-moves-cache g)))))))
+
+  (format t "cache is ~a~%" (game-possible-moves-cache g))
+  (values))
+
+(defmethod game-check-for-mates ((g game))
   (let ((c (game-possible-moves-cache g))
         (k (king-of g (game-turn g))))
     (cond
-      ((and (null c) (point-checked-p g (point-x (piece-point k)) (point-y (piece-point k)) (if (whitep k) 'black 'white)))
+      ((and (null c) (point-checked-p g (point-x (piece-point k)) (point-y (piece-point k))
+                                      (if (whitep k) 'black 'white)))
        ;; mate
        (display-mate g))
       ((null c)
        ;; stalemate
        (display-stalemate g))
       (t
-       (format t "cache is ~a~%" c)
        (values)))))
 
 (defun possible-moves-for (game p &key check-mode recache)
@@ -578,7 +479,7 @@
 (defparameter maybe-drag/piece nil)
 ;; woah
 ;; so idk how the (functionp (caddr thing)) will work in the future lol !
-(defun maybe-drag (game)
+(defun maybe-drag (game &rest r)
   (declare (type game game))
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
@@ -628,6 +529,8 @@
          (setf (piece-point maybe-drag/piece)
                (make-instance 'point :x px :y py))
          (game-tick game)
+         (game-update-possible-moves-cache game)
+         (game-check-for-mates game)
 
          (when (eq (piece-type maybe-drag/piece) 'king)
            (if (blackp maybe-drag/piece)
@@ -660,7 +563,7 @@
         +piece-size+
         '(80 80 80 80))))))
 
-(defun highlight-possible-moves (game)
+(defun highlight-possible-moves (game &rest r)
   (declare (type game game))
 
   (when-let ((p maybe-drag/piece))
@@ -673,12 +576,6 @@
            +piece-size+
            +piece-size+
            +color-redish+)))))
-
-(defun add-draw-hook (fn)
-  (push fn mainloop-draw-hooks))
-
-(defun remove-draw-hook (name)
-  (setf mainloop-draw-hooks (remove name mainloop-draw-hooks)))
 
 ;; (defun describe-checked (game)
 ;;   (multiple-value-bind (px py)
@@ -697,9 +594,12 @@
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
 
+(add-draw-hook 'gui:toplevel-console-listener)
+
 (defun load-textures ()
   (setf white-texture-alist nil)
   (setf black-texture-alist nil)
+  (setf raylib:*font* (make-font spleen-data ".otf" 16 1024))
   (macrolet ((load* (data-list alist)
                `(dolist (e ,data-list)
                   (let ((texture (make-texture (cdr e) ".png")))
@@ -714,10 +614,13 @@
 
 ;; (defparameter test-fen "5qk1/1q6/8/8/8/8/8/R3K2R w KQ-- - 0 1")
 
+;; do not use this, this is only for eval in repl
+(defparameter *current-game* nil)
+
 (defun main (&optional argv)
   (declare (ignore argv))
 
-  (init-window (* +piece-size+ 8) (* +piece-size+ 8) "hello")
+  (init-window *window-width* *window-height* ":leszcz")
   (set-target-fps! 50)
   (set-exit-key! -1)
 
@@ -727,6 +630,8 @@
   (format t "black-texture-alist: ~a~%" black-texture-alist)
 
   (let ((game (fen->game +initial-fen+)))
+    (setf *current-game* game)
+    (format t "pieces: ~a~%" (game-pieces game))
     (game-update-possible-moves-cache game)
 
     (loop :while (not (window-close-p)) :do
@@ -736,7 +641,7 @@
         (clear-background +color-grayish+)
         (draw-game game)
         (dolist (h mainloop-draw-hooks)
-          (funcall h game)))
+          (funcall h game #'(lambda () (remove-draw-hook h)))))
       (end-drawing)))
 
   (close-window))

@@ -7,7 +7,7 @@
   * [ ] menu
   * [ ] opcje
 * [ ] "gameplay"
-  * [ ] tury
+  * [x] tury
   * [x] zbijanie figur
   * [ ] generowanie i podświetlanie możliwych ruchów
     * [ ] pion
@@ -30,7 +30,7 @@
   * [x] roszada
     * [x] roszada typu roszada
     * [x] szach !!!!! !!! ! ! ! 
-  * [ ] szachmat
+  * [x] szachmat
 * [ ] "bot"
   * [ ] AAAAAAAAAAA !!!!!!
 * [ ] jesli nie wyjdzie powyzsze

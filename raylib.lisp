@@ -20,11 +20,17 @@
    mouse-pressed-p
    mouse-released-p
    load-image-from-memory
+   load-font-from-memory
    image->texture
    make-texture
+   make-font
    draw-texture
    set-exit-key!
    set-texture-filter!
+   floatize
+   get-char-pressed
+   get-chars-pressed
+   key-pressed-p
 
    ;; Constants
    +TEXTURE-FILTER-POINT+
@@ -33,6 +39,9 @@
    +TEXTURE-FILTER-ANISOTROPIC-4X+
    +TEXTURE-FILTER-ANISOTROPIC-8X+
    +TEXTURE-FILTER-ANISOTROPIC-16X+
+
+   ;; exported variables
+   *font*
    ))
 
 (in-package :raylib)
@@ -40,6 +49,11 @@
 (define-foreign-library raylib
   (:unix    "./raylib5.5.so")
   (:windows "raylib5.5.dll"))
+
+(defparameter *font* nil)
+
+(defun floatize (l)
+  (mapcar #'float l))
 
 (use-foreign-library raylib)
 
@@ -73,6 +87,21 @@
   (w :float)
   (h :float))
 
+(defcstruct (glyph-info :class type-glyph-info)
+  (value :int)
+  (offX :int)
+  (offY :int)
+  (advX :int)
+  (img (:struct image)))
+
+(defcstruct (font :class type-font)
+  (base-size :int)
+  (glyph-count :int)
+  (glyph-pad :int)
+  (texture (:struct texture))
+  (recs :pointer)
+  (glyphs :pointer))
+
 (defmacro make-trans (type stype slots)
   `(progn
      (defmethod translate-into-foreign-memory (l (type ,type) pointer)
@@ -89,6 +118,8 @@
 (make-trans type-texture texture (id width height mipmaps format))
 (make-trans type-vec2 vec2 (x y))
 (make-trans type-rectangle rectangle (x y w h))
+;; (make-trans type-glyph-info glyph-info (value offX offY advX img))
+;; (make-trans type-font font (base-size glyph-count glyph-pad texture recs glyphs))
 
 ;; (defmethod translate-into-foreign-memory (l (type type-color) pointer)
 ;;   (with-foreign-slots ((r g b a) pointer (:struct color))
@@ -112,6 +143,12 @@
       (setf (mem-aref data :uint8 i) (aref texture-data i)))
     (let ((image (load-image-from-memory data-type data (length texture-data))))
       (image->texture image))))
+
+(defun make-font (font-data data-type font-size n-codepoints)
+  (with-foreign-object (data :uint8 (length font-data))
+    (loop for i from 0 to (- (length font-data) 1) do
+      (setf (mem-aref data :uint8 i) (aref font-data i)))
+    (the type-font (load-font-from-memory data-type data (length font-data) font-size (cffi:null-pointer) n-codepoints))))
 
 (defcfun ("DrawTexturePro" draw-texture) :void
   (texture (:struct texture))
@@ -164,12 +201,43 @@
 (defcfun ("ClearBackground" clear-background) :bool
   (color (:struct color)))
 
-(defcfun ("DrawText" draw-text) :void
+(defcfun ("DrawText" draw-text-1) :void
   (text :string)
   (x :int)
   (y :int)
   (font-size :int)
   (color (:struct color)))
+
+(defcfun ("DrawTextEx" draw-text-2) :void
+  (font (:struct font))
+  (text :string)
+  (pos (:struct vec2))
+  (font-size :float)
+  (spacing :float)
+  (color (:struct color)))
+
+(defcfun ("GetCharPressed" get-char-pressed) :char)
+(defcfun ("IsKeyPressed" key-pressed-p-1) :bool
+  (c :int))
+
+(defun key-pressed-p (ch)
+  (key-pressed-p-1 (char-code ch)))
+
+;; TODO: to można napisać ładniej
+(defun get-chars-pressed ()
+  (let ((acc nil))
+    (block break
+      (loop do
+        (let ((c (get-char-pressed)))
+          (if (= c 0)
+              (return-from break)
+              (setf acc (append acc (list (code-char c))))))))
+    acc))
+
+(defun draw-text (text x y font-size color)
+  (if *font*
+      (draw-text-2 *font* text (floatize (list x y)) (float font-size) 0.0 color)
+      (draw-text-1 text (float x) (float y) (float font-size) color)))
 
 (defcfun ("IsMouseButtonPressed" mouse-pressed-p) :bool
   (b :int))
@@ -184,6 +252,13 @@
   (texture (:struct texture))
   (filter :int))
 
+(defcfun ("LoadFontFromMemory" load-font-from-memory) (:struct font)
+  (type :string)
+  (data :pointer)
+  (data-size :int)
+  (font-size :int)
+  (codepoints :pointer)
+  (codepoint-count :int))
 
 (defconstant +TEXTURE-FILTER-POINT+ 0)
 (defconstant +TEXTURE-FILTER-BILINEAR+ 1)
