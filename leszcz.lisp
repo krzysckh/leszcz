@@ -635,9 +635,11 @@
 
 (defun maybe-switch-sides (g)
   (declare (type game g))
-  (when (key-pressed-p #\S)
-    (let ((s (if (eq (game-side g) 'white) 'black 'white)))
-      (setf (game-side g) s))))
+
+  (when (not gui::toplevel-console/console-on-screen-p) ;; TODO: NOOO NOT THE SAME PROBLEM AS LAST YEAR I DONT WANT THAT
+    (when (key-pressed-p #\S)
+      (let ((s (if (eq (game-side g) 'white) 'black 'white)))
+        (setf (game-side g) s)))))
 
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
