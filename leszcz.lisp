@@ -173,12 +173,16 @@
     (draw-rectangle-lines (* px +piece-size+) (* py +piece-size+) +piece-size+ +piece-size+ +color-black+)))
 
 (defun piece-at-point (game x y)
-  (let ((pieces (game-pieces game)))
-    (dolist (p pieces)
-      (when (and (= (point-x (piece-point p)) x)
-                 (= (point-y (piece-point p)) y))
-        (return-from piece-at-point p)))
-    nil))
+  (if-let ((ht (game-points-cache game)))
+    (gethash (list x y) ht)
+    (error "game-points-cache for ~a is UNAVAILABLE (nil) this is a bug 3:" game)))
+
+  ;; (let ((pieces (game-pieces game)))
+  ;;   (dolist (p pieces)
+  ;;     (when (and (= (point-x (piece-point p)) x)
+  ;;                (= (point-y (piece-point p)) y))
+  ;;       (return-from piece-at-point p)))
+  ;;   nil))
 
 (defun whitep (p) (eq (piece-color p) 'white))
 (defun blackp (p) (eq (piece-color p) 'black))
@@ -406,8 +410,15 @@
                        possible
                        (game-possible-moves-cache g)))))))
 
-  (format t "cache is ~a~%" (game-possible-moves-cache g))
+  ;; (format t "cache is ~a~%" (game-possible-moves-cache g))
   (values))
+
+(defmethod game-update-points-cache ((g game))
+  (let ((ht (make-hash-table :test #'equal)))
+    (dolist (p (game-pieces g))
+      (let ((point (piece-point p)))
+        (setf (gethash (list (point-x point) (point-y point)) ht) p)))
+    (setf (game-points-cache g) ht)))
 
 (defmethod game-check-for-mates ((g game))
   (let ((c (game-possible-moves-cache g))
@@ -556,6 +567,7 @@
       ;;  * delete a pawn after en passant
       (funcall f game)))
 
+  (game-update-points-cache game)
   (game-update-possible-moves-cache game)
   (game-check-for-mates game))
 
@@ -674,7 +686,7 @@
   (setf gui::toplevel-console/state "")
 
   (init-window *window-width* *window-height* ":leszcz")
-  (set-target-fps! 50)
+  (set-target-fps! 1000)
   (set-exit-key! -1)
 
   (load-textures)
@@ -685,7 +697,10 @@
   (let ((game (fen->game +initial-fen+)))
     (setf *current-game* game)
     (format t "pieces: ~a~%" (game-pieces game))
+    (game-update-points-cache game)
     (game-update-possible-moves-cache game)
+
+    ;; (setf (game-side game) nil)
 
     (loop :while (not (window-close-p)) :do
       ;; (when (key-pressed-p #\R)

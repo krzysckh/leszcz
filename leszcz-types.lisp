@@ -27,6 +27,7 @@
    game-ticker
    game-possible-moves-cache
    game-side
+   game-points-cache
 
    ))
 
@@ -99,6 +100,10 @@
    (side
     :initarg :side
     :accessor game-side)
+   (points-cache
+    :initarg :points-cache
+    :initform nil
+    :accessor game-points-cache)
   ))
 
 (defmethod game-tick ((g game))

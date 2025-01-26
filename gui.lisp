@@ -51,7 +51,7 @@
            (let ((thing
                    (handler-case (eval (read-from-string toplevel-console/state))
                      (error (c)
-                       (cl-ppcre:split "\n" (format nil "; Error: ~a" c))))))
+                       (cl-ppcre:split "\\n" (format nil "; Error: ~a" c))))))
              (if (listp thing) thing (list thing)))))
     (setf toplevel-console/state ""))
 
