@@ -151,7 +151,7 @@
   (with-foreign-object (data :uint8 (length font-data))
     (loop for i from 0 to (- (length font-data) 1) do
       (setf (mem-aref data :uint8 i) (aref font-data i)))
-    (the type-font (load-font-from-memory data-type data (length font-data) font-size (cffi:null-pointer) n-codepoints))))
+    (load-font-from-memory data-type data (length font-data) font-size (cffi:null-pointer) n-codepoints)))
 
 (defcfun ("DrawTexturePro" draw-texture) :void
   (texture (:struct texture))

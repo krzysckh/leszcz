@@ -69,7 +69,7 @@
      +color-hax0r-green+))
 
   (draw-text
-   (format nil "toplevel-console> ~a" toplevel-console/state)
+   (format nil "> ~a" toplevel-console/state)
    0 (* (length toplevel-console/log) toplevel-console/font-size)
    toplevel-console/font-size +color-hax0r-green+)
   )

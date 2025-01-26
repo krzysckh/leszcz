@@ -689,7 +689,7 @@
   (setf gui::toplevel-console/state "")
 
   (init-window *window-width* *window-height* ":leszcz")
-  (set-target-fps! 1000)
+  (set-target-fps! 0)
   (set-exit-key! -1)
 
   (load-textures)
