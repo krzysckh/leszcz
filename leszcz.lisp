@@ -175,14 +175,12 @@
 (defun piece-at-point (game x y)
   (if-let ((ht (game-points-cache game)))
     (gethash (list x y) ht)
-    (error "game-points-cache for ~a is UNAVAILABLE (nil) this is a bug 3:" game)))
-
-  ;; (let ((pieces (game-pieces game)))
-  ;;   (dolist (p pieces)
-  ;;     (when (and (= (point-x (piece-point p)) x)
-  ;;                (= (point-y (piece-point p)) y))
-  ;;       (return-from piece-at-point p)))
-  ;;   nil))
+    (let ((pieces (game-pieces game)))
+      (dolist (p pieces)
+        (when (and (= (point-x (piece-point p)) x)
+                   (= (point-y (piece-point p)) y))
+          (return-from piece-at-point p)))
+      nil)))
 
 (defun whitep (p) (eq (piece-color p) 'white))
 (defun blackp (p) (eq (piece-color p) 'black))
@@ -410,7 +408,7 @@
                        possible
                        (game-possible-moves-cache g)))))))
 
-  ;; (format t "cache is ~a~%" (game-possible-moves-cache g))
+  (format t "cache is ~a~%" (game-possible-moves-cache g))
   (values))
 
 (defmethod game-update-points-cache ((g game))
@@ -445,12 +443,15 @@
                (let ((p-was (piece-at-point game (car pos) (cadr pos))))
                  (setf (piece-point p) (make-instance 'point :x (car pos) :y (cadr pos)))
                  (let* ((king (king-of game (piece-color p)))
-                        (king-point (piece-point king)))
+                        (king-point (piece-point king))
+                        (points-cache (game-points-cache game)))
+                   (setf (game-points-cache game) nil)
                    (when p-was
                      (setf (game-pieces game) (remove p-was (game-pieces game) :test #'equal)))
                    (prog1
                        (point-checked-p game (point-x king-point) (point-y king-point) (if (whitep king) 'black 'white))
                      (setf (piece-point p) point)
+                     (setf (game-points-cache game) points-cache)
                      (when p-was
                        (push p-was (game-pieces game))))))))
          (remove-if
@@ -582,10 +583,12 @@
           (py (maybe-reverse game py)))
       (cond
         ((mouse-pressed-p 0)  ; begin dragging
+         ;; this when is spread like that so when you want to play both players you can implement the code for that easier
          (when (eq (game-turn game) (game-side game))
            (when-let ((p (piece-at-point game px py)))
              (when (eq (piece-color p) (game-turn game))
-               (setf maybe-drag/piece p)))))
+               (setf maybe-drag/piece p))))
+         )
         ((and (mouse-released-p 0) maybe-drag/piece); end dragging
          (game-do-move game maybe-drag/piece px py)
          (setf maybe-drag/piece nil))
