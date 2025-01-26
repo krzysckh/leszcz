@@ -528,6 +528,16 @@
 
     ;; move the damn thing
     (setf (piece-point piece) (make-instance 'point :x mx :y my))
+
+    ;; TODO: when it's the player's turn allow them to choose,
+    ;; otherwise, let the computer choose
+    (when (and
+           (eq (piece-type piece) 'pawn)
+           (or (= 0 (point-y (piece-point piece)))
+               (= 7 (point-y (piece-point piece)))))
+      (setf (piece-type piece) 'queen))
+
+
     (game-tick game)
 
     (when (eq (piece-type piece) 'king)
@@ -678,8 +688,15 @@
     (game-update-possible-moves-cache game)
 
     (loop :while (not (window-close-p)) :do
+      ;; (when (key-pressed-p #\R)
+      ;;   (setf game (fen->game +initial-fen+))
+      ;;   (setf maybe-drag/piece nil)
+      ;;   (setf (game-side game) nil)
+      ;;   (game-update-possible-moves-cache game))
+
       (begin-drawing)
       ;; in a progn to show block
+
       (progn
         (clear-background +color-grayish+)
         (draw-game game)
