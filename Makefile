@@ -1,21 +1,34 @@
-.PHONY: build all run docs
+.PHONY: build all run docs test
 
 DOCS= \
 	doc/prelude.md \
 	doc/dev.md     \
 	doc/arch.md    \
 
+# host sbcl
+SBCL=sbcl --noinform
+
 PANDOC_HTML_FLAGS=-H doc/doc.css
 PANDOC_PDF_FLAGS=--pdf-engine=lualatex -V links-as-notes=true -H ./doc/cfg.tex
 PANDOC_COMMON_FLAGS=--toc --toc-depth=2 --metadata title="leszcz" -f markdown+raw_tex+raw_html --standalone
 
 run:
-	CL_SOURCE_REGISTRY=$(PWD) sbcl --eval "(ql:quickload :leszcz)" --eval "(leszcz:main)" --quit
+	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) \
+		--eval "(ql:quickload :leszcz)" \
+		--eval "(leszcz:main)" \
+		--quit
 build: all
 all: *.lisp
 	mkdir -p build
-	# sbcl --load build.lisp --quit
+	# $(SBCL) --load build.lisp --quit
 	wine sbcl.exe --core sbcl.core --load build.lisp --quit
+test:
+	# i don't think prove should be in an asdf package for leszcz, as we're dumping core to save the executeble and it would still be lingering in there
+	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) \
+		--eval "(ql:quickload :leszcz)" \
+		--eval "(ql:quickload :prove)" \
+		--load t/test.lisp \
+		--quit
 clean:
 	rm -fr build
 docs:

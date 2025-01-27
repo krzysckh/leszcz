@@ -90,12 +90,63 @@
      (- (char-int (aref s 0)) (char-int #\a))
      (- 8 (- (char-int (aref s 1)) (char-int #\0))))))
 
-;; (defun game->fen (g)
-;;   (declare (type game g))
+;; (4 4) -> e4
+(defun lst->pos (l)
+  (declare (type list l))
+  (coerce
+   (list
+    (code-char (+ (car l) (char-int #\a)))
+    (code-char (+ (- 8 (cadr l)) (char-int #\0))))
+   'string))
 
-;;   (let ((acc 0))
-;;     (loop for y from 0 to 7 do
+(defun piece->char (p)
+  (let ((c (case (piece-type p)
+             (king   #\k)
+             (queen  #\q)
+             (rook   #\r)
+             (bishop #\b)
+             (knight #\n)
+             (pawn   #\p))))
+    (if (whitep p) (char-upcase c) c)))
 
+(defun game->fen (g)
+  (declare (type game g))
+
+  (let ((result "")
+        (acc 0))
+    (loop for y from 0 to 7 do
+      (loop for x from 0 to 7 do
+        (if-let ((p (piece-at-point g x y)))
+          (progn
+            (when (> acc 0)
+              (setf result (concatenate 'string result (write-to-string acc))))
+            (setf acc 0)
+            (setf result (concatenate 'string result (string (piece->char p)))))
+          (incf acc)))
+      (when (> acc 0)
+        (setf result (concatenate 'string result (write-to-string acc))))
+      (setf acc 0)
+      (when (< y 7)
+        (setf result (concatenate 'string result "/"))))
+    (setf result (concatenate 'string result (if (game-turn-white-p g) " w " " b ")))
+    (if (or (game-white-can-castle-kingside-p g)
+            (game-white-can-castle-queenside-p g)
+            (game-black-can-castle-kingside-p g)
+            (game-black-can-castle-queenside-p g))
+        (progn
+          (when (game-white-can-castle-kingside-p g)
+            (setf result (concatenate 'string result "K")))
+          (when (game-white-can-castle-queenside-p g)
+            (setf result (concatenate 'string result "Q")))
+          (when (game-black-can-castle-kingside-p g)
+            (setf result (concatenate 'string result "k")))
+          (when (game-black-can-castle-queenside-p g)
+            (setf result (concatenate 'string result "q"))))
+        (setf result (concatenate 'string result "-")))
+    (if-let ((s (game-en-passant-target-square g)))
+      (setf result (concatenate 'string result " " (lst->pos s) " "))
+      (setf result (concatenate 'string result " - ")))
+    (setf result (concatenate 'string result (write-to-string (game-halfmove-clock g)) " " (write-to-string (game-fullmove-clock g))))))
 
 (defun fen->game (fen)
   (declare (type string fen))
@@ -425,7 +476,7 @@
         (setf (gethash (list (point-x point) (point-y point)) ht) p)))
     (setf (game-points-cache g) ht)))
 
-(defmethod game-check-for-mates ((g game))
+(defmethod game-check-for-mates ((g game) &key (call-display t))
   (let ((c (game-possible-moves-cache g))
         (k (king-of g (game-turn g))))
     (cond
@@ -433,14 +484,17 @@
                                       (if (whitep k) 'black 'white)))
        ;; mate
        (setf (game-result g) 'checkmate)
-       (display-mate g))
+       (when call-display
+         (display-mate g)))
       ((null c)
        ;; stalemate
        (setf (game-result g) 'draw)
-       (display-draw g "stalemate"))
+       (when call-display
+         (display-draw g "stalemate")))
       ((>= (game-halfmove-clock g) 50)
        (setf (game-result g) 'draw)
-       (display-draw g "by 50 move rule"))
+       (when call-display
+         (display-draw g "by 50 move rule")))
       (t
        (values)))))
 
@@ -613,8 +667,9 @@
                (when (eq (piece-color p) (game-turn game))
                  (setf maybe-drag/piece p))))
            )
-          ((and (mouse-released-p 0) maybe-drag/piece); end dragging
-           (game-do-move game maybe-drag/piece px py)
+          ((and (mouse-released-p 0) maybe-drag/piece) ; end dragging
+           (when (move-possible-p maybe-drag/piece px py game)
+             (game-do-move game maybe-drag/piece px py))
            (setf maybe-drag/piece nil))
           (maybe-drag/piece
            (draw-rectangle

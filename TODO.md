@@ -35,3 +35,4 @@
   * [ ] AAAAAAAAAAA !!!!!!
 * [ ] jesli nie wyjdzie powyzsze
   * [ ] zapierdol bota od toledo i udawaj niewiniatko :P
+* [ ] [asdf:test-system](https://github.com/fukamachi/prove?tab=readme-ov-file#asdf-integration) zamiast make test
