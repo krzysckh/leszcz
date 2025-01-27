@@ -64,7 +64,7 @@ jobs:
           cp -v doc/*.pdf build/
       - name: run tests
         run: |
-          make test
+          make test SBCL="wine sbcl.exe --core sbcl.core"
       - name: upload as artifact
         uses: actions/upload-artifact@v4
         with:
