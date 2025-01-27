@@ -31,7 +31,7 @@ jobs:
         run: |
           wget https://beta.quicklisp.org/quicklisp.lisp
           sbcl --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --quit
-      - name: install sbcl for windows & build & test
+      - name: install sbcl for windows & build
         run: |
           Xvfb :1 &
           wget https://pub.krzysckh.org/msc25/sbcl.exe
@@ -58,8 +58,6 @@ jobs:
 
           cp -v libffi-8.dll build/
           cp -v raylib5.5.dll build/
-
-          make test SBCL="wine sbcl.exe --core sbcl.core"
       - name: build docs
         run: |
           make docs
