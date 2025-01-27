@@ -1,5 +1,5 @@
 (defpackage :leszcz-types
-  (:use :common-lisp)
+  (:use :common-lisp :leszcz-constants)
   (:export
    game
    point
@@ -16,6 +16,7 @@
    game-turn
    game-turn-white-p
    game-turn-black-p
+   game-in-progress-p
    ;; game
    game-pieces
    game-move-history
@@ -28,6 +29,9 @@
    game-possible-moves-cache
    game-side
    game-points-cache
+   game-halfmove-clock
+   game-fullmove-clock
+   game-result
 
    ))
 
@@ -104,8 +108,22 @@
     :initarg :points-cache
     :initform nil
     :accessor game-points-cache)
+   (halfmove-clock
+    :initarg :halfmove-clock
+    :initform 0
+    :accessor game-halfmove-clock)
+   (fullmove-clock
+    :initarg :fullmove-clock
+    :initform 1
+    :accessor game-fullmove-clock)
+   (result
+    :initarg :result
+    :initform 'in-progress
+    :accessor game-result)
   ))
 
 (defmethod game-tick ((g game))
   (incf (game-ticker g)))
 
+(defmethod game-in-progress-p ((g game))
+  (eq (game-result g) 'in-progress))

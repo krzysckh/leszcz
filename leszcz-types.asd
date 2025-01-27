@@ -1,3 +1,3 @@
 (defsystem "leszcz-types"
-  :depends-on ()
+  :depends-on (:leszcz-constants)
   :components ((:file "leszcz-types")))

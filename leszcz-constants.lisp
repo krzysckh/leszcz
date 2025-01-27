@@ -17,6 +17,8 @@
    *window-height*
    *window-width*
    +initial-fen+
+
+   ;; symbols
    pawn
    rook
    knight
@@ -25,6 +27,10 @@
    king
    white
    black
+
+   in-progress
+   checkmate
+   draw
    ))
 
 

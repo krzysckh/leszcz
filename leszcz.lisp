@@ -90,7 +90,13 @@
      (- (char-int (aref s 0)) (char-int #\a))
      (- 8 (- (char-int (aref s 1)) (char-int #\0))))))
 
-;; TODO: roszady są oznaczane nie ---- tylko - - itd sprawdz se na lichess
+;; (defun game->fen (g)
+;;   (declare (type game g))
+
+;;   (let ((acc 0))
+;;     (loop for y from 0 to 7 do
+
+
 (defun fen->game (fen)
   (declare (type string fen))
 
@@ -129,13 +135,14 @@
     (make-instance
      'game
      :pieces acc
-     :ticker (if (equal (nth 1 l) "w") 0 1)
-     ;; TODO: ^ to nie jest prawda, ticker powinien sie zgadzać z fenem
+     :ticker (if (equal (nth 1 l) "w") 0 1) ;; ticker jest adhoc
+     :halfmove-clock (parse-integer (nth 4 l))
+     :fullmove-clock (parse-integer (nth 5 l))
      :move-history nil
-     :wck-p (eq (aref castle-rules 0) #\K)
-     :wcq-p (eq (aref castle-rules 1) #\Q)
-     :bck-p (eq (aref castle-rules 2) #\k)
-     :bcq-p (eq (aref castle-rules 3) #\q)
+     :wck-p (find #\K castle-rules)
+     :wcq-p (find #\Q castle-rules)
+     :bck-p (find #\k castle-rules)
+     :bcq-p (find #\q castle-rules)
      :en-passant-target-square (pos->lst (nth 3 l))
      :side 'white
      )))
@@ -391,10 +398,10 @@
   (declare (type game game))
   (format t "Mate! ~a won!~%" (if (eq (game-turn game) 'white) 'black 'white)))
 
-(defun display-stalemate (game)
+(defun display-draw (game &optional why)
   (declare (type game game)
            (ignore game))
-  (format t "Stalemate!~%"))
+  (format t "Draw! (~a)~%" why))
 
 ;; game-possible-moves-cache: ((x y ((x' y') ...)))
 (defmethod game-update-possible-moves-cache ((g game))
@@ -425,10 +432,15 @@
       ((and (null c) (point-checked-p g (point-x (piece-point k)) (point-y (piece-point k))
                                       (if (whitep k) 'black 'white)))
        ;; mate
+       (setf (game-result g) 'checkmate)
        (display-mate g))
       ((null c)
        ;; stalemate
-       (display-stalemate g))
+       (setf (game-result g) 'draw)
+       (display-draw g "stalemate"))
+      ((>= (game-halfmove-clock g) 50)
+       (setf (game-result g) 'draw)
+       (display-draw g "by 50 move rule"))
       (t
        (values)))))
 
@@ -503,108 +515,120 @@
 (defun game-do-move (game piece mx my)
   (declare (type game game)
            (type piece piece))
-  (when-let ((f (move-possible-p piece mx my game)))
-    (when-let ((p (piece-at-point game mx my)))
-      (setf (game-pieces game)
-            (remove p (game-pieces game) :test #'equal)))
+  (let ((inc-halfmove-p t))
+    (when-let ((f (move-possible-p piece mx my game)))
+      (when-let ((p (piece-at-point game mx my)))
+        (setf (game-halfmove-clock game) 0)
+        (setf inc-halfmove-p nil)
+        (setf (game-pieces game) (remove p (game-pieces game) :test #'equal)))
 
-    (when (and
-           (game-white-can-castle-kingside-p game)
-           (eq (piece-type piece) 'rook)
-           (= (point-x (piece-point piece)) 7)
-           (= (point-y (piece-point piece)) 7))
-      (setf (game-white-can-castle-kingside-p game) nil))
+      (when (eq (piece-type piece) 'pawn)
+        (setf inc-halfmove-p nil)
+        (setf (game-halfmove-clock game) 0))
 
-    (when (and
-           (game-white-can-castle-queenside-p game)
-           (eq (piece-type piece) 'rook)
-           (= (point-x (piece-point piece)) 0)
-           (= (point-y (piece-point piece)) 7))
-      (setf (game-white-can-castle-queenside-p game) nil))
+      (when (and
+             (game-white-can-castle-kingside-p game)
+             (eq (piece-type piece) 'rook)
+             (= (point-x (piece-point piece)) 7)
+             (= (point-y (piece-point piece)) 7))
+        (setf (game-white-can-castle-kingside-p game) nil))
 
-    (when (and
-           (game-black-can-castle-kingside-p game)
-           (eq (piece-type piece) 'rook)
-           (= (point-x (piece-point piece)) 7)
-           (= (point-y (piece-point piece)) 0))
-      (setf (game-black-can-castle-kingside-p game) nil))
+      (when (and
+             (game-white-can-castle-queenside-p game)
+             (eq (piece-type piece) 'rook)
+             (= (point-x (piece-point piece)) 0)
+             (= (point-y (piece-point piece)) 7))
+        (setf (game-white-can-castle-queenside-p game) nil))
 
-    (when (and
-           (game-black-can-castle-queenside-p game)
-           (eq (piece-type piece) 'rook)
-           (= (point-x (piece-point piece)) 0)
-           (= (point-y (piece-point piece)) 0))
-      (setf (game-black-can-castle-queenside-p game) nil))
+      (when (and
+             (game-black-can-castle-kingside-p game)
+             (eq (piece-type piece) 'rook)
+             (= (point-x (piece-point piece)) 7)
+             (= (point-y (piece-point piece)) 0))
+        (setf (game-black-can-castle-kingside-p game) nil))
 
-    (setf (game-en-passant-target-square game) nil)
+      (when (and
+             (game-black-can-castle-queenside-p game)
+             (eq (piece-type piece) 'rook)
+             (= (point-x (piece-point piece)) 0)
+             (= (point-y (piece-point piece)) 0))
+        (setf (game-black-can-castle-queenside-p game) nil))
 
-    ;; move the damn thing
-    (setf (piece-point piece) (make-instance 'point :x mx :y my))
+      (setf (game-en-passant-target-square game) nil)
 
-    ;; TODO: when it's the player's turn allow them to choose,
-    ;; otherwise, let the computer choose
-    (when (and
-           (eq (piece-type piece) 'pawn)
-           (or (= 0 (point-y (piece-point piece)))
-               (= 7 (point-y (piece-point piece)))))
-      (setf (piece-type piece) 'queen))
+      ;; move the damn thing
+      (setf (piece-point piece) (make-instance 'point :x mx :y my))
 
+      ;; TODO: when it's the player's turn allow them to choose,
+      ;; otherwise, let the computer choose
+      (when (and
+             (eq (piece-type piece) 'pawn)
+             (or (= 0 (point-y (piece-point piece)))
+                 (= 7 (point-y (piece-point piece)))))
+        (setf (piece-type piece) 'queen))
 
-    (game-tick game)
+      (when (game-turn-black-p game)
+        (incf (game-fullmove-clock game)))
 
-    (when (eq (piece-type piece) 'king)
-      (if (blackp piece)
-          (progn
-            (setf (game-black-can-castle-kingside-p game) nil)
-            (setf (game-black-can-castle-queenside-p game) nil))
-          (progn
-            (setf (game-white-can-castle-kingside-p game) nil)
-            (setf (game-white-can-castle-queenside-p game) nil))))
+      (when inc-halfmove-p
+        (incf (game-halfmove-clock game)))
 
-    (when (functionp f) ;; TODO: this is a freaky hack
-      ;; this funcall can:
-      ;;  * move rook after castling
-      ;;  * set en-passant-target-square
-      ;;  * delete a pawn after en passant
-      (funcall f game)))
+      (game-tick game)
 
-  (game-update-points-cache game)
-  (game-update-possible-moves-cache game)
-  (game-check-for-mates game))
+      (when (eq (piece-type piece) 'king)
+        (if (blackp piece)
+            (progn
+              (setf (game-black-can-castle-kingside-p game) nil)
+              (setf (game-black-can-castle-queenside-p game) nil))
+            (progn
+              (setf (game-white-can-castle-kingside-p game) nil)
+              (setf (game-white-can-castle-queenside-p game) nil))))
+
+      (when (functionp f) ;; TODO: this is a freaky hack
+        ;; this funcall can:
+        ;;  * move rook after castling
+        ;;  * set en-passant-target-square
+        ;;  * delete a pawn after en passant
+        (funcall f game)))
+
+    (game-update-points-cache game)
+    (game-update-possible-moves-cache game)
+    (game-check-for-mates game)))
 
 (defparameter maybe-drag/piece nil)
 (defun maybe-drag (game &rest r)
   (declare (type game game)
            (ignore r))
 
-  (multiple-value-bind (px py)
-      (coords->point (mouse-x) (mouse-y))
-    (let ((px (maybe-reverse game px))
-          (py (maybe-reverse game py)))
-      (cond
-        ((mouse-pressed-p 0)  ; begin dragging
-         ;; this when is spread like that so when you want to play both players you can implement the code for that easier
-         (when (eq (game-turn game) (game-side game))
-           (when-let ((p (piece-at-point game px py)))
-             (when (eq (piece-color p) (game-turn game))
-               (setf maybe-drag/piece p))))
-         )
-        ((and (mouse-released-p 0) maybe-drag/piece); end dragging
-         (game-do-move game maybe-drag/piece px py)
-         (setf maybe-drag/piece nil))
-        (maybe-drag/piece
-         (draw-rectangle
-          (* +piece-size+ (maybe-reverse game (point-x (piece-point maybe-drag/piece))))
-          (* +piece-size+ (maybe-reverse game (point-y (piece-point maybe-drag/piece))))
-          +piece-size+
-          +piece-size+
-          '(80 80 80 129))
-         (draw-rectangle
-          (* +piece-size+ (maybe-reverse game px))
-          (* +piece-size+ (maybe-reverse game py))
-          +piece-size+
-          +piece-size+
-          '(80 80 80 80)))))))
+  (when (game-in-progress-p game)
+    (multiple-value-bind (px py)
+        (coords->point (mouse-x) (mouse-y))
+      (let ((px (maybe-reverse game px))
+            (py (maybe-reverse game py)))
+        (cond
+          ((mouse-pressed-p 0)  ; begin dragging
+           ;; this when is spread like that so when you want to play both players you can implement the code for that easier
+           (when (eq (game-turn game) (game-side game))
+             (when-let ((p (piece-at-point game px py)))
+               (when (eq (piece-color p) (game-turn game))
+                 (setf maybe-drag/piece p))))
+           )
+          ((and (mouse-released-p 0) maybe-drag/piece); end dragging
+           (game-do-move game maybe-drag/piece px py)
+           (setf maybe-drag/piece nil))
+          (maybe-drag/piece
+           (draw-rectangle
+            (* +piece-size+ (maybe-reverse game (point-x (piece-point maybe-drag/piece))))
+            (* +piece-size+ (maybe-reverse game (point-y (piece-point maybe-drag/piece))))
+            +piece-size+
+            +piece-size+
+            '(80 80 80 129))
+           (draw-rectangle
+            (* +piece-size+ (maybe-reverse game px))
+            (* +piece-size+ (maybe-reverse game py))
+            +piece-size+
+            +piece-size+
+            '(80 80 80 80))))))))
 
 (defun highlight-possible-moves (game &rest r)
   (declare (type game game))
@@ -651,14 +675,16 @@
 (defun maybe-move-bot (game &rest r)
   (declare (type game game)
            (ignore r))
-  (when (not (eq (game-turn game) (game-side game)))
-    (let* ((pre-ps (remove-if #'(lambda (p) (eq (piece-color p) (game-side game))) (game-pieces game)))
-           (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
-      (when (> (length ps) 0)
-        (let* ((chosen-piece (nth (random (length ps)) ps))
-               (available-moves (possible-moves-for game chosen-piece))
-               (chosen-move (nth (random (length available-moves)) available-moves)))
-          (game-do-move game chosen-piece (car chosen-move) (cadr chosen-move)))))))
+  (when (game-in-progress-p game)
+    (when (not (eq (game-turn game) (game-side game)))
+      (format t "yes i should move the bot ~%")
+      (let* ((pre-ps (remove-if #'(lambda (p) (eq (piece-color p) (game-side game))) (game-pieces game)))
+             (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
+        (when (> (length ps) 0)
+          (let* ((chosen-piece (nth (random (length ps)) ps))
+                 (available-moves (possible-moves-for game chosen-piece))
+                 (chosen-move (nth (random (length available-moves)) available-moves)))
+            (game-do-move game chosen-piece (car chosen-move) (cadr chosen-move))))))))
 
 (add-draw-hook 'maybe-move-bot)
 
