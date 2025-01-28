@@ -44,20 +44,55 @@
     (close f)
     vec))
 
+;; TODO: skiny jak szymon zaimplementuje menu
 (defparameter white-texture-data-list
   (list
-   (cons 'pawn   (file->vec "res/png/pl.png"))
-   (cons 'rook   (file->vec "res/png/rl.png"))
-   (cons 'knight (file->vec "res/png/nl.png"))
+   ;; (cons 'pawn   (file->vec "res/png/pl.png"))
+   (cons 'pawn   (list
+                  (file->vec "res/png/pl1.png")
+                  (file->vec "res/png/pl2.png")
+                  (file->vec "res/png/pl1.png")
+                  (file->vec "res/png/pl3.png")))
+   ;; (cons 'rook   (file->vec "res/png/rl.png"))
+   (cons 'rook   (list
+                  (file->vec "res/png/rl1.png")
+                  (file->vec "res/png/rl2.png")
+                  (file->vec "res/png/rl1.png")
+                  (file->vec "res/png/rl3.png")))
+   ;; (cons 'knight (file->vec "res/png/nl.png"))
+   (cons 'knight (list
+                  (file->vec "res/png/nl1.png")
+                  (file->vec "res/png/nl2.png")
+                  (file->vec "res/png/nl3.png")
+                  (file->vec "res/png/nl4.png")
+                  (file->vec "res/png/nl3.png")
+                  (file->vec "res/png/nl2.png")))
    (cons 'bishop (file->vec "res/png/bl.png"))
    (cons 'queen  (file->vec "res/png/ql.png"))
    (cons 'king   (file->vec "res/png/kl.png"))))
 
 (defparameter black-texture-data-list
   (list
-   (cons 'pawn   (file->vec "res/png/pd.png"))
-   (cons 'rook   (file->vec "res/png/rd.png"))
-   (cons 'knight (file->vec "res/png/nd.png"))
+   ;; (cons 'pawn   (file->vec "res/png/pd.png"))
+   (cons 'pawn   (list
+                  (file->vec "res/png/pd1.png")
+                  (file->vec "res/png/pd2.png")
+                  (file->vec "res/png/pd1.png")
+                  (file->vec "res/png/pd3.png")))
+   ;; (cons 'rook   (file->vec "res/png/rd.png"))
+   (cons 'rook  (list
+                  (file->vec "res/png/rd1.png")
+                  (file->vec "res/png/rd2.png")
+                  (file->vec "res/png/rd1.png")
+                  (file->vec "res/png/rd3.png")))
+   ;; (cons 'knight (file->vec "res/png/nd.png"))
+   (cons 'knight (list
+                  (file->vec "res/png/nd1.png")
+                  (file->vec "res/png/nd2.png")
+                  (file->vec "res/png/nd3.png")
+                  (file->vec "res/png/nd4.png")
+                  (file->vec "res/png/nd3.png")
+                  (file->vec "res/png/nd2.png")))
    (cons 'bishop (file->vec "res/png/bd.png"))
    (cons 'queen  (file->vec "res/png/qd.png"))
    (cons 'king   (file->vec "res/png/kd.png"))))
@@ -65,15 +100,18 @@
 (defparameter spleen-data (file->vec "res/font/spleen-16x32.otf"))
 
 (defparameter +texture-size+ 1024)
-(defconstant +piece-size+ 64)
+(defparameter +piece-size+ 80)
 (defparameter +color-white+ '(255 255 255 255))
 (defparameter +color-black+ '(0 0 0 255))
 (defparameter +color-purple+ '(200 0 200 255))
 (defparameter +color-grayish+ '(127 127 127 255))
 (defparameter +color-greenish+ '(0 200 0 128))
 (defparameter +color-redish+ '(200 30 0 128))
-(defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
-(defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
+
+;; (defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
+;; (defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
+(defparameter +color-bg-light+ '(#xff #xff #xff #xff))
+(defparameter +color-bg-dark+  '(0 0 0 #xff))
 
 (defparameter *window-width*  (* +piece-size+ 8))
 (defparameter *window-height* (* +piece-size+ 8))

@@ -54,7 +54,8 @@
     :accessor piece-color)
    (point
     :initarg :point
-    :accessor piece-point)))
+    :accessor piece-point)
+  ))
 
 (defclass game ()
   ((pieces

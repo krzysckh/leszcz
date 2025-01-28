@@ -5,6 +5,12 @@
       * [x] ładniejsze figury I
       * [x] ładniejsze figury II (nałóż filtry poprawnie)
       * [ ] ładniejsze figury III (graficzki od maciusia)
+        * [x] pion
+        * [x] wieża
+        * [x] koń
+        * [ ] goniec
+        * [ ] król
+        * [ ] hetman
       * [ ] możliwość wybrania figur i kolorów
     * [ ] menu
     * [ ] opcje
@@ -30,7 +36,13 @@
       * [x] maty
       * [x] paty
     * [x] :3 meow meow meow meow
-      * [x] meow meow meow 1
+      * [x] meow meow meow meow meow meow 1
+      * [ ] meow meow meow meow meow meow 2
+      * [ ] meow meow meow meow meow meow 3
+      * [ ] meow meow meow meow meow meow 4
+      * [ ] meow meow meow meow meow meow 5
+      * [ ] meow meow meow meow meow meow 6
+      * [ ] meow meow meow meow meow meow 7
     * [x] roszada
       * [x] roszada typu roszada
       * [x] szach !!!!! !!! ! ! ! 

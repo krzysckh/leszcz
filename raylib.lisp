@@ -34,6 +34,7 @@
    key-pressed-p-1
    key-down-p
    key-down-p-1
+   draw-fps
 
    ;; Constants
    +TEXTURE-FILTER-POINT+
@@ -268,6 +269,10 @@
   (font-size :int)
   (codepoints :pointer)
   (codepoint-count :int))
+
+(defcfun ("DrawFPS" draw-fps) :void
+  (x :int)
+  (y :int))
 
 (defconstant +TEXTURE-FILTER-POINT+ 0)
 (defconstant +TEXTURE-FILTER-BILINEAR+ 1)

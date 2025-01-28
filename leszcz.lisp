@@ -47,6 +47,10 @@
       pt
       (- 7 pt)))
 
+(defparameter draw-piece/anim-frame-ticker 0)
+(defparameter draw-piece/anim-frame 0)
+(defparameter draw-piece/piece-on-point nil)
+
 (defun draw-piece (g p)
   (declare (type piece p)
            (type game g))
@@ -57,13 +61,32 @@
          (al (if (whitep p) white-texture-alist black-texture-alist))
          (texture (cdr (assoc (piece-type p) al))))
 
-    (draw-texture
-     texture
-     (floatize (list 0 0 +texture-size+ +texture-size+))
-     (floatize (list x y +piece-size+ +piece-size+))
-     (floatize (list 0 0))
-     (float 0)
-     +color-white+)))
+    (multiple-value-bind (px py)
+        (coords->point (mouse-x) (mouse-y))
+      (cond
+        ((and (vectorp texture) (= (point-x point) px) (= (point-y point) py) (eq draw-piece/piece-on-point p))
+         ;; Drawing piece at current mouse point and we have done that before
+         (incf draw-piece/anim-frame-ticker)
+         (when (= 0 (mod draw-piece/anim-frame-ticker 200))
+           (incf draw-piece/anim-frame))
+         (setf texture (aref texture (mod draw-piece/anim-frame (length texture)))))
+        ((and (vectorp texture) (= (point-x point) px) (= (point-y point) py))
+         ;; Drawing piece at current mouse point and we have NOT done that before
+         (setf draw-piece/anim-frame-ticker 0)
+         (setf draw-piece/anim-frame 0)
+         (setf draw-piece/piece-on-point p)
+         (setf texture (aref texture 0))
+         )
+        ((vectorp texture)
+         (setf texture (aref texture 0))))
+
+      (draw-texture
+       texture
+       (floatize (list 0 0 +texture-size+ +texture-size+))
+       (floatize (list x y +piece-size+ +piece-size+))
+       (floatize (list 0 0))
+       (float 0)
+       +color-white+))))
 
 ;; can be <1..8> * vec ("sliding")
 (define-constant +rook-offsets+ '((1 0) (-1 0) (0 1) (0 -1)) :test #'equal)
@@ -758,13 +781,16 @@
   (setf white-texture-alist nil)
   (setf black-texture-alist nil)
   (setf raylib:*font* (make-font spleen-data ".otf" 18 1024))
+  ;; TODO:
+  ;; ;; TODO: czemu tekstury są tak rozpikselizowane lol
+  ;; (set-texture-filter! texture +TEXTURE-FILTER-POINT+)
   (macrolet ((load* (data-list alist)
                `(dolist (e ,data-list)
-                  (let ((texture (make-texture (cdr e) ".png")))
-                    ;; TODO: czemu tekstury są tak rozpikselizowane lol
-                    (set-texture-filter! texture +TEXTURE-FILTER-POINT+)
-                    (push (cons (car e) texture) ,alist)))))
-
+                  (if (listp (cdr e))
+                      (let ((textures (mapcar #'(lambda (data) (make-texture data ".png")) (cdr e))))
+                        (push (cons (car e) (coerce textures 'vector)) ,alist))
+                      (let ((texture (make-texture (cdr e) ".png")))
+                        (push (cons (car e) texture) ,alist))))))
     (load* white-texture-data-list white-texture-alist)
     (load* black-texture-data-list black-texture-alist)
 
@@ -813,7 +839,9 @@
         (clear-background +color-grayish+)
         (draw-game game)
         (dolist (h mainloop-draw-hooks)
-          (funcall h game)))
+          (funcall h game))
+        ;; (draw-fps 0 0)
+        )
       (end-drawing)))
 
   (close-window))
