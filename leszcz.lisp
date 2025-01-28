@@ -303,10 +303,10 @@
           (not (point-checked-p game 6 7 'black))
           (eq (piece-type (piece-at-point game 7 7)) 'rook))
      (list
-      (list 6 7 #'(lambda (game)
-                    (let ((r (piece-at-point game 7 7)))
-                      (setf (game-white-can-castle-kingside-p game) nil)
-                      (setf (game-white-can-castle-queenside-p game) nil)
+      (list 6 7 #'(lambda (g*)
+                    (let ((r (piece-at-point g* 7 7)))
+                      (setf (game-white-can-castle-kingside-p g*) nil)
+                      (setf (game-white-can-castle-queenside-p g*) nil)
                       (setf (piece-point r) (make-instance 'point :x 5 :y 7)))))))
    (when (and
           (whitep p)
@@ -318,10 +318,10 @@
           (not (point-checked-p game 3 7 'black))
           (eq (piece-type (piece-at-point game 0 7)) 'rook))
      (list
-      (list 2 7 #'(lambda (game)
+      (list 2 7 #'(lambda (g*)
                     (let ((r (piece-at-point game 0 7)))
-                      (setf (game-white-can-castle-kingside-p game) nil)
-                      (setf (game-white-can-castle-queenside-p game) nil)
+                      (setf (game-white-can-castle-kingside-p g*) nil)
+                      (setf (game-white-can-castle-queenside-p g*) nil)
                       (setf (piece-point r) (make-instance 'point :x 3 :y 7)))))))
    ;; black
    (when (and
@@ -333,10 +333,10 @@
           (not (point-checked-p game 6 0 'white))
           (eq (piece-type (piece-at-point game 7 0)) 'rook))
      (list
-      (list 6 0 #'(lambda (game)
-                    (let ((r (piece-at-point game 7 0)))
-                      (setf (game-black-can-castle-kingside-p game) nil)
-                      (setf (game-black-can-castle-queenside-p game) nil)
+      (list 6 0 #'(lambda (g*)
+                    (let ((r (piece-at-point g* 7 0)))
+                      (setf (game-black-can-castle-kingside-p g*) nil)
+                      (setf (game-black-can-castle-queenside-p g*) nil)
                       (setf (piece-point r) (make-instance 'point :x 5 :y 0)))))))
    (when (and
           (blackp p)
@@ -348,10 +348,10 @@
           (not (point-checked-p game 3 0 'white))
           (eq (piece-type (piece-at-point game 0 0)) 'rook))
      (list
-      (list 2 0 #'(lambda (game)
-                    (let ((r (piece-at-point game 0 0)))
-                      (setf (game-black-can-castle-kingside-p game) nil)
-                      (setf (game-black-can-castle-queenside-p game) nil)
+      (list 2 0 #'(lambda (g*)
+                    (let ((r (piece-at-point g* 0 0)))
+                      (setf (game-black-can-castle-kingside-p g*) nil)
+                      (setf (game-black-can-castle-queenside-p g*) nil)
                       (setf (piece-point r) (make-instance 'point :x 3 :y 0)))))))
    ))
 
@@ -378,16 +378,16 @@
                                      (list (append
                                             pos
                                             (list
-                                             #'(lambda (game)
-                                                 (setf (game-en-passant-target-square game) pos))))))
+                                             #'(lambda (g*)
+                                                 (setf (game-en-passant-target-square g*) pos))))))
                                    nil)
                                (if (and (blackp p) (= (point-y (piece-point p)) 1))
                                    (let ((pos (v2+ (list x y) '(0 2))))
                                      (list (append
                                             pos
                                             (list
-                                             #'(lambda (game)
-                                                 (setf (game-en-passant-target-square game) pos))))))
+                                             #'(lambda (g*)
+                                                 (setf (game-en-passant-target-square g*) pos))))))
                                    nil))
                               :disallow-taking t))
                             nil))))
@@ -404,10 +404,10 @@
                                   (push
                                    (list ,x*
                                          ,y*
-                                         #'(lambda (game)
-                                             (let ((p (piece-at-point game (car ts) (cadr ts))))
-                                               (setf (game-pieces game)
-                                                     (remove p (game-pieces game) :test #'equal)))))
+                                         #'(lambda (g*)
+                                             (let ((p (piece-at-point g* (car ts) (cadr ts))))
+                                               (setf (game-pieces g*)
+                                                     (remove p (game-pieces g*) :test #'equal)))))
                                    m)
                                   ;; normal capturing
                                   (when-let ((p* (or check-mode (piece-at-point game ,x* ,y*))))
@@ -462,11 +462,12 @@
       (let ((possible (possible-moves-for g p :recache t)))
         (when possible
           (setf (game-possible-moves-cache g)
-                (acons (piece-point p)
+                (acons (list (point-x (piece-point p))
+                             (point-y (piece-point p)))
                        possible
                        (game-possible-moves-cache g)))))))
 
-  (format t "cache is ~a~%" (game-possible-moves-cache g))
+  ;; (format t "cache is ~a~%" (game-possible-moves-cache g))
   (values))
 
 (defmethod game-update-points-cache ((g game))
@@ -528,7 +529,8 @@
                (> (car pos) 7)
                (> (cadr pos) 7)))
           (pre--possible-moves-for game p check-mode))))
-      (cdr (assoc (piece-point p) (game-possible-moves-cache game) :test #'equal))))
+      (let ((p (piece-point p)))
+        (cdr (assoc (list (point-x p) (point-y p)) (game-possible-moves-cache game) :test #'equal)))))
 
 (defun move-possible-p (p px py game &key check-mode)
   (block b
@@ -566,9 +568,13 @@
               (return-from brk t))))
       nil)))
 
-(defun game-do-move (game piece mx my)
+(defun game-do-move (game piece mx my &key no-recache no-check-mates)
   (declare (type game game)
            (type piece piece))
+  ;; (warn "game-do-move move ~a to ~a" piece (list mx my))
+  (when (not (move-possible-p piece mx my game))
+    (warn "game-do-move called with invalid data"))
+
   (let ((inc-halfmove-p t))
     (when-let ((f (move-possible-p piece mx my game)))
       (when-let ((p (piece-at-point game mx my)))
@@ -610,8 +616,11 @@
 
       (setf (game-en-passant-target-square game) nil)
 
-      ;; move the damn thing
-      (setf (piece-point piece) (make-instance 'point :x mx :y my))
+      (let ((np (make-instance 'point :x mx :y my)))
+        (push (list (piece-point piece) np) (game-move-history game))
+
+        ;; move the damn thing to np (new point)
+        (setf (piece-point piece) np))
 
       ;; TODO: when it's the player's turn allow them to choose,
       ;; otherwise, let the computer choose
@@ -643,11 +652,14 @@
         ;;  * move rook after castling
         ;;  * set en-passant-target-square
         ;;  * delete a pawn after en passant
-        (funcall f game)))
+        (funcall f game))
 
-    (game-update-points-cache game)
-    (game-update-possible-moves-cache game)
-    (game-check-for-mates game)))
+      (unless no-recache
+        (game-update-points-cache game)
+        (game-update-possible-moves-cache game))
+
+      (unless no-check-mates
+        (game-check-for-mates game)))))
 
 (defparameter maybe-drag/piece nil)
 (defun maybe-drag (game &rest r)
@@ -732,7 +744,6 @@
            (ignore r))
   (when (game-in-progress-p game)
     (when (not (eq (game-turn game) (game-side game)))
-      (format t "yes i should move the bot ~%")
       (let* ((pre-ps (remove-if #'(lambda (p) (eq (piece-color p) (game-side game))) (game-pieces game)))
              (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
         (when (> (length ps) 0)

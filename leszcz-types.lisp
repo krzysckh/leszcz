@@ -56,21 +56,6 @@
     :initarg :point
     :accessor piece-point)))
 
-(defmethod print-object ((p piece) s)
-  (let ((type (if (slot-boundp p 'type)
-                  (piece-type p)
-                  'type-unknown))
-        (color (if (slot-boundp p 'color)
-                   (piece-color p)
-                   'color-unknown))
-        (point (if (slot-boundp p 'point)
-                   (piece-point p)
-                   'point-unknown)))
-    (format s "piece(~a[~a])@~a" type color point)))
-
-(defmethod print-object ((p point) s)
-  (format s "point(~a ~a)" (point-x p) (point-y p)))
-
 (defclass game ()
   ((pieces
     :initarg :pieces
@@ -127,3 +112,28 @@
 
 (defmethod game-in-progress-p ((g game))
   (eq (game-result g) 'in-progress))
+
+;;; Printers
+
+(defmethod print-object ((p piece) s)
+  (let ((type (if (slot-boundp p 'type)
+                  (piece-type p)
+                  'type-unknown))
+        (color (if (slot-boundp p 'color)
+                   (piece-color p)
+                   'color-unknown))
+        (point (if (slot-boundp p 'point)
+                   (piece-point p)
+                   'point-unknown)))
+    (format s "piece(~a[~a])@~a" type color point)))
+
+(defmethod print-object ((p point) s)
+  (format s "point(~a ~a)" (point-x p) (point-y p)))
+
+(defmethod print-object ((g game) s)
+  (format s "#<game instance with ~a pieces, turn=~a,tickers=(~a,~a,~a)>"
+          (length (game-pieces g))
+          (game-turn g)
+          (game-ticker g)
+          (game-halfmove-clock g)
+          (game-fullmove-clock g)))

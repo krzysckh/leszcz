@@ -24,7 +24,7 @@ all: *.lisp
 	wine sbcl.exe --core sbcl.core --load build.lisp --quit
 test:
 	# i don't think prove should be in an asdf package for leszcz, as we're dumping core to save the executeble and it would still be lingering in there
-	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) \
+	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) --dynamic-space-size 4096 \
 		--eval "(ql:quickload :leszcz)" \
 		--eval "(ql:quickload :prove)" \
 		--load t/test.lisp \
