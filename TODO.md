@@ -1,38 +1,68 @@
-* [ ] grafika
-  * [x] plansza typu dwukolorowa
-  * [ ] ładniejsze figury
-    * [x] ładniejsze figury I
-    * [ ] ładniejsze figury II (nałóż filtry poprawnie)
-    * [ ] możliwość wybrania figur i kolorów
-  * [ ] menu
-  * [ ] opcje
-* [ ] "gameplay"
-  * [x] tury
-  * [x] zbijanie figur
-  * [ ] generowanie i podświetlanie możliwych ruchów
-    * [ ] pion
-      * [x] ruchy typu o 1
-      * [x] ruchy typu o 2
-      * [x] bicie
-      * [ ] zmiana w hetmana
-      * [x] ę pasą (bicie w przelocie)
-    * [x] wieża
-    * [x] goniec
-    * [x] skoczek
-    * [x] hetman
-    * [x] król
-    * [x] szachy (nawiązanie do gry szachy)
-      * [x] szachy prawie wszystkie
-      * [x] patrz roszada -> szach
-    * [x] maty
-    * [x] paty
-  * [ ] :3 meow meow meow meow
-  * [x] roszada
-    * [x] roszada typu roszada
-    * [x] szach !!!!! !!! ! ! ! 
-  * [x] szachmat
-* [ ] "bot"
-  * [ ] AAAAAAAAAAA !!!!!!
-* [ ] jesli nie wyjdzie powyzsze
-  * [ ] zapierdol bota od toledo i udawaj niewiniatko :P
-* [ ] [asdf:test-system](https://github.com/fukamachi/prove?tab=readme-ov-file#asdf-integration) zamiast make test
+* [ ] ПРЕЛЮДИЯ
+  * [ ] grafika
+    * [x] plansza typu dwukolorowa
+    * [ ] ładniejsze figury
+      * [x] ładniejsze figury I
+      * [x] ładniejsze figury II (nałóż filtry poprawnie)
+      * [ ] ładniejsze figury III (graficzki od maciusia)
+      * [ ] możliwość wybrania figur i kolorów
+    * [ ] menu
+    * [ ] opcje
+  * [ ] "gameplay"
+    * [x] tury
+    * [x] zbijanie figur
+    * [ ] generowanie i podświetlanie możliwych ruchów
+      * [ ] pion
+        * [x] ruchy typu o 1
+        * [x] ruchy typu o 2
+        * [x] bicie
+        * [x] zmiana w hetmana
+        * [ ] zmiana w cokolwiek innego + wykmiń generację ruchów + menu dla gracza
+        * [x] ę pasą (bicie w przelocie)
+      * [x] wieża
+      * [x] goniec
+      * [x] skoczek
+      * [x] hetman
+      * [x] król
+      * [x] szachy (nawiązanie do gry szachy)
+        * [x] szachy prawie wszystkie
+        * [x] patrz roszada -> szach
+      * [x] maty
+      * [x] paty
+    * [x] :3 meow meow meow meow
+      * [x] meow meow meow 1
+    * [x] roszada
+      * [x] roszada typu roszada
+      * [x] szach !!!!! !!! ! ! ! 
+    * [x] szachmat
+  * [ ] "bot"
+    * [x] AAAAAAAAAAA !!!!!!
+    * [x] bot typu losowy
+    * [ ] przyspiesz generacje ruchów
+      * [ ] może jest okej ale cache trzeba trzymać jako bitboard + eval + ???
+    * [ ] dodaj jakiś eval
+  * [ ] jeśli ci się będzie nudzić
+    * [ ] [asdf:test-system](https://github.com/fukamachi/prove?tab=readme-ov-file#asdf-integration) zamiast make test
+    * [ ] grep -R TODO
+* [ ] Gracz v Gracz na jednym komputerze
+  * [x] ej bo to juz w sumie jest
+    * [x] kłamałem
+  * [ ] wybór w menu (parz preludija → menu)
+  * [ ] timer
+  * [ ] edytor pozycji
+  * [ ] import FEN
+  * [ ] odtwarzanie gry
+    * [ ] "Gra musi zapisywać historię ruchów w notacji algebraiczne"
+  * [ ] pokaż ostatni ruch zaznacz jakoś ładnie
+  * [ ] efekty dźwiękowe
+    * [ ] preferowalnie nie paszczowe
+    * [ ] preferowalnie nie takie za które pójdę za kratki (CC0)
+* [ ] Gracz kontra komputer
+  * [ ] obejrzyj filmik sebusia i zerżnij pomysły (wszystkie)
+  * [ ] nazwij algorytmy tak żeby brzmiało mądrze
+    * [ ] "odcinanie chujowych ruchów" → minmax
+    * [ ] "mądre obcinanie chujowych ruchów" → redukcja alpha-beta
+    * [ ] "wybieranie ruchów z listy możliwych losowo zamiast liniowi" → wyszukiwanie w drzewie sposobem monte carlo
+    * [ ] preferencja figur dla danych pozycji
+  * [ ] a tak w ogóle to silnik miej w osobnym wątku żeby mniej się narobić a więcej zarobić
+* [ ] napisz resztę todo
