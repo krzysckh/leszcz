@@ -1,5 +1,5 @@
 (defpackage :raylib
-  (:use :common-lisp :cffi)
+  (:use :common-lisp :cffi :alexandria :leszcz-constants)
   (:export
    ;; Functions and whatnot
    color
@@ -13,6 +13,7 @@
    mouse-y
    mouse-pos
    draw-rectangle-lines
+   draw-rectangle-lines-2
    draw-rectangle
    clear-background
    draw-text
@@ -35,6 +36,12 @@
    key-down-p
    key-down-p-1
    draw-fps
+   load-font
+   begin-scissor-mode
+   end-scissor-mode
+   measure-text
+   point-in-rect-p
+   set-mouse-cursor!
 
    ;; Constants
    +TEXTURE-FILTER-POINT+
@@ -43,6 +50,9 @@
    +TEXTURE-FILTER-ANISOTROPIC-4X+
    +TEXTURE-FILTER-ANISOTROPIC-8X+
    +TEXTURE-FILTER-ANISOTROPIC-16X+
+
+   +cursor-pointer+
+   +cursor-normal+
 
    ;; exported variables
    *font*
@@ -53,8 +63,6 @@
 (define-foreign-library raylib
   (:unix    "./raylib5.5.so")
   (:windows "raylib5.5.dll"))
-
-(defparameter *font* nil)
 
 (defun floatize (l)
   (mapcar #'float l))
@@ -188,6 +196,11 @@
   (h :int)
   (c (:struct color)))
 
+(defcfun ("DrawRectangleLinesEx" draw-rectangle-lines-2) :void
+  (rec (:struct rectangle))
+  (thick :float)
+  (color (:struct color)))
+
 (defcfun ("DrawRectangle" draw-rectangle) :void
   (x :int)
   (y :int)
@@ -244,10 +257,19 @@
               (setf acc (append acc (list (code-char c))))))))
     acc))
 
+(defparameter *font* (make-hash-table :test #'equal))
+
+(defun load-font (data size &key (type ".otf"))
+  (if-let ((f (gethash size *font*)))
+    f
+    (progn
+      (setf (gethash size *font*) (make-font data type size 1024))
+      (gethash size *font*))))
+
 (defun draw-text (text x y font-size color)
-  (if *font*
-      (draw-text-2 *font* text (floatize (list x y)) (float font-size) 0.0 color)
-      (draw-text-1 text (float x) (float y) (float font-size) color)))
+  (let ((font (load-font spleen-data font-size)))
+    (draw-text-2 font text (floatize (list x y)) (float font-size) 0.0 color)))
+      ;; (draw-text-1 text (float x) (float y) (float font-size) color)))
 
 (defcfun ("IsMouseButtonPressed" mouse-pressed-p) :bool
   (b :int))
@@ -274,12 +296,48 @@
   (x :int)
   (y :int))
 
+(defcfun ("BeginScissorMode" begin-scissor-mode) :void
+  (x :int)
+  (y :int)
+  (w :int)
+  (h :int))
+
+(defcfun ("EndScissorMode" end-scissor-mode) :void)
+
+(defcfun ("MeasureTextEx" measure-text) (:struct vec2)
+  (font (:struct font))
+  (text :string)
+  (font-size :float)
+  (spacing :float))
+
+(defcfun ("CheckCollisionPointRec" point-in-rect-p) :bool
+  (point (:struct vec2))
+  (rec (:struct rectangle)))
+
+(defcfun ("SetMouseCursor" set-mouse-cursor!) :void
+  (cursor :int))
+
 (defconstant +TEXTURE-FILTER-POINT+ 0)
 (defconstant +TEXTURE-FILTER-BILINEAR+ 1)
 (defconstant +TEXTURE-FILTER-TRILINEAR+ 2)
 (defconstant +TEXTURE-FILTER-ANISOTROPIC-4X+ 3)
 (defconstant +TEXTURE-FILTER-ANISOTROPIC-8X+ 4)
 (defconstant +TEXTURE-FILTER-ANISOTROPIC-16X+ 5)
+
+(defconstant +cursor-pointer+ 4)
+(defconstant +cursor-normal+ 0)
+
+;; MOUSE_CURSOR_DEFAULT       = 0
+;; MOUSE_CURSOR_ARROW         = 1
+;; MOUSE_CURSOR_IBEAM         = 2
+;; MOUSE_CURSOR_CROSSHAIR     = 3
+;; MOUSE_CURSOR_POINTING_HAND = 4
+;; MOUSE_CURSOR_RESIZE_EW     = 5
+;; MOUSE_CURSOR_RESIZE_NS     = 6
+;; MOUSE_CURSOR_RESIZE_NWSE   = 7
+;; MOUSE_CURSOR_RESIZE_NESW   = 8
+;; MOUSE_CURSOR_RESIZE_ALL    = 9
+;; MOUSE_CURSOR_NOT_ALLOWED   = 10
 
 (defun type-color-p (l)
   (and (listp l) (= (length l) 4)))

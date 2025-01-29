@@ -67,7 +67,7 @@
         ((and (vectorp texture) (= (point-x point) px) (= (point-y point) py) (eq draw-piece/piece-on-point p))
          ;; Drawing piece at current mouse point and we have done that before
          (incf draw-piece/anim-frame-ticker)
-         (when (= 0 (mod draw-piece/anim-frame-ticker 200))
+         (when (= 0 (mod draw-piece/anim-frame-ticker 15))
            (incf draw-piece/anim-frame))
          (setf texture (aref texture (mod draw-piece/anim-frame (length texture)))))
         ((and (vectorp texture) (= (point-x point) px) (= (point-y point) py))
@@ -685,6 +685,7 @@
         (game-check-for-mates game)))))
 
 (defparameter maybe-drag/piece nil)
+(defparameter maybe-drag/capturer (make-instance 'capturer :can-be-removed-p nil))
 (defun maybe-drag (game &rest r)
   (declare (type game game)
            (ignore r))
@@ -696,29 +697,34 @@
             (py (maybe-reverse game py)))
         (cond
           ((mouse-pressed-p 0)  ; begin dragging
-           ;; this when is spread like that so when you want to play both players you can implement the code for that easier
-           (when (eq (game-turn game) (game-side game))
-             (when-let ((p (piece-at-point game px py)))
-               (when (eq (piece-color p) (game-turn game))
-                 (setf maybe-drag/piece p))))
-           )
+           (when (set-current-capturer! maybe-drag/capturer)
+             ;; this when is spread like that so when you want to play both players you can implement the code for that easier
+             (when (eq (game-turn game) (game-side game))
+               (when-let ((p (piece-at-point game px py)))
+                 (when (eq (piece-color p) (game-turn game))
+                   (setf maybe-drag/piece p)))
+               )
+             ))
           ((and (mouse-released-p 0) maybe-drag/piece) ; end dragging
-           (when (move-possible-p maybe-drag/piece px py game)
-             (game-do-move game maybe-drag/piece px py))
-           (setf maybe-drag/piece nil))
+           (when (keys-can-be-captured-p maybe-drag/capturer)
+             (delete-current-capturer!)
+             (when (move-possible-p maybe-drag/piece px py game)
+               (game-do-move game maybe-drag/piece px py))
+             (setf maybe-drag/piece nil)))
           (maybe-drag/piece
-           (draw-rectangle
-            (* +piece-size+ (maybe-reverse game (point-x (piece-point maybe-drag/piece))))
-            (* +piece-size+ (maybe-reverse game (point-y (piece-point maybe-drag/piece))))
-            +piece-size+
-            +piece-size+
-            '(80 80 80 129))
-           (draw-rectangle
-            (* +piece-size+ (maybe-reverse game px))
-            (* +piece-size+ (maybe-reverse game py))
-            +piece-size+
-            +piece-size+
-            '(80 80 80 80))))))))
+           (when (keys-can-be-captured-p maybe-drag/capturer)
+             (draw-rectangle
+              (* +piece-size+ (maybe-reverse game (point-x (piece-point maybe-drag/piece))))
+              (* +piece-size+ (maybe-reverse game (point-y (piece-point maybe-drag/piece))))
+              +piece-size+
+              +piece-size+
+              '(80 80 80 129))
+             (draw-rectangle
+              (* +piece-size+ (maybe-reverse game px))
+              (* +piece-size+ (maybe-reverse game py))
+              +piece-size+
+              +piece-size+
+              '(80 80 80 80)))))))))
 
 (defun highlight-possible-moves (game &rest r)
   (declare (type game game))
@@ -747,13 +753,15 @@
 ;;      +color-white+)))
 ;; (add-draw-hook 'describe-checked)
 
+(defparameter maybe-switch-sides/capturer (make-instance 'capturer))
 (defun maybe-switch-sides (g)
   (declare (type game g))
 
-  (when (not gui::toplevel-console/console-on-screen-p) ;; TODO: NOOO NOT THE SAME PROBLEM AS LAST YEAR I DONT WANT THAT
+  (when (set-current-capturer! maybe-switch-sides/capturer)
     (when (key-pressed-p #\S)
       (let ((s (if (eq (game-side g) 'white) 'black 'white)))
-        (setf (game-side g) s)))))
+        (setf (game-side g) s)))
+    (delete-current-capturer!)))
 
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
@@ -780,7 +788,10 @@
 (defun load-textures ()
   (setf white-texture-alist nil)
   (setf black-texture-alist nil)
-  (setf raylib:*font* (make-font spleen-data ".otf" 18 1024))
+  (setf raylib:*font* (make-hash-table :test #'equal)) ;; reset *font* every texture reload
+
+  ;; (setf raylib:*font* (make-font spleen-data ".otf" 18 1024))
+  (raylib:load-font spleen-data 18)
   ;; TODO:
   ;; ;; TODO: czemu tekstury są tak rozpikselizowane lol
   ;; (set-texture-filter! texture +TEXTURE-FILTER-POINT+)
@@ -804,44 +815,49 @@
 (defun main (&optional argv)
   (declare (ignore argv))
 
-  (setf gui::toplevel-console/console-on-screen-p nil) ;; TODO: move this somewhere else but run @ init
   (setf gui::toplevel-console/log nil)
   (setf gui::toplevel-console/state "")
 
   (init-window *window-width* *window-height* ":leszcz")
-  (set-target-fps! 0)
+  (set-target-fps! 60)
   (set-exit-key! -1)
 
   (load-textures)
 
-  (format t "white-texture-alist: ~a~%" white-texture-alist)
-  (format t "black-texture-alist: ~a~%" black-texture-alist)
+  (multiple-value-bind (b w h)
+      (make-button "Button test" 32)
 
-  (let ((game (fen->game +initial-fen+)))
-    (setf *current-game* game)
-    (format t "pieces: ~a~%" (game-pieces game))
-    (game-update-points-cache game)
-    (game-update-possible-moves-cache game)
+    (format t "white-texture-alist: ~a~%" white-texture-alist)
+    (format t "black-texture-alist: ~a~%" black-texture-alist)
 
-    ;; (setf (game-side game) nil)
+    (let ((game (fen->game +initial-fen+)))
+      (setf *current-game* game)
+      (format t "pieces: ~a~%" (game-pieces game))
+      (game-update-points-cache game)
+      (game-update-possible-moves-cache game)
 
-    (loop :while (not (window-close-p)) :do
-      ;; (when (key-pressed-p #\R)
-      ;;   (setf game (fen->game +initial-fen+))
-      ;;   (setf maybe-drag/piece nil)
-      ;;   (setf (game-side game) nil)
-      ;;   (game-update-possible-moves-cache game))
+      ;; (setf (game-side game) nil)
 
-      (begin-drawing)
-      ;; in a progn to show block
+      (loop :while (not (window-close-p)) :do
+        ;; (when (key-pressed-p #\R)
+        ;;   (setf game (fen->game +initial-fen+))
+        ;;   (setf maybe-drag/piece nil)
+        ;;   (setf (game-side game) nil)
+        ;;   (game-update-possible-moves-cache game))
 
-      (progn
-        (clear-background +color-grayish+)
-        (draw-game game)
-        (dolist (h mainloop-draw-hooks)
-          (funcall h game))
-        ;; (draw-fps 0 0)
-        )
-      (end-drawing)))
+        (begin-drawing)
+        ;; in a progn to show block
+
+        (progn
+          (clear-background +color-grayish+)
+          (draw-game game)
+          (dolist (h mainloop-draw-hooks)
+            (funcall h game))
+          ;; (draw-fps 0 0)
+
+          ;; (when (funcall b 100 100)
+          ;;   (format t "simple button pressed~%"))
+          )
+        (end-drawing))))
 
   (close-window))

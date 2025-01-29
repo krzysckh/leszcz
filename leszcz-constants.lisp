@@ -67,7 +67,12 @@
                   (file->vec "res/png/nl4.png")
                   (file->vec "res/png/nl3.png")
                   (file->vec "res/png/nl2.png")))
-   (cons 'bishop (file->vec "res/png/bl.png"))
+   ;; (cons 'bishop (file->vec "res/png/bl.png"))
+   (cons 'bishop (list
+                  (file->vec "res/png/bl1.png")
+                  (file->vec "res/png/bl2.png")
+                  (file->vec "res/png/bl3.png")
+                  (file->vec "res/png/bl2.png")))
    (cons 'queen  (file->vec "res/png/ql.png"))
    (cons 'king   (file->vec "res/png/kl.png"))))
 
@@ -93,7 +98,12 @@
                   (file->vec "res/png/nd4.png")
                   (file->vec "res/png/nd3.png")
                   (file->vec "res/png/nd2.png")))
-   (cons 'bishop (file->vec "res/png/bd.png"))
+   ;; (cons 'bishop (file->vec "res/png/bd.png"))
+   (cons 'bishop (list
+                  (file->vec "res/png/bd1.png")
+                  (file->vec "res/png/bd2.png")
+                  (file->vec "res/png/bd3.png")
+                  (file->vec "res/png/bd2.png")))
    (cons 'queen  (file->vec "res/png/qd.png"))
    (cons 'king   (file->vec "res/png/kd.png"))))
 
@@ -108,11 +118,11 @@
 (defparameter +color-greenish+ '(0 200 0 128))
 (defparameter +color-redish+ '(200 30 0 128))
 
-(defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
-(defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
+;; (defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
+;; (defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
 
-;; (defparameter +color-bg-light+ '(#xaa #xaa #xaa #xff))
-;; (defparameter +color-bg-dark+  '(#x33 #x33 #x33 #xff))
+(defparameter +color-bg-light+ '(#xde #xde #xde #xff))
+(defparameter +color-bg-dark+  '(#x22 #x22 #x22 #xff))
 
 (defparameter *window-width*  (* +piece-size+ 8))
 (defparameter *window-height* (* +piece-size+ 8))
