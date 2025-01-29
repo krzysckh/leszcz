@@ -100,7 +100,7 @@
 (defparameter spleen-data (file->vec "res/font/spleen-16x32.otf"))
 
 (defparameter +texture-size+ 1024)
-(defparameter +piece-size+ 80)
+(defparameter +piece-size+ 128)
 (defparameter +color-white+ '(255 255 255 255))
 (defparameter +color-black+ '(0 0 0 255))
 (defparameter +color-purple+ '(200 0 200 255))
@@ -108,10 +108,11 @@
 (defparameter +color-greenish+ '(0 200 0 128))
 (defparameter +color-redish+ '(200 30 0 128))
 
-;; (defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
-;; (defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
-(defparameter +color-bg-light+ '(#xff #xff #xff #xff))
-(defparameter +color-bg-dark+  '(0 0 0 #xff))
+(defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
+(defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
+
+;; (defparameter +color-bg-light+ '(#xaa #xaa #xaa #xff))
+;; (defparameter +color-bg-dark+  '(#x33 #x33 #x33 #xff))
 
 (defparameter *window-width*  (* +piece-size+ 8))
 (defparameter *window-height* (* +piece-size+ 8))
