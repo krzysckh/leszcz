@@ -42,6 +42,9 @@
    measure-text
    point-in-rect-p
    set-mouse-cursor!
+   screen->image
+   unload-texture!
+   unload-image!
 
    ;; Constants
    +TEXTURE-FILTER-POINT+
@@ -316,6 +319,14 @@
 
 (defcfun ("SetMouseCursor" set-mouse-cursor!) :void
   (cursor :int))
+
+(defcfun ("LoadImageFromScreen" screen->image) (:struct image))
+
+(defcfun ("UnloadImage" unload-image!) :void
+  (img (:struct image)))
+
+(defcfun ("UnloadTexture" unload-texture!) :void
+  (txt (:struct texture)))
 
 (defconstant +TEXTURE-FILTER-POINT+ 0)
 (defconstant +TEXTURE-FILTER-BILINEAR+ 1)

@@ -18,6 +18,7 @@
    text-button
    texture-button
    make-button
+   make-button*
    ))
 
 (in-package :gui)
@@ -141,9 +142,8 @@
   (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
                                                      (mouse-y)))
                                      (floatize (list x y w h)))))
-    (if at-point-p
-        (set-mouse-cursor! +cursor-pointer+)
-        (set-mouse-cursor! +cursor-normal+))
+    (when at-point-p
+      (set-mouse-cursor! +cursor-pointer+))
     (draw-rectangle x y w h (if at-point-p
                                 +color-lighter-brownish+
                                 +color-light-brownish+))
@@ -159,9 +159,8 @@
   (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
                                                      (mouse-y)))
                                      (floatize (list x y w h)))))
-    (if at-point-p
-        (set-mouse-cursor! +cursor-pointer+)
-        (set-mouse-cursor! +cursor-normal+))
+    (when at-point-p
+      (set-mouse-cursor! +cursor-pointer+))
     (when background-color
       (draw-rectangle x y w h background-color))
     (draw-texture
@@ -179,6 +178,14 @@
        (float 8)
        +color-dark-brownish+))
     (and at-point-p (mouse-pressed-p 0))))
+
+(defun make-button* (text-or-texture &key height width background-color identifier)
+  (multiple-value-bind (f a b)
+      (make-button text-or-texture :height height :width width :background-color background-color)
+    (values
+     #'(lambda (x y f*) (when (funcall f x y) (funcall f* identifier)))
+     a
+     b)))
 
 (defun make-button (text-or-texture &key height width background-color)
   (when (null height)
@@ -199,6 +206,8 @@
           (error "Make-button requires width when making a textured button"))
         (values
          #'(lambda (x y)
-             (texture-button x y width height text-or-texture :background-color background-color))
+             (texture-button
+              x y width height (if (functionp text-or-texture) (funcall text-or-texture) text-or-texture)
+              :background-color background-color))
          width
          height))))

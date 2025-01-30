@@ -377,16 +377,81 @@
                       (setf (piece-point r) (make-instance 'point :x 3 :y 0)))))))
    ))
 
+;; It's okay to use *current-game* here as this function will be called only when running interactively
+(defun ut/make-texture-lambda (type)
+  #'(lambda () (let ((al (if (eq (game-side *current-game*) 'white)
+                        white-texture-alist
+                        black-texture-alist)))
+            (base-texture-of (cdr (assoc type al))))))
+
+(defparameter ut/upgrade-queen-texture  (ut/make-texture-lambda 'queen))
+(defparameter ut/upgrade-rook-texture   (ut/make-texture-lambda 'rook))
+(defparameter ut/upgrade-knight-texture (ut/make-texture-lambda 'knight))
+(defparameter ut/upgrade-bishop-texture (ut/make-texture-lambda 'bishop))
+
+(defparameter ut/upgrade-size +piece-size+)
+(defparameter ut/pad-size (/ +piece-size+ 2))
+
+(defun ask-for-upgrade-type (game upgraded-piece)
+  (declare (type game game)
+           (type piece upgraded-piece))
+  (macrolet ((shid (texture ident)
+               `(make-button* ,texture :height ut/upgrade-size :width ut/upgrade-size :background-color (if (whitep upgraded-piece) +color-white+ +color-black+) :identifier ,ident)))
+    (let* ((bq (shid ut/upgrade-queen-texture  'queen))
+           (br (shid ut/upgrade-rook-texture   'rook))
+           (bn (shid ut/upgrade-knight-texture 'knight))
+           (bb (shid ut/upgrade-bishop-texture 'bishop)))
+      ;; Okay so basically i can't do that asynchronously (yet?) as the mainloop won't know that the turn did not end yet
+      ;; So this is a big fucking TODO and a HACK im just stealing the mainloop here look
+      (let* ((clicked nil)
+             (cleanup #'(lambda (ident)
+                          (setf clicked ident)))
+             (bg (image->texture *current-screen*)))
+        (end-drawing)
+        (loop while (not clicked) do
+          (begin-drawing)
+          (clear-background +color-white+)
+          (draw-texture bg (floatize (list 0 0 *window-width* *window-height*)) (floatize (list 0 0 *window-width* *window-height*)) (floatize '(0 0)) (float 0) +color-white+)
+          (funcall bq ut/upgrade-size ut/upgrade-size cleanup)
+          (funcall br (+ (* 2 ut/upgrade-size) ut/pad-size) ut/upgrade-size cleanup)
+          (funcall bn (+ (* 3 ut/upgrade-size) (* 2 ut/pad-size)) ut/upgrade-size cleanup)
+          (funcall bb (+ (* 4 ut/upgrade-size) (* 3 ut/pad-size)) ut/upgrade-size cleanup)
+          (set-mouse-cursor! +cursor-normal+)
+          (end-drawing))
+        (begin-drawing)
+        (unload-texture! bg)
+        clicked))))
+
+(defun pre--possible-moves-for/upgrade (game p next-pos)
+  (declare (type piece p))
+  (if (and
+       (eq (piece-type p) 'pawn)
+       (or (= 0 (cadr next-pos))
+           (= 7 (cadr next-pos))))
+      (if (eq (game-side game) (piece-color p))
+          (list
+           (append next-pos (list #'(lambda (g*) ;; Ask interactively for upgrade type, also because asking interactively, just use p instead of looking for piece-at-point
+                                      (setf (piece-type p) (ask-for-upgrade-type g* p))))))
+          (let ((px (point-x (piece-point p)))
+                (py (point-y (piece-point p))))
+            (list ;; Generate all possible updgrade options and let "le computer" choose
+             (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'queen)))))
+             (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'rook)))))
+             (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'bishop)))))
+             (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'knight))))))))
+      (list next-pos)))
+
 (defun pre--possible-moves-for (game p check-mode)
   (multiple-value-bind (x y)
       (position-of p)
     (case (piece-type p)
       ;; TODO: ale swietny kod
       ;; TODO: no troche spaghetti
+      ;; TODO: ja pierdole
       (pawn (let* ((m (when (not check-mode)
                         (filter-own-pieces
                          game p
-                         (list (v2+ (list x y) (list 0 (if (whitep p) -1 1))))
+                         (pre--possible-moves-for/upgrade game p (v2+ (list x y) (list 0 (if (whitep p) -1 1))))
                          :disallow-taking t)))
                    (m (when (not check-mode)
                         (if m
@@ -434,7 +499,9 @@
                                   ;; normal capturing
                                   (when-let ((p* (or check-mode (piece-at-point game ,x* ,y*))))
                                     (when (or check-mode (not (eq (piece-color p) (piece-color p*))))
-                                      (push (list ,x* ,y*) m)))))))
+                                      (let ((vs* (pre--possible-moves-for/upgrade game p (list ,x* ,y*))))
+                                        (dolist (v vs*)
+                                          (push v m)))))))))
                 (if (whitep p)
                     (progn
                       (maybe-pushmove (- x 1) (- y 1))
@@ -644,13 +711,14 @@
         ;; move the damn thing to np (new point)
         (setf (piece-point piece) np))
 
+      ;; TODO: this might be fixed somewhere else
       ;; TODO: when it's the player's turn allow them to choose,
       ;; otherwise, let the computer choose
-      (when (and
-             (eq (piece-type piece) 'pawn)
-             (or (= 0 (point-y (piece-point piece)))
-                 (= 7 (point-y (piece-point piece)))))
-        (setf (piece-type piece) 'queen))
+      ; (when (and
+      ;        (eq (piece-type piece) 'pawn)
+      ;        (or (= 0 (point-y (piece-point piece)))
+      ;            (= 7 (point-y (piece-point piece)))))
+      ;   (setf (piece-type piece) 'queen))
 
       (when (game-turn-black-p game)
         (incf (game-fullmove-clock game)))
@@ -683,8 +751,14 @@
       (unless no-check-mates
         (game-check-for-mates game)))))
 
+(defun base-texture-of (thing)
+  (if (vectorp thing)
+      (aref thing 0)
+      thing))
+
 (defparameter maybe-drag/piece nil)
 (defparameter maybe-drag/capturer (make-instance 'capturer :can-be-removed-p nil))
+
 (defun maybe-drag (game &rest r)
   (declare (type game game)
            (ignore r))
@@ -810,6 +884,7 @@
 
 ;; do not use this, this is only for eval in repl
 (defparameter *current-game* nil)
+(defparameter *current-screen* nil)
 
 (defun main (&optional argv)
   (declare (ignore argv))
@@ -838,6 +913,8 @@
       ;; (setf (game-side game) nil)
 
       (loop :while (not (window-close-p)) :do
+        (setf *current-screen* (screen->image)) ;; TODO: probably remove that
+        (set-mouse-cursor! +cursor-normal+)
         ;; (when (key-pressed-p #\R)
         ;;   (setf game (fen->game +initial-fen+))
         ;;   (setf maybe-drag/piece nil)
@@ -857,6 +934,8 @@
           ;; (when (funcall b 100 100)
           ;;   (format t "simple button pressed~%"))
           )
-        (end-drawing))))
+        (end-drawing)
+        (unload-image! *current-screen*)
+        )))
 
   (close-window))
