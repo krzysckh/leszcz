@@ -16,6 +16,7 @@
    toplevel-console-listener
 
    text-button
+   texture-button
    make-button
    ))
 
@@ -154,13 +155,50 @@
     (draw-text text x y font-size +color-golden+)
     (and at-point-p (mouse-pressed-p 0))))
 
-(defun make-button (text font-size)
-  (let* ((font (load-font spleen-data font-size))
-         (v2 (measure-text font text (float font-size) 0.0)))
-    (values
-     #'(lambda (x y)
-         (text-button
-          x y (floor (car v2)) (floor (cadr v2))
-          text :font-size font-size))
-     (car v2)
-     (cadr v2))))
+(defun texture-button (x y w h texture &key (pad t) (background-color nil))
+  (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
+                                                     (mouse-y)))
+                                     (floatize (list x y w h)))))
+    (if at-point-p
+        (set-mouse-cursor! +cursor-pointer+)
+        (set-mouse-cursor! +cursor-normal+))
+    (when background-color
+      (draw-rectangle x y w h background-color))
+    (draw-texture
+     texture
+     (floatize (list 0 0 (cadr texture) (caddr texture)))
+     (floatize (list x y w h))
+     (floatize (list 0 0))
+     (float 0)
+     (if at-point-p
+         +color-golden+
+         +color-white+))
+    (when pad
+      (draw-rectangle-lines-2
+       (floatize (list (- x 8) (- y 8) (+ w 16) (+ h 16)))
+       (float 8)
+       +color-dark-brownish+))
+    (and at-point-p (mouse-pressed-p 0))))
+
+(defun make-button (text-or-texture &key height width background-color)
+  (when (null height)
+    (error "Make-button: height required"))
+  (if (stringp text-or-texture)
+      (let* ((font (load-font spleen-data height))
+             (v2 (measure-text font text-or-texture (float height) 0.0)))
+        (values
+         #'(lambda (x y)
+             (text-button
+              x y (floor (car v2)) (floor (cadr v2))
+              text-or-texture
+              :font-size height))
+         (car v2)
+         (cadr v2)))
+      (progn
+        (when (null width)
+          (error "Make-button requires width when making a textured button"))
+        (values
+         #'(lambda (x y)
+             (texture-button x y width height text-or-texture :background-color background-color))
+         width
+         height))))

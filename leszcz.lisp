@@ -8,7 +8,6 @@
 (defun hasp (el l)
   (member el l :test #'equal))
 
-;; TODO: leszcz::white and leszcz::black is such a hack....
 (defmethod game-turn ((g game))
   (if (= (mod (game-ticker g) 2) 0) 'white 'black))
 
@@ -825,7 +824,7 @@
   (load-textures)
 
   (multiple-value-bind (b w h)
-      (make-button "Button test" 32)
+      (make-button (cdr (assoc 'queen white-texture-alist)) :width 64 :height 64 :background-color +color-grayish+)
 
     (format t "white-texture-alist: ~a~%" white-texture-alist)
     (format t "black-texture-alist: ~a~%" black-texture-alist)

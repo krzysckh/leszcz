@@ -110,7 +110,7 @@
 (defparameter spleen-data (file->vec "res/font/spleen-16x32.otf"))
 
 (defparameter +texture-size+ 1024)
-(defparameter +piece-size+ 128)
+(defparameter +piece-size+ 64)
 (defparameter +color-white+ '(255 255 255 255))
 (defparameter +color-black+ '(0 0 0 255))
 (defparameter +color-purple+ '(200 0 200 255))
