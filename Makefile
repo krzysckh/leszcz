@@ -1,9 +1,10 @@
 .PHONY: build all run docs test
 
 DOCS= \
-	doc/prelude.md \
-	doc/dev.md     \
-	doc/arch.md    \
+	doc/prelude.md    \
+	doc/dev.md        \
+	doc/arch.md       \
+	doc/network.md    \
 
 # host sbcl
 SBCL=sbcl --noinform

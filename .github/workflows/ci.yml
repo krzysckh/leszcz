@@ -13,11 +13,11 @@ jobs:
           sudo apt install -y wine32 wine64 build-essential git clang libasound2-dev \
             libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev \
             libxcursor-dev libxinerama-dev xxd libglfw3-dev wget sbcl unzip \
-            winetricks pandoc \
+            winetricks pandoc dot2tex \
             texlive-base texlive-binaries texlive-fonts-recommended \
             texlive-latex-base texlive-latex-extra texlive-latex-recommended \
             texlive-luatex texlive-pictures texlive-plain-generic \
-            texlive-xetex
+            texlive-xetex texlive-science
       - name: download fonts
         run: |
           sudo mkdir -p /usr/share/fonts
