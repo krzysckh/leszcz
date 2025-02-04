@@ -893,6 +893,7 @@
   (setf gui::toplevel-console/state "")
 
   (init-window *window-width* *window-height* ":leszcz")
+  ;; TODO: unset target fps when the engine is thinking or switch contexts or wtv
   (set-target-fps! 60)
   (set-exit-key! -1)
 

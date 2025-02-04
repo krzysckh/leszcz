@@ -73,8 +73,15 @@
                   (file->vec "res/png/bl2.png")
                   (file->vec "res/png/bl3.png")
                   (file->vec "res/png/bl2.png")))
-   (cons 'queen  (file->vec "res/png/ql.png"))
-   (cons 'king   (file->vec "res/png/kl.png"))))
+   ;; (cons 'queen  (file->vec "res/png/ql.png"))
+   (cons 'queen  (list
+                  (file->vec "res/png/ql1.png")
+                  (file->vec "res/png/ql2.png")))
+   ;; (cons 'king   (file->vec "res/png/kl.png"))))
+   (cons 'king   (list
+                  (file->vec "res/png/kl1.png")
+                  (file->vec "res/png/kl2.png")
+                  (file->vec "res/png/kl3.png")))))
 
 (defparameter black-texture-data-list
   (list
@@ -104,8 +111,15 @@
                   (file->vec "res/png/bd2.png")
                   (file->vec "res/png/bd3.png")
                   (file->vec "res/png/bd2.png")))
-   (cons 'queen  (file->vec "res/png/qd.png"))
-   (cons 'king   (file->vec "res/png/kd.png"))))
+   ;; (cons 'queen  (file->vec "res/png/qd.png"))
+   (cons 'queen  (list
+                  (file->vec "res/png/qd1.png")
+                  (file->vec "res/png/qd2.png")))
+   ;; (cons 'king   (file->vec "res/png/kd.png"))))
+   (cons 'king   (list
+                  (file->vec "res/png/kd1.png")
+                  (file->vec "res/png/kd2.png")
+                  (file->vec "res/png/kd3.png")))))
 
 (defparameter spleen-data (file->vec "res/font/spleen-16x32.otf"))
 
