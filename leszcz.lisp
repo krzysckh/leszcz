@@ -912,41 +912,88 @@
         (format t "[CLIENT] received movedata of (~a ~a) -> (~a ~a)~%" x1 y1 x2 y2)
         (game-do-move game (piece-at-point game x1 y1) x2 y2)))))
 
-(defun main (&optional argv)
+;; TODO: this and main share tons of code
+;;       figure out an elegant way to connect them and run different
+;;       things on startup to declare the connection and game variables
+(defun main-server (&optional argv)
   (declare (ignore argv))
 
-  (sb-thread:make-thread
-   #'(lambda ()
-       (net:start-server
-        #'(lambda (conn)
-            (let ((game (fen->game +initial-fen+))
-                  (side 'black))
-              (setf (game-side game) side)
-              (game-update-points-cache game)
-              (game-update-possible-moves-cache game)
-              (loop while (game-in-progress-p game) do
-                (format t "[BOT SERVER] game is in progress, fen is ~a~%" (game->fen game))
-                (if (eq (game-turn game) side)
-                    (let* ((pre-ps (remove-if #'(lambda (p) (not (eq (piece-color p) side))) (game-pieces game)))
-                           (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
-                      (format t "[BOT SERVER] BOT will make move~%")
-                      (when (> (length ps) 0)
-                        (let* ((chosen-piece (nth (random (length ps)) ps))
-                               (available-moves (possible-moves-for game chosen-piece))
-                               (chosen-move (nth (random (length available-moves)) available-moves)))
-                          (write-packets
-                           conn
-                           (make-client-packet
-                            'move
-                            :move-x1 (point-x (piece-point chosen-piece))
-                            :move-y1 (point-y (piece-point chosen-piece))
-                            :move-x2 (car chosen-move)
-                            :move-y2 (cadr chosen-move)))
-                          (game-do-move game chosen-piece (car chosen-move) (cadr chosen-move)))))
-                    (multiple-value-bind (x1 y1 x2 y2)
-                        (packet->movedata (receive-packet conn))
-                      (format t "[BOT SERVER] received (~a ~a) -> (~a ~a)~%" x1 y1 x2 y2)
-                      (game-do-move game (piece-at-point game x1 y1) x2 y2)))))))))
+  (net:start-server
+   #'(lambda (conn)
+       (let ((game (fen->game +initial-fen+))
+             (side 'black))
+         (setf (game-side game) side)
+         (setf (game-connection game) conn)
+         (game-update-points-cache game)
+         (game-update-possible-moves-cache game)
+
+         (setf gui::toplevel-console/log nil)
+         (setf gui::toplevel-console/state "")
+
+         (init-window *window-width* *window-height* ":leszcz")
+         ;; TODO: unset target fps when the engine is thinking or switch contexts or wtv
+         (set-target-fps! 60)
+         (set-exit-key! -1)
+
+         (load-textures)
+
+         (format t "white-texture-alist: ~a~%" white-texture-alist)
+         (format t "black-texture-alist: ~a~%" black-texture-alist)
+
+         (setf *current-game* game)
+         (format t "pieces: ~a~%" (game-pieces game))
+         (game-update-points-cache game)
+         (game-update-possible-moves-cache game)
+
+         ;; (setf (game-side game) nil)
+
+         (loop :while (not (window-close-p)) :do
+           (setf *current-screen* (screen->image)) ;; TODO: probably remove that
+           (set-mouse-cursor! +cursor-normal+)
+
+           (begin-drawing)
+           ;; in a progn to show block
+
+           (progn
+             (maybe-receive-move game)
+             (clear-background +color-grayish+)
+             (draw-game game)
+             (dolist (h mainloop-draw-hooks)
+               (funcall h game))
+             ;; (draw-fps 0 0)
+
+             )
+           (end-drawing)
+           (unload-image! *current-screen*)))
+       (close-window))))
+
+
+         ;; (loop while (game-in-progress-p game) do
+         ;;   (if (eq (game-turn game) side)
+         ;;       (let* ((pre-ps (remove-if #'(lambda (p) (not (eq (piece-color p) side))) (game-pieces game)))
+         ;;              (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
+         ;;         (format t "[BOT SERVER] BOT will make move~%")
+         ;;         (when (> (length ps) 0)
+         ;;           (let* ((chosen-piece (nth (random (length ps)) ps))
+         ;;                  (available-moves (possible-moves-for game chosen-piece))
+         ;;                  (chosen-move (nth (random (length available-moves)) available-moves)))
+         ;;             (write-packets
+         ;;              conn
+         ;;              (make-client-packet
+         ;;               'move
+         ;;               :move-x1 (point-x (piece-point chosen-piece))
+         ;;               :move-y1 (point-y (piece-point chosen-piece))
+         ;;               :move-x2 (car chosen-move)
+         ;;               :move-y2 (cadr chosen-move)))
+         ;;             (game-do-move game chosen-piece (car chosen-move) (cadr chosen-move)))))
+         ;;       (multiple-value-bind (x1 y1 x2 y2)
+         ;;           (packet->movedata (receive-packet conn))
+         ;;         (format t "[BOT SERVER] received (~a ~a) -> (~a ~a)~%" x1 y1 x2 y2)
+         ;;         (game-do-move game (piece-at-point game x1 y1) x2 y2)))))))))
+
+
+(defun main (&optional argv)
+  (declare (ignore argv))
 
   (sleep 1)
 

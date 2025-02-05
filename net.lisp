@@ -102,11 +102,10 @@
     seq))
 
 (defun maybe-receive-packet (conn)
-  (if (usocket:wait-for-input conn :timeout 0.01)
-      (let ((seq (make-sequence 'vector 4)))
-        (read-sequence seq (usocket:socket-stream conn))
-        seq)
-      nil))
+  (when (listen (usocket:socket-stream conn))
+    (let ((seq (make-sequence 'vector 4)))
+      (read-sequence seq (usocket:socket-stream conn))
+      seq)))
 
 (defun write-packets (conn packets)
   (format t "will write packets: ~a~%" packets)
