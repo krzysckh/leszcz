@@ -1,5 +1,7 @@
+;;; Leszcz entrypoint
+
 (defpackage :leszcz
-  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre)
+  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net)
   (:export
    main))
 
@@ -218,6 +220,7 @@
      :bcq-p (find #\q castle-rules)
      :en-passant-target-square (pos->lst (nth 3 l))
      :side 'white
+     :connection nil
      )))
 
 (defun draw-game (g)
@@ -662,7 +665,7 @@
            (type piece piece))
   ;; (warn "game-do-move move ~a to ~a" piece (list mx my))
   (when (not (move-possible-p piece mx my game))
-    (warn "game-do-move called with invalid data"))
+    (warn "game-do-move called with invalid data: ~a -> (~a ~a)" piece mx my))
 
   (let ((inc-halfmove-p t))
     (when-let ((f (move-possible-p piece mx my game)))
@@ -670,6 +673,16 @@
         (setf (game-halfmove-clock game) 0)
         (setf inc-halfmove-p nil)
         (setf (game-pieces game) (remove p (game-pieces game) :test #'equal)))
+
+      (when (and (eq (game-side game) (game-turn game)) (game-connection game))
+        (net:write-packets
+         (game-connection game)
+         (net:make-client-packet
+          'move
+          :move-x1 (point-x (piece-point piece))
+          :move-y1 (point-y (piece-point piece))
+          :move-x2 mx
+          :move-y2 my)))
 
       (when (eq (piece-type piece) 'pawn)
         (setf inc-halfmove-p nil)
@@ -856,7 +869,7 @@
                  (chosen-move (nth (random (length available-moves)) available-moves)))
             (game-do-move game chosen-piece (car chosen-move) (cadr chosen-move))))))))
 
-(add-draw-hook 'maybe-move-bot)
+;; (add-draw-hook 'maybe-move-bot)
 
 (defun load-textures ()
   (setf white-texture-alist nil)
@@ -886,26 +899,77 @@
 (defparameter *current-game* nil)
 (defparameter *current-screen* nil)
 
+
+;; TODO: protocol HAS to include data about the chosen piece after upgrade
+(defun maybe-receive-move (game)
+  (declare (type game game))
+
+  (when (not (eq (game-side game) (game-turn game)))
+    (when-let ((p (maybe-receive-packet (game-connection game))))
+      (format t "[CLIENT] game is in progress, fen is ~a~%" (game->fen game))
+      (multiple-value-bind (x1 y1 x2 y2)
+          (packet->movedata p)
+        (format t "[CLIENT] received movedata of (~a ~a) -> (~a ~a)~%" x1 y1 x2 y2)
+        (game-do-move game (piece-at-point game x1 y1) x2 y2)))))
+
 (defun main (&optional argv)
   (declare (ignore argv))
 
-  (setf gui::toplevel-console/log nil)
-  (setf gui::toplevel-console/state "")
+  (sb-thread:make-thread
+   #'(lambda ()
+       (net:start-server
+        #'(lambda (conn)
+            (let ((game (fen->game +initial-fen+))
+                  (side 'black))
+              (setf (game-side game) side)
+              (game-update-points-cache game)
+              (game-update-possible-moves-cache game)
+              (loop while (game-in-progress-p game) do
+                (format t "[BOT SERVER] game is in progress, fen is ~a~%" (game->fen game))
+                (if (eq (game-turn game) side)
+                    (let* ((pre-ps (remove-if #'(lambda (p) (not (eq (piece-color p) side))) (game-pieces game)))
+                           (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
+                      (format t "[BOT SERVER] BOT will make move~%")
+                      (when (> (length ps) 0)
+                        (let* ((chosen-piece (nth (random (length ps)) ps))
+                               (available-moves (possible-moves-for game chosen-piece))
+                               (chosen-move (nth (random (length available-moves)) available-moves)))
+                          (write-packets
+                           conn
+                           (make-client-packet
+                            'move
+                            :move-x1 (point-x (piece-point chosen-piece))
+                            :move-y1 (point-y (piece-point chosen-piece))
+                            :move-x2 (car chosen-move)
+                            :move-y2 (cadr chosen-move)))
+                          (game-do-move game chosen-piece (car chosen-move) (cadr chosen-move)))))
+                    (multiple-value-bind (x1 y1 x2 y2)
+                        (packet->movedata (receive-packet conn))
+                      (format t "[BOT SERVER] received (~a ~a) -> (~a ~a)~%" x1 y1 x2 y2)
+                      (game-do-move game (piece-at-point game x1 y1) x2 y2)))))))))
 
-  (init-window *window-width* *window-height* ":leszcz")
-  ;; TODO: unset target fps when the engine is thinking or switch contexts or wtv
-  (set-target-fps! 60)
-  (set-exit-key! -1)
+  (sleep 1)
 
-  (load-textures)
+  (multiple-value-bind (side fen conn)
+      (connect-to-server "localhost" "test123")
+    (format t "[CLIENT] received fen ~a~%" fen)
+    (let ((game (fen->game fen)))
+      (setf (game-side game) side)
+      (setf (game-connection game) conn)
 
-  (multiple-value-bind (b w h)
-      (make-button (cdr (assoc 'queen white-texture-alist)) :width 64 :height 64 :background-color +color-grayish+)
+      (setf gui::toplevel-console/log nil)
+      (setf gui::toplevel-console/state "")
 
-    (format t "white-texture-alist: ~a~%" white-texture-alist)
-    (format t "black-texture-alist: ~a~%" black-texture-alist)
+      (init-window *window-width* *window-height* ":leszcz")
+      ;; TODO: unset target fps when the engine is thinking or switch contexts or wtv
+      (set-target-fps! 60)
+      (set-exit-key! -1)
 
-    (let ((game (fen->game +initial-fen+)))
+      (load-textures)
+
+      (format t "white-texture-alist: ~a~%" white-texture-alist)
+      (format t "black-texture-alist: ~a~%" black-texture-alist)
+
       (setf *current-game* game)
       (format t "pieces: ~a~%" (game-pieces game))
       (game-update-points-cache game)
@@ -916,27 +980,74 @@
       (loop :while (not (window-close-p)) :do
         (setf *current-screen* (screen->image)) ;; TODO: probably remove that
         (set-mouse-cursor! +cursor-normal+)
-        ;; (when (key-pressed-p #\R)
-        ;;   (setf game (fen->game +initial-fen+))
-        ;;   (setf maybe-drag/piece nil)
-        ;;   (setf (game-side game) nil)
-        ;;   (game-update-possible-moves-cache game))
 
         (begin-drawing)
         ;; in a progn to show block
 
         (progn
+          (maybe-receive-move game)
           (clear-background +color-grayish+)
           (draw-game game)
           (dolist (h mainloop-draw-hooks)
             (funcall h game))
           ;; (draw-fps 0 0)
 
-          ;; (when (funcall b 100 100)
-          ;;   (format t "simple button pressed~%"))
           )
         (end-drawing)
-        (unload-image! *current-screen*)
-        )))
+        (unload-image! *current-screen*)))
+    (close-window)))
 
-  (close-window))
+;; (defun main2 (&optional argv)
+;;   (declare (ignore argv))
+
+;;   (setf gui::toplevel-console/log nil)
+;;   (setf gui::toplevel-console/state "")
+
+;;   (init-window *window-width* *window-height* ":leszcz")
+;;   ;; TODO: unset target fps when the engine is thinking or switch contexts or wtv
+;;   (set-target-fps! 60)
+;;   (set-exit-key! -1)
+
+;;   (load-textures)
+
+;;   (multiple-value-bind (b w h)
+;;       (make-button (cdr (assoc 'queen white-texture-alist)) :width 64 :height 64 :background-color +color-grayish+)
+
+;;     (format t "white-texture-alist: ~a~%" white-texture-alist)
+;;     (format t "black-texture-alist: ~a~%" black-texture-alist)
+
+;;     (let ((game (fen->game +initial-fen+)))
+;;       (setf *current-game* game)
+;;       (format t "pieces: ~a~%" (game-pieces game))
+;;       (game-update-points-cache game)
+;;       (game-update-possible-moves-cache game)
+
+;;       ;; (setf (game-side game) nil)
+
+;;       (loop :while (not (window-close-p)) :do
+;;         (setf *current-screen* (screen->image)) ;; TODO: probably remove that
+;;         (set-mouse-cursor! +cursor-normal+)
+;;         ;; (when (key-pressed-p #\R)
+;;         ;;   (setf game (fen->game +initial-fen+))
+;;         ;;   (setf maybe-drag/piece nil)
+;;         ;;   (setf (game-side game) nil)
+;;         ;;   (game-update-possible-moves-cache game))
+
+;;         (begin-drawing)
+;;         ;; in a progn to show block
+
+;;         (progn
+;;           (clear-background +color-grayish+)
+;;           (draw-game game)
+;;           (dolist (h mainloop-draw-hooks)
+;;             (funcall h game))
+;;           ;; (draw-fps 0 0)
+
+;;           ;; (when (funcall b 100 100)
+;;           ;;   (format t "simple button pressed~%"))
+;;           )
+;;         (end-drawing)
+;;         (unload-image! *current-screen*)
+;;         )))
+
+;;   (close-window))

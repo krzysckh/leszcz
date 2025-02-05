@@ -27,24 +27,76 @@
 
 ## typy pakietów
 
-| typ | nazwa  | opis |
-|-----|--------|------|
-|  0  | hii :3 | wysyłany na początku by dostać informacje o typie serwera i możliwościach|
-|  1  | gdata  | informacje o grze przed rozpoczęciem gry|
-|  2  | lgames | prośba/wylistowanie możliwych gier przez serwer|
-|  3  | pgame  | wybierz grę i dołącz |
-|  4  | ping   | ping, czy komputer jest nadal aktywny? |
-|  5  | move   | ruch|
-|  6  | rdata  | dane wysyłane jako kontynuacja poprzedniego pakietu|
+| typ | nazwa  | opis                                                                      |
+|-----|--------|---------------------------------------------------------------------------|
+| 0   | hii :3 | wysyłany na początku by dostać informacje o typie serwera i możliwościach |
+| 1   | gdata  | informacje o grze przed rozpoczęciem/podczas                              |
+| 2   | lgames | prośba/wylistowanie możliwych gier przez serwer                           |
+| 3   | pgame  | wybierz grę i dołącz                                                      |
+| 4   | ping   | ping, czy komputer jest nadal aktywny?                                    |
+| 5   | move   | ruch                                                                      |
+| 6   | rdata  | dane wysyłane jako kontynuacja poprzedniego pakietu                       |
 
 ## opisy pakietów
 
 TODO: każda gra musi mieć ID i musi być ich mniej niż 2^29
 
+* *hii :3*
+  * serwer wysyła
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{bytefield}{32}
+    \bitheader{0-31} \\
+    \bitbox{3}{typ} & \bitbox{29}{konfiguracja} \\
+    \bitboxes{1}{000} & \bitbox{1}{\rotatebox{90}{p2p?}} & \bitbox{28}{zarezerwowane}
+  \end{bytefield}
+\end{figure}
+  * klient odpowiada
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{bytefield}{32}
+    \bitheader{0-31} \\
+    \bitbox{3}{typ} & \bitbox{8}{nicklen} & \bitbox{21}{zarezerwowane} \\
+    \bitboxes{1}{000} & \bitbox{8}{0 jeśli p2p} & \bitbox{21}{zarezerwowane} \\
+  \end{bytefield}
+\end{figure}
+
+TODO: nicklen w ilości pakietów? łoł czyli 0-`3*255`
+
+i *nicklen* pakietami kontynuacyjnymi
+
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{bytefield}{32}
+    \bitheader{0-31} \\
+    \bitbox{3}{typ} & \bitbox{5}{} & \bitbox{24}{kolejne znaki nicku} \\
+    \bitboxes{1}{110} & \bitbox{1}{\rotatebox{90}{Kontynuacja?}} & \bitbox{4}{\rotatebox{90}{zarezerwowane}} &
+    \bitbox{8}{chr1} & \bitbox{8}{chr2} & \bitbox{8}{chr3}
+  \end{bytefield}
+\end{figure}
+
+* *gdata*
+  * serwer wysyła
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{bytefield}{32}
+    \bitheader{0-31} \\
+    \bitbox{3}{typ} & \bitbox{29}{dane} \\
+    \bitboxes{1}{001} & \bitbox{1}{\rotatebox{90}{biały?}} & \bitbox{20}{zarezerwowane} & \bitbox{8}{ilość rdata kont.} \\
+  \end{bytefield}
+\end{figure}
+
+i *N* pakietów kontynuacyjnych zawierających FEN gry
+
 * *lgames*
   * klient wysyła
 \begin{figure}[H]
   \centering
+  \ttfamily
   \begin{bytefield}{32}
     \bitheader{0-31} \\
     \bitbox{3}{typ} & \bitbox{29}{maksymalna ilość odebranych gier} \\
@@ -55,6 +107,7 @@ TODO: każda gra musi mieć ID i musi być ich mniej niż 2^29
 
 \begin{figure}[H]
   \centering
+  \ttfamily
   \begin{bytefield}{32}
     \bitheader{0-31} \\
     \bitbox{3}{typ} & \bitbox{29}{ilość pakietów kontynuacyjnych} \\
@@ -66,25 +119,26 @@ TODO: każda gra musi mieć ID i musi być ich mniej niż 2^29
 
 \begin{figure}[H]
   \centering
+  \ttfamily
   \begin{bytefield}{32}
     \bitheader{0-31} \\
-    \wordbox{1}{32 bity} \\
     \bitbox{3}{typ} & \bitbox{5}{} & \bitbox{24}{znaki nazwy gry (jeśli nie 0)} \\
-    \bitboxes{1}{110} & \bitbox{1}{\rotatebox{90}{Kontynuacja?}} & \bitbox{4}{zarezerwowane} &
+    \bitboxes{1}{110} & \bitbox{1}{\rotatebox{90}{Kontynuacja?}} & \bitbox{4}{\rotatebox{90}{zarezerwowane}} &
     \bitbox{8}{chr1} & \bitbox{8}{chr2} & \bitbox{8}{chr3}
   \end{bytefield}
 \end{figure}
 
-
 * *move*
+
+;; TODO: protocol HAS to include data about the chosen piece after upgrade
 
 \begin{figure}[H]
   \centering
+  \ttfamily
   \begin{bytefield}{32}
     \bitheader{0-31} \\
-    \wordbox{1}{32 bity} \\
-    \bitbox{3}{} & \bitbox{16}{dane o ruszeniu bierki} \\
-    \bitbox{3}{typ} & \bitbox{4}{x1} & \bitbox{4}{y1} & \bitbox{4}{x2} & \bitbox{4}{y2} & \bitbox{13}{zarezerwowane} \\
+    \bitbox{3}{typ} & \bitbox{1}{} & \bitbox{28}{dane o ruszeniu bierki} \\
+    \bitboxes{1}{101} & \bitbox{1}{\rotatebox{90}{nieużywane}} & \bitbox{4}{x1} & \bitbox{4}{y1} & \bitbox{4}{x2} & \bitbox{4}{y2} & \bitbox{12}{zarezerwowane} \\
   \end{bytefield}
 \end{figure}
 
@@ -94,21 +148,15 @@ TODO: każda gra musi mieć ID i musi być ich mniej niż 2^29
 
 \begin{figure}[H]
   \centering
+  \ttfamily
   \begin{sequencediagram}
-    \newinst{a}{Komputer 1}{}
-    \newinst[1]{b}{Komputer 2}{}
+    \newinst{a}{Master}{}
+    \newinst[1]{b}{Slave}{}
     \begin {sdblock}{"Handshake"}{}
+      \mess[1]{a}{hii :33 [p2p?=1]}{b}
       \mess[1]{b}{hii :33}{a}
-      \mess[1]{a}{hii :33 [z danymi o serwerze]}{b}
-    \end{sdblock}
-    \begin {sdblock}{Info}{prośba o dostępne gry}
-      \mess[1]{b}{lgames}{a}
-      \mess[1]{a}{lgames n=2}{b}
-      \mess[1]{a}{rdata gie}{b}
-      \mess[1]{a}{rdata [kont] rka}{b}
     \end{sdblock}
     \begin {sdblock}{Dołączenie do gry}{}
-      \mess[1]{b}{pgame 0}{a}
       \mess[1]{a}{gdata}{b}
       \mess[1]{a}{rdata z fenem}{b}
       \mess[1]{a}{rdata [kont] ...}{b}

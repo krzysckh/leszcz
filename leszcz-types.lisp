@@ -32,6 +32,7 @@
    game-halfmove-clock
    game-fullmove-clock
    game-result
+   game-connection
 
    ))
 
@@ -106,6 +107,9 @@
     :initarg :result
     :initform 'in-progress
     :accessor game-result)
+   (connection
+    :initarg :connection
+    :accessor game-connection)
   ))
 
 (defmethod game-tick ((g game))
