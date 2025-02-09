@@ -34,16 +34,19 @@
 
 ;; assuming a "vector" or "vector2" is a (list a b)
 (defun v2+ (a b)
+  (declare (type list a b))
   (list
    (+ (car a) (car b))
    (+ (cadr a) (cadr b))))
 
 (defun v2- (a b)
+  (declare (type list a b))
   (list
    (- (car a) (car b))
    (- (cadr a) (cadr b))))
 
 (defun maybe-reverse (g pt)
+  (declare (inline))
   (if (eq (game-side g) 'white)
       pt
       (- 7 pt)))
@@ -253,6 +256,7 @@
    (point-y (piece-point p))))
 
 (defun show-point-at-cursor (&rest r)
+  (declare (ignore r))
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
     (draw-rectangle-lines (* px +piece-size+) (* py +piece-size+) +piece-size+ +piece-size+ +color-black+)))
@@ -281,11 +285,13 @@
 
 ;; i used 100% of my brain for this name
 (defun enposition-moveset (position moveset)
-  (mapcar #'(lambda (p) (v2+ p position)) moveset))
+  (declare (optimize (speed 3) (safety 0)))
+  (loop for m in moveset collect (v2+ m position)))
 
 (defun generate-sliding-moves (game p moveset &key check-mode)
   (declare (type game game)
            (type piece p))
+  (declare (optimize (speed 3) (safety 0)))
 
   (multiple-value-bind (x y)
       (position-of p)
@@ -400,6 +406,7 @@
 (defun ask-for-upgrade-type (game upgraded-piece)
   (declare (type game game)
            (type piece upgraded-piece))
+  (declare (ignore game))
   (macrolet ((shid (texture ident)
                `(make-button* ,texture :height ut/upgrade-size :width ut/upgrade-size :background-color (if (whitep upgraded-piece) +color-white+ +color-black+) :identifier ,ident)))
     (let* ((bq (shid ut/upgrade-queen-texture  'queen))
@@ -676,7 +683,7 @@
         (setf inc-halfmove-p nil)
         (setf (game-pieces game) (remove p (game-pieces game) :test #'equal)))
 
-      (when (and (eq (game-side game) (game-turn game)) (game-connection game))
+      (when (and (game-connection game) (eq (game-side game) (game-turn game)))
         (net:write-packets
          (game-connection game)
          (net:make-client-packet
@@ -815,18 +822,17 @@
               '(80 80 80 80)))))))))
 
 (defun highlight-possible-moves (game &rest r)
-  (declare (type game game))
+  (declare (type game game)
+           (ignore r))
 
   (when-let ((p maybe-drag/piece))
-    (let ((px (point-x (piece-point p)))
-          (py (point-y (piece-point p))))
-      (dolist (pos (possible-moves-for game p))
-          (draw-rectangle
-           (* +piece-size+ (maybe-reverse game (car pos)))
-           (* +piece-size+ (maybe-reverse game (cadr pos)))
-           +piece-size+
-           +piece-size+
-           +color-redish+)))))
+    (dolist (pos (possible-moves-for game p))
+      (draw-rectangle
+       (* +piece-size+ (maybe-reverse game (car pos)))
+       (* +piece-size+ (maybe-reverse game (cadr pos)))
+       +piece-size+
+       +piece-size+
+       +color-redish+))))
 
 ;; (defun describe-checked (game)
 ;;   (multiple-value-bind (px py)
@@ -949,8 +955,7 @@
   (close-window))
 
 ;; Become a p2p "Master" server, accept a connection and begin game
-(defun start-master-server (&optional argv)
-  (declare (ignore argv))
+(defun start-master-server ()
   (net:start-server
    #'(lambda (fen side conn)
        (main-loop (fen->game fen) side conn))))
@@ -973,9 +978,7 @@
                  (chosen-move (nth (random (length available-moves)) available-moves)))
             (game-do-move game chosen-piece (car chosen-move) (cadr chosen-move))))))))
 
-(defun main (&optional argv)
-  (declare (ignore argv))
-
+(defun main ()
   (sb-thread:make-thread
    #'(lambda ()
        (net:start-server
@@ -984,8 +987,8 @@
               (initialize-game game side conn)
               (loop do
                 (maybe-receive-something game)
-                (maybe-move-bot game)))))))
+                (maybe-move-bot game))))
+        :fen "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0")))
 
   (sleep 1)
-
   (connect-to-master))

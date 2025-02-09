@@ -9,9 +9,8 @@ DOCS= \
 # host sbcl
 SBCL=sbcl --noinform
 
-PANDOC_HTML_FLAGS=-H doc/doc.css
 PANDOC_PDF_FLAGS=--pdf-engine=lualatex -V links-as-notes=true -H ./doc/cfg.tex
-PANDOC_COMMON_FLAGS=--toc --toc-depth=2 --metadata title="leszcz" -f markdown+raw_tex+raw_html --standalone
+PANDOC_COMMON_FLAGS=--toc --toc-depth=2 --metadata title="leszcz" -f markdown+raw_tex --standalone --bibliography=./doc/refs.bib --citeproc
 
 run:
 	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) \
@@ -34,13 +33,10 @@ clean:
 	rm -fr build
 test-p2p:
 	( \
-	  CL_SOURCE_REGISTRY=$(PWD) sbcl --eval "(ql:quickload :leszcz)" --eval "(leszcz::start-master-server)" --quit & \
+	  CL_SOURCE_REGISTRY=$(PWD) $(SBCL) --eval "(ql:quickload :leszcz)" --eval "(leszcz::start-master-server)" --quit & \
 	  sleep 1 ; \
-	  CL_SOURCE_REGISTRY=$(PWD) sbcl --eval "(ql:quickload :leszcz)" --eval "(leszcz::connect-to-master)" --quit & \
+	  CL_SOURCE_REGISTRY=$(PWD) $(SBCL) --eval "(ql:quickload :leszcz)" --eval "(leszcz::connect-to-master)" --quit & \
 	  wait )
 docs:
-	cat $(DOCS) \
-		| pandoc $(PANDOC_COMMON_FLAGS) $(PANDOC_HTML_FLAGS) -t html -o doc/leszcz.html
-
-	( for d in $(DOCS); do printf '\n\n\\newpage\n\n'; cat $$d ; done ) \
+	( for d in $(DOCS); do printf '\n\n\\newpage\n\n'; cat $$d ; done ; printf '\n\n\\newpage\n\n# Odniesienia' ) \
 		| pandoc $(PANDOC_COMMON_FLAGS) $(PANDOC_PDF_FLAGS) -t pdf -o doc/leszcz.pdf

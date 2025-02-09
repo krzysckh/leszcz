@@ -160,7 +160,7 @@
       seq)))
 
 (defun write-packets (conn packets)
-  (format t "will write packets: ~a~%" packets)
+  (format t "will write packets: ~a to ~a~%" packets conn)
   (dolist (p packets)
     (write-packet conn p)))
 
@@ -231,9 +231,12 @@
     (p2p (start-p2p-server game-handler :fen fen :opponent-side opponent-side))
     (t (error "Unknown server mode `~a'" mode))))
 
+(defmacro if* (f a b)
+  `(if (not (= ,f 0)) ,a ,b))
+
 (defun p2p-connect-and-return-fen-and-side-data (conn)
   (let* ((gdata (receive-packet conn))
-         (side (if (= 0 (logand #b00010000 (aref gdata 0))) 'black 'white)))
+         (side (if* (logand #b00010000 (aref gdata 0)) 'white 'black)))
     (values
      (rdata-packets->string (receive-packets conn (aref gdata 3)))
      side
@@ -243,9 +246,10 @@
   (let ((conn (socket-connect ip +port+ :element-type '(unsigned-byte 8))))
     (let ((hii (receive-packet conn)))
       (format t "[CLIENT] got hii: ~a~%" hii)
-      (if (logand (aref hii 0) #b00010000)
+      (if* (logand (aref hii 0) #b00010000)
           (progn
             (write-packets conn (make-client-packet 'hii)) ;; we're in p2p land, don't use a nick
             (p2p-connect-and-return-fen-and-side-data conn))
-          (error "non-p2p servers unsupported")))))
-    ;; (write-packets conn (make-client-packet 'hii :hii-nickname nickname)))
+          (progn
+            (write-packets conn (make-client-packet 'hii :hii-nickname nickname))
+            (error "non-p2p servers unsupported"))))))

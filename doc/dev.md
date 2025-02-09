@@ -27,3 +27,11 @@ Jeśli repl nie jest czymś co Ci się podoba, można wykonać `make run` by aut
 
 :3
 
+## problem: powolne
+
+bitboardy [@cchess1970]
+
+```lisp
+;; Do przeszukiwania drzewa ruchów
+(game->fast g)
+```

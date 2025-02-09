@@ -5,6 +5,10 @@
 
 (declaim (optimize (speed 3) (safety 0) (debug 0)))
 
+(push #P"/home/kpm/common-lisp/tracer/" asdf:*central-registry*)
+(push (uiop:getcwd) asdf:*central-registry*)
+(asdf:load-system :tracer)
+
 (plan 7)
 
 (diag "Testing FEN serialization/deserialization")
@@ -32,55 +36,90 @@
   (leszcz::game-update-possible-moves-cache g)
 
   (let ((games nil))
-    (loop for p in (game-pieces g) do
-      (let* ((pt (piece-point p))
-             (px (point-x pt))
-             (py (point-y pt)))
-        (loop for m in (leszcz::possible-moves-for g p) do
-          (let* ((g* (copy-game g))
-                 (p (leszcz::piece-at-point g* px py)))
-            (leszcz::game-update-points-cache g*)
-            (setf (game-possible-moves-cache g*) (game-possible-moves-cache g))
+    (loop for ms in (game-possible-moves-cache g) do
+      (loop for m in (cdr ms) do
+        (let* ((g* (copy-game g))
+               (p (leszcz::piece-at-point g* (caar ms) (cadar ms))))
+          (leszcz::game-update-points-cache g*)
+          ;; (leszcz::game-update-possible-moves-cache g*)
+          (setf (game-possible-moves-cache g*) (game-possible-moves-cache g))
 
-            (leszcz::game-do-move
-             g*
-             p
-             (car m) (cadr m)
-             :no-recache t
-             :no-check-mates t)
+          (leszcz::game-do-move
+           g*
+           p
+           (car m) (cadr m)
+           :no-recache nil
+           :no-check-mates t)
 
-          (when (not (= (length (game-pieces g*)) (length (game-pieces g))))
-            (incf captures))
+          ;; (when (not (= (length (game-pieces g*)) (length (game-pieces g))))
+          ;;   (incf captures))
 
-          (let ((k1 (leszcz::king-of g* 'white))
-                (k2 (leszcz::king-of g* 'black)))
-            (when (or (leszcz::point-checked-p
-                       g*
-                       (leszcz-types:point-x (leszcz-types:piece-point k1))
-                       (leszcz-types:point-y (leszcz-types:piece-point k1))
-                       'black)
-                      (leszcz::point-checked-p
-                       g*
-                       (leszcz-types:point-x (leszcz-types:piece-point k2))
-                       (leszcz-types:point-y (leszcz-types:piece-point k2))
-                       'white))
-              (incf checks)))
+          ;; (let ((k1 (leszcz::king-of g* 'white))
+          ;;       (k2 (leszcz::king-of g* 'black)))
+          ;;   (when (or (leszcz::point-checked-p
+          ;;              g*
+          ;;              (leszcz-types:point-x (leszcz-types:piece-point k1))
+          ;;              (leszcz-types:point-y (leszcz-types:piece-point k1))
+          ;;              'black)
+          ;;             (leszcz::point-checked-p
+          ;;              g*
+          ;;              (leszcz-types:point-x (leszcz-types:piece-point k2))
+          ;;              (leszcz-types:point-y (leszcz-types:piece-point k2))
+          ;;              'white))
+          ;;     (incf checks)))
 
           (push g* games)
-          ))))
-  games))
+          )))
+    games))
 
 (diag "Testing move generation")
 
-(defparameter *expected-number-of-moves* '(20 400 8902 197281))
+;; (defparameter *expected-number-of-moves* '(20 400 8902 197281))
+;; (defparameter *test-fen* +initial-fen+)
+(defparameter *expected-number-of-moves* '(48 2039 97862 4085603))
+(defparameter *test-fen* "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0")
 
-(let ((games (list (leszcz::fen->game +initial-fen+))))
-  (loop for i from 0 to 3 do
-    (setf captures 0)
-    (setf checks 0)
-    (setf games (mappend #'game-permute games))
-    ;; TODO: figure out why the check count doesn't match https://www.chessprogramming.org/Perft_Results#Initial_Position and test that too
-    ;; TODO: wow this is slow
-    (is (length games) (nth i *expected-number-of-moves*))))
+(defparameter *depth* 1)
+
+;; (let ((g (leszcz::fen->game *test-fen*)))
+;;   (leszcz::game-update-points-cache g)
+;;   (leszcz::game-update-possible-moves-cache g)
+;;   (format
+;;    t "possible moves: ~a~%"
+;;    (length (game-permute g))))
+;;    ;; (loop for m in (game-possible-moves-cache g)
+;;    ;;       sum (length (cdr m)))))
+
+;; (sb-ext:exit :code -1)
+
+;; (tracer:with-tracing ("LESZCZ" "NET" "GUI" "LESZCZ-CONSTANTS")
+  (let ((games (list (leszcz::fen->game *test-fen*))))
+    (loop for i from 0 to *depth* do
+      (setf captures 0)
+      (setf checks 0)
+      (setf games (mappend #'game-permute games))
+      ;; TODO: figure out why the check count doesn't match https://www.chessprogramming.org/Perft_Results#Initial_Position and test that too
+      ;; TODO: wow this is slow
+      (is (length games) (nth i *expected-number-of-moves*))))
+;;   )
+
+;; (tracer:save-report "report.json")
+
+  ;; (init-window *window-width* *window-height* ":leszcz")
+  ;; (set-target-fps! 60)
+  ;; (set-exit-key! -1)
+  ;; (leszcz::load-textures)
+
+  ;; (loop :while (not (window-close-p)) :do
+  ;;   (set-mouse-cursor! +cursor-normal+)
+
+  ;;   (when (key-pressed-p #\A)
+  ;;     (setf games (cdr games)))
+
+  ;;   (begin-drawing)
+  ;;   (clear-background +color-grayish+)
+  ;;   (leszcz::draw-game (car games))
+
+  ;;   (end-drawing)))
 
 (finalize)
