@@ -9,27 +9,79 @@
    maybe-receive-packet
    write-packets
    packet-of-type-p
+   packet-name->type
    +port+
-   +rdata-type+
-   +gdata-type+
+   packet->name
+   packet-case
+
    +hii-type+
+   +gdata-type+
+   +lgames-type+
+   +pgame-type+
+   +ping-type+
    +move-type+
+   +rdata-type+
+   +invalid-type+
 
    ;; plain symbols
-   gdata
-   rdata
    hii
+   gdata
+   lgames
+   pgame
+   ping
    move
+   rdata
+   invalid
    ))
 
 (in-package :net)
 
 (defconstant +port+ 3317)
 
-(defconstant +rdata-type+ #b11000000)
-(defconstant +gdata-type+ #b00100000)
-(defconstant +hii-type+   #b00000000)
-(defconstant +move-type+  #b10100000)
+(defconstant +hii-type+     #b00000000)
+(defconstant +gdata-type+   #b00100000)
+(defconstant +lgames-type+  #b01000000)
+(defconstant +pgame-type+   #b01100000)
+(defconstant +ping-type+    #b10000000)
+(defconstant +move-type+    #b10100000)
+(defconstant +rdata-type+   #b11000000)
+(defconstant +invalid-type+ #b11100000)
+
+(defun packet-name->type (sym)
+  (declare (type symbol sym))
+  (case sym
+    (hii    +hii-type+)
+    (gdata  +gdata-type+)
+    (lgames +lgames-type+)
+    (pgame  +pgame-type+)
+    (ping   +ping-type+)
+    (move   +move-type+)
+    (rdata  +rdata-type+)
+    (t
+     +invalid-type+)))
+
+(defun packet->name (p)
+  (cond
+    ((packet-of-type-p p +hii-type+) 'hii)
+    ((packet-of-type-p p +gdata-type+) 'gdata)
+    ((packet-of-type-p p +lgames-type+) 'lgames)
+    ((packet-of-type-p p +pgame-type+) 'pgame)
+    ((packet-of-type-p p +ping-type+) 'ping)
+    ((packet-of-type-p p +move-type+) 'move)
+    ((packet-of-type-p p +rdata-type+) 'rdata)
+    (t 'invalid)))
+
+;; (packet-case p
+;;   (hii (do-something))
+;;   (ping (do-something-else))
+;;   (t))  ;; nye interestna
+(defmacro packet-case (p &body cases)
+  `(cond
+     ,@(loop for c in cases collect `(,(if (eq t (car c))
+                                           t
+                                           `(packet-of-type-p ,p (packet-name->type (quote ,(car c)))))
+                                      (progn
+                                        ,@(cdr c))))))
 
 (defun packet-of-type-p (packet type)
   (declare (type vector packet)
@@ -153,7 +205,7 @@
        (ash (logand (aref p 2) #xf0) -4))
       (error "expected MOVE packet, got ~a instead" p)))
 
-(defun start-p2p-server (game-handler)
+(defun start-p2p-server (game-handler &key fen (opponent-side 'white))
   (format t "[SERVER] starting p2p server @ port ~a~%" +port+)
   (with-socket-listener
       (sock "127.0.0.1" +port+ :reuseaddress t :element-type '(unsigned-byte 8))
@@ -166,25 +218,25 @@
       (let* ((hii-back (receive-packet conn)))
         (assert (packet-of-type-p hii-back +hii-type+)))
 
-      (write-packets conn (make-server-packet 'gdata :gdata-color 'white :gdata-fen +initial-fen+))
+      (write-packets conn (make-server-packet 'gdata :gdata-color opponent-side :gdata-fen fen))
 
-      (funcall game-handler conn)
+      (funcall game-handler fen (if (eq 'white opponent-side) 'black 'white) conn)
       (format t "[SERVER] Closing p2p socket and connection~%"))))
       ;; (usocket:socket-close conn)
       ;; (usocket:socket-close sock))))
 
-(defun start-server (game-handler &key (mode 'p2p) (fork nil))
+(defun start-server (game-handler &key (mode 'p2p) (fork nil) (fen +initial-fen+) (opponent-side 'white))
   (declare (ignore fork))
   (case mode
-    (p2p (start-p2p-server game-handler))
+    (p2p (start-p2p-server game-handler :fen fen :opponent-side opponent-side))
     (t (error "Unknown server mode `~a'" mode))))
 
 (defun p2p-connect-and-return-fen-and-side-data (conn)
   (let* ((gdata (receive-packet conn))
          (side (if (= 0 (logand #b00010000 (aref gdata 0))) 'black 'white)))
     (values
-     side
      (rdata-packets->string (receive-packets conn (aref gdata 3)))
+     side
      conn)))
 
 (defun connect-to-server (ip nickname)
@@ -197,8 +249,3 @@
             (p2p-connect-and-return-fen-and-side-data conn))
           (error "non-p2p servers unsupported")))))
     ;; (write-packets conn (make-client-packet 'hii :hii-nickname nickname)))
-
-(defun test ()
-  (sb-thread:make-thread #'start-p2p-server)
-  (connect-to-server "localhost" "hello hi :3")
-  nil)

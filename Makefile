@@ -32,6 +32,12 @@ test:
 		--quit
 clean:
 	rm -fr build
+test-p2p:
+	( \
+	  CL_SOURCE_REGISTRY=$(PWD) sbcl --eval "(ql:quickload :leszcz)" --eval "(leszcz::start-master-server)" --quit & \
+	  sleep 1 ; \
+	  CL_SOURCE_REGISTRY=$(PWD) sbcl --eval "(ql:quickload :leszcz)" --eval "(leszcz::connect-to-master)" --quit & \
+	  wait )
 docs:
 	cat $(DOCS) \
 		| pandoc $(PANDOC_COMMON_FLAGS) $(PANDOC_HTML_FLAGS) -t html -o doc/leszcz.html
