@@ -4,26 +4,30 @@
     * [ ] ładniejsze figury
       * [x] ładniejsze figury I
       * [x] ładniejsze figury II (nałóż filtry poprawnie)
-      * [ ] ładniejsze figury III (graficzki od maciusia)
+      * [x] ładniejsze figury III (graficzki od maciusia)
         * [x] pion
         * [x] wieża
         * [x] koń
-        * [ ] goniec
+        * [x] goniec
         * [ ] król
+          * [x] jest
+          * [ ] no ale mógłby być ładniejszy
         * [ ] hetman
+          * [x] jest
+          * [ ] no ale mogłaby być ładniejsza
       * [ ] możliwość wybrania figur i kolorów
     * [ ] menu
     * [ ] opcje
-  * [ ] "gameplay"
+  * [x] "gameplay"
     * [x] tury
     * [x] zbijanie figur
-    * [ ] generowanie i podświetlanie możliwych ruchów
-      * [ ] pion
+    * [x] generowanie i podświetlanie możliwych ruchów
+      * [x] pion
         * [x] ruchy typu o 1
         * [x] ruchy typu o 2
         * [x] bicie
         * [x] zmiana w hetmana
-        * [ ] zmiana w cokolwiek innego + wykmiń generację ruchów + menu dla gracza
+        * [x] zmiana w cokolwiek innego + wykmiń generację ruchów + menu dla gracza
         * [x] ę pasą (bicie w przelocie)
       * [x] wieża
       * [x] goniec
@@ -77,4 +81,19 @@
     * [ ] "wybieranie ruchów z listy możliwych losowo zamiast liniowi" → wyszukiwanie w drzewie sposobem monte carlo
     * [ ] preferencja figur dla danych pozycji
   * [ ] a tak w ogóle to silnik miej w osobnym wątku żeby mniej się narobić a więcej zarobić
+* [ ] Gracz v Gracz na różnych komputerach w LAN (p2p)
+  * [x] działa
+  * [ ] ładne menu do hostowania/łączenia
+* [ ] protokół
+  * [ ] napisane docsy w całości
+  * [ ] impl.
+    * [x] hii
+    * [ ] gdata
+    * [ ] lgames
+    * [ ] pgame
+    * [ ] ping
+    * [ ] move
+      * [x] dane o ruchu
+      * [ ] dane o upgrejdzie piona !!!!!
+    * [x] rdata
 * [ ] napisz resztę todo
