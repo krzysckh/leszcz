@@ -19,6 +19,8 @@
    texture-button
    make-button
    make-button*
+
+   configure-menu
    ))
 
 (in-package :gui)
@@ -138,22 +140,23 @@
 (defparameter +color-dark-brownish+    '(#x2f #x17 #x08 #xff))
 (defparameter +color-golden+           '(#xf2 #xd3 #x0e #xff))
 
-(defun text-button (x y w h text &key (font-size (- h 2)) (pad t))
-  (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
-                                                     (mouse-y)))
-                                     (floatize (list x y w h)))))
-    (when at-point-p
-      (set-mouse-cursor! +cursor-pointer+))
-    (draw-rectangle x y w h (if at-point-p
-                                +color-lighter-brownish+
-                                +color-light-brownish+))
-    (when pad
-      (draw-rectangle-lines-2
-       (floatize (list (- x 8) (- y 8) (+ w 16) (+ h 16)))
-       (float 8)
-       +color-dark-brownish+))
-    (draw-text text x y font-size +color-golden+)
-    (and at-point-p (mouse-pressed-p 0))))
+(defun text-button (x* y* w* h* text &key (font-size (round (- h* 2))) (pad t))
+  (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*))))
+    (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
+                                                       (mouse-y)))
+                                       (floatize (list x y w h)))))
+      (when at-point-p
+        (set-mouse-cursor! +cursor-pointer+))
+      (draw-rectangle x y w h (if at-point-p
+                                  +color-lighter-brownish+
+                                  +color-light-brownish+))
+      (when pad
+        (draw-rectangle-lines-2
+         (floatize (list (- x 8) (- y 8) (+ w 16) (+ h 16)))
+         (float 8)
+         +color-dark-brownish+))
+      (draw-text text x y font-size +color-golden+)
+      (and at-point-p (mouse-pressed-p 0)))))
 
 (defun texture-button (x y w h texture &key (pad t) (background-color nil))
   (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
@@ -211,3 +214,50 @@
               :background-color background-color))
          width
          height))))
+
+(defun unload-textures! (alist)
+  (loop for c in alist do
+    (if (vectorp (cdr c))
+        (loop for x across (cdr c) do (unload-texture! x))
+        (unload-texture! (cdr c)))))
+
+(defun switch-textures-to (sym)
+  (unload-textures! white-texture-alist)
+  (unload-textures! black-texture-alist)
+
+  (when-let ((texture-pack (cdr (assoc sym texture-options))))
+    (setf white-texture-data-list (cdr (assoc 'white texture-pack)))
+    (setf black-texture-data-list (cdr (assoc 'black texture-pack))))
+
+  (load-textures))
+
+;; Steal mainloop and show a menu that can configure data from :leszcz-constants (not so constant now huh?)
+;; TODO: I don't actually think this should steal the mainloop, but it's easier for now as it will
+;;       make it impossible to fuck up some clicks and clacks u know
+;;       i will fix it later to use the cool ass capturer mechanism
+(defun configure-menu ()
+  (let-values ((b1 w1 h1 (make-button* "sleek" :height 24 :identifier 'sleek))
+               (b2 w2 h2 (make-button* "pixel" :height 24 :identifier 'pixel))
+               (font (load-font spleen-data 24))
+               (ws (measure-text font "Dostępne paczki tekstur: " 24.0 0.0))
+               (wt (car ws)))
+    (loop until (or (window-close-p) (key-pressed-p-1 256)) do
+      (begin-drawing)
+
+      (clear-background +color-grayish+)
+
+      (draw-text "Dostępne paczki tekstur: " 10 10 24 +color-white+)
+
+      (funcall b1 (+ 10 wt) 10 #'switch-textures-to)
+      (funcall b2 (+ 10 wt w1 20) 10 #'switch-textures-to)
+
+      (end-drawing))
+    ))
+
+(defun maybe-configure-menu (&rest r)
+  (declare (ignore r))
+  (when (key-pressed-p-1 256)
+    (end-drawing)
+    (configure-menu)))
+
+(add-draw-hook 'maybe-configure-menu)

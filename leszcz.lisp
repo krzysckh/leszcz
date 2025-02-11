@@ -21,9 +21,6 @@
 (defmethod game-turn-black-p ((g game))
   (eq (game-turn g) 'black))
 
-(defparameter white-texture-alist nil)
-(defparameter black-texture-alist nil)
-
 (defun piece->value (p)
   (declare (type piece p))
   (case (piece-type p)
@@ -881,28 +878,6 @@
 
 (add-draw-hook 'gui:toplevel-console-listener)
 
-(defun load-textures ()
-  (setf white-texture-alist nil)
-  (setf black-texture-alist nil)
-  (setf raylib:*font* (make-hash-table :test #'equal)) ;; reset *font* every texture reload
-
-  ;; (setf raylib:*font* (make-font spleen-data ".otf" 18 1024))
-  (raylib:load-font spleen-data 18)
-  ;; TODO:
-  ;; ;; TODO: czemu tekstury są tak rozpikselizowane lol
-  ;; (set-texture-filter! texture +TEXTURE-FILTER-POINT+)
-  (macrolet ((load* (data-list alist)
-               `(dolist (e ,data-list)
-                  (if (listp (cdr e))
-                      (let ((textures (mapcar #'(lambda (data) (make-texture data ".png")) (cdr e))))
-                        (push (cons (car e) (coerce textures 'vector)) ,alist))
-                      (let ((texture (make-texture (cdr e) ".png")))
-                        (push (cons (car e) texture) ,alist))))))
-    (load* white-texture-data-list white-texture-alist)
-    (load* black-texture-data-list black-texture-alist)
-
-    (format t "loaded textures~%")))
-
 ;; (defparameter test-fen "5qk1/1q6/8/8/8/8/8/R3K2R w KQ-- - 0 1")
 
 ;; do not use this, this is only for eval in repl
@@ -970,6 +945,7 @@
     (maybe-receive-something game)
     (clear-background +color-grayish+)
     (draw-game game)
+
     (dolist (h mainloop-draw-hooks)
       (funcall h game))
 
@@ -1015,19 +991,23 @@
      (prog1 thr
        (push thr *threads*))))
 
-(defun main ()
-  (cleanup-threads!)
+(defun %main ()
   (thread
-   "bot thread (server)"
-   (net:start-server
-    #'(lambda (fen side conn)
-        (let ((game (fen->game fen)))
-          (initialize-game game side conn)
-          (loop do
-            (maybe-receive-something game)
-            (maybe-move-bot game))))
-    :fen "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0"))
+      "bot thread (server)"
+    (net:start-server
+     #'(lambda (fen side conn)
+         (let ((game (fen->game fen)))
+           (initialize-game game side conn)
+           (loop do
+             (maybe-receive-something game)
+             (maybe-move-bot game))))
+     :fen "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0"))
 
   (sleep 1)
   (sb-thread:join-thread
    (thread "user thread (client)" (connect-to-master))))
+
+(defun main ()
+  (unwind-protect
+       (%main)
+    (cleanup-threads!)))

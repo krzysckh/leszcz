@@ -108,7 +108,7 @@
   ;; (init-window *window-width* *window-height* ":leszcz")
   ;; (set-target-fps! 60)
   ;; (set-exit-key! -1)
-  ;; (leszcz::load-textures)
+  ;; (load-textures)
 
   ;; (loop :while (not (window-close-p)) :do
   ;;   (set-mouse-cursor! +cursor-normal+)

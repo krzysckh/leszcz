@@ -2,6 +2,8 @@
   (:use :common-lisp :cffi :alexandria :leszcz-constants)
   (:export
    ;; Functions and whatnot
+   load-textures
+
    color
    init-window
    close-window
@@ -359,3 +361,25 @@
 ;; todo: ?
 (deftype color ()
   '())
+
+(defun load-textures ()
+  (setf white-texture-alist nil)
+  (setf black-texture-alist nil)
+  (setf raylib:*font* (make-hash-table :test #'equal)) ;; reset *font* every texture reload
+
+  ;; (setf raylib:*font* (make-font spleen-data ".otf" 18 1024))
+  (raylib:load-font spleen-data 18)
+  ;; TODO:
+  ;; ;; TODO: czemu tekstury są tak rozpikselizowane lol
+  ;; (set-texture-filter! texture +TEXTURE-FILTER-POINT+)
+  (macrolet ((load* (data-list alist)
+               `(dolist (e ,data-list)
+                  (if (listp (cdr e))
+                      (let ((textures (mapcar #'(lambda (data) (make-texture data ".png")) (cdr e))))
+                        (push (cons (car e) (coerce textures 'vector)) ,alist))
+                      (let ((texture (make-texture (cdr e) ".png")))
+                        (push (cons (car e) texture) ,alist))))))
+    (load* white-texture-data-list white-texture-alist)
+    (load* black-texture-data-list black-texture-alist)
+
+    (format t "loaded textures~%")))

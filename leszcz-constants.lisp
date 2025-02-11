@@ -1,8 +1,11 @@
 (defpackage :leszcz-constants
   (:use :common-lisp :alexandria)
   (:export
+   load-textures
    white-texture-data-list
    black-texture-data-list
+   white-texture-alist
+   black-texture-alist
    spleen-data
    +texture-size+
    +piece-size+
@@ -17,6 +20,8 @@
    *window-height*
    *window-width*
    +initial-fen+
+   texture-options
+   let-values
 
    ;; symbols
    pawn
@@ -27,6 +32,9 @@
    king
    white
    black
+
+   sleek
+   pixel
 
    in-progress
    checkmate
@@ -44,8 +52,26 @@
     (close f)
     vec))
 
+(defparameter white-texture-data-list-sleek
+  (list
+   (cons 'pawn   (file->vec "res/png/pl.png"))
+   (cons 'rook   (file->vec "res/png/rl.png"))
+   (cons 'knight (file->vec "res/png/nl.png"))
+   (cons 'bishop (file->vec "res/png/bl.png"))
+   (cons 'queen  (file->vec "res/png/ql.png"))
+   (cons 'king   (file->vec "res/png/kl.png"))))
+
+(defparameter black-texture-data-list-sleek
+  (list
+   (cons 'pawn   (file->vec "res/png/pd.png"))
+   (cons 'rook   (file->vec "res/png/rd.png"))
+   (cons 'knight (file->vec "res/png/nd.png"))
+   (cons 'bishop (file->vec "res/png/bd.png"))
+   (cons 'queen  (file->vec "res/png/qd.png"))
+   (cons 'king   (file->vec "res/png/kd.png"))))
+
 ;; TODO: skiny jak szymon zaimplementuje menu
-(defparameter white-texture-data-list
+(defparameter white-texture-data-list-pixel
   (list
    ;; (cons 'pawn   (file->vec "res/png/pl.png"))
    (cons 'pawn   (list
@@ -83,7 +109,7 @@
                   (file->vec "res/png/kl2.png")
                   (file->vec "res/png/kl3.png")))))
 
-(defparameter black-texture-data-list
+(defparameter black-texture-data-list-pixel
   (list
    ;; (cons 'pawn   (file->vec "res/png/pd.png"))
    (cons 'pawn   (list
@@ -121,6 +147,13 @@
                   (file->vec "res/png/kd2.png")
                   (file->vec "res/png/kd3.png")))))
 
+(defparameter white-texture-data-list white-texture-data-list-pixel)
+(defparameter black-texture-data-list black-texture-data-list-pixel)
+
+(defparameter texture-options
+  `((sleek (white . ,white-texture-data-list-sleek) (black . ,black-texture-data-list-sleek))
+    (pixel (white . ,white-texture-data-list-pixel) (black . ,black-texture-data-list-pixel))))
+
 (defparameter spleen-data (file->vec "res/font/spleen-16x32.otf"))
 
 (defparameter +texture-size+ 1024)
@@ -142,3 +175,15 @@
 (defparameter *window-height* (* +piece-size+ 8))
 
 (define-constant +initial-fen+ "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" :test #'equal)
+
+(defparameter white-texture-alist nil)
+(defparameter black-texture-alist nil)
+
+(defmacro let-values (bindings &body b)
+  (let ((l b)
+        (listp nil))
+    (loop for b in (reverse bindings) do
+      (let ((v `(multiple-value-bind (,@(butlast b)) ,(car (last b)))))
+        (setf l (append v (if listp (list l) l)))
+        (setf listp t)))
+    l))
