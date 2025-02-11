@@ -1008,12 +1008,12 @@
   (setf *threads* nil))
 
 (defmacro thread (name &body b)
-  `(push
-    (sb-thread:make-thread
-     #'(lambda ()
-         ,@b)
-     :name ,name)
-    *threads*))
+  `(let ((thr (sb-thread:make-thread
+               #'(lambda ()
+                   ,@b)
+               :name ,name)))
+     (prog1 thr
+       (push thr *threads*))))
 
 (defun main ()
   (cleanup-threads!)
@@ -1029,4 +1029,5 @@
     :fen "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0"))
 
   (sleep 1)
-  (thread "user thread (client)" (connect-to-master)))
+  (sb-thread:join-thread
+   (thread "user thread (client)" (connect-to-master))))
