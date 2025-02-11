@@ -9,6 +9,10 @@
 
 (defvar *threads* nil)
 
+;; do not use this, this is only for eval in repl
+(defparameter *current-game* nil)
+(defparameter *current-screen* nil)
+
 (defun hasp (el l)
   (member el l :test #'equal))
 
@@ -232,7 +236,7 @@
   (let ((i (if (eq (game-side g) 'white) 0 1)))
     (loop for y from 0 to 7 do
       (loop for x from 0 to 7 do
-        (let ((color (if (= (mod (+ y x) 2) 0) +color-bg-light+ +color-bg-dark+)))
+        (let ((color (if (= (mod (+ y x) 2) 0) *color-bg-light* *color-bg-dark*)))
           (draw-rectangle (* +piece-size+ x) (* +piece-size+ y) +piece-size+ +piece-size+ color)
           (incf i)))))
 
@@ -876,10 +880,6 @@
 (add-draw-hook 'gui:toplevel-console-listener)
 
 ;; (defparameter test-fen "5qk1/1q6/8/8/8/8/8/R3K2R w KQ-- - 0 1")
-
-;; do not use this, this is only for eval in repl
-(defparameter *current-game* nil)
-(defparameter *current-screen* nil)
 
 ;; TODO: protocol HAS to include data about the chosen piece after upgrade
 (defun maybe-receive-something (game)

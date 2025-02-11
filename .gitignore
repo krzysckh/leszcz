@@ -10,3 +10,15 @@ system-index.txt
 *.pdf
 *.html
 _p.png
+*.texi
+*.aux
+*.fn
+*.fns
+*.log
+*.toc
+*.tp
+*.tps
+*.vr
+*.vrs
+*.json
+*.mp4

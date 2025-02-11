@@ -30,7 +30,7 @@ test:
 		--load t/test.lisp \
 		--quit
 clean:
-	rm -fr build
+	rm -fr build leszcz.texi
 test-p2p:
 	( \
 	  CL_SOURCE_REGISTRY=$(PWD) $(SBCL) --eval "(ql:quickload :leszcz)" --eval "(leszcz::start-master-server)" --quit & \
@@ -40,3 +40,12 @@ test-p2p:
 docs:
 	( for d in $(DOCS); do printf '\n\n\\newpage\n\n'; cat $$d ; done ; printf '\n\n\\newpage\n\n# Odniesienia' ) \
 		| pandoc $(PANDOC_COMMON_FLAGS) $(PANDOC_PDF_FLAGS) -t pdf -o doc/leszcz.pdf
+	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) \
+		--eval "(ql:quickload :net.didierverna.declt)" \
+		--eval "(net.didierverna.declt:nickname-package)" \
+		--eval "(declt:declt :leszcz)" \
+		--quit
+	makeinfo --no-split --pdf leszcz.texi -o doc/leszcz-reference-manual.pdf
+	makeinfo --no-split --html --css-include=doc/doc.css leszcz.texi -o doc/leszcz-reference-manual.html
+pubcpy: docs
+	cd doc ; for f in leszcz-reference-manual.pdf leszcz-reference-manual.html leszcz.pdf ; do yes | pubcpy $$f ; done

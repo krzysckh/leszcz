@@ -15,8 +15,8 @@
    +color-grayish+
    +color-greenish+
    +color-redish+
-   +color-bg-light+
-   +color-bg-dark+
+   *color-bg-light*
+   *color-bg-dark*
    *window-height*
    *window-width*
    +initial-fen+
@@ -35,6 +35,8 @@
 
    sleek
    pixel
+   bg-light
+   bg-dark
 
    in-progress
    checkmate
@@ -151,8 +153,15 @@
 (defparameter black-texture-data-list black-texture-data-list-pixel)
 
 (defparameter texture-options
-  `((sleek (white . ,white-texture-data-list-sleek) (black . ,black-texture-data-list-sleek))
-    (pixel (white . ,white-texture-data-list-pixel) (black . ,black-texture-data-list-pixel))))
+  `((sleek (white . ,white-texture-data-list-sleek)
+           (black . ,black-texture-data-list-sleek)
+           (bg-light #xeb #xec #xd0 #xff)
+           (bg-dark  #x73 #x95 #x52 #xff))
+    (pixel (white . ,white-texture-data-list-pixel)
+           (black . ,black-texture-data-list-pixel)
+           (bg-light #xde #xde #xde #xff)
+           (bg-dark  #x22 #x22 #x22 #xff))
+    ))
 
 (defparameter spleen-data (file->vec "res/font/spleen-16x32.otf"))
 
@@ -165,11 +174,8 @@
 (defparameter +color-greenish+ '(0 200 0 128))
 (defparameter +color-redish+ '(200 30 0 128))
 
-;; (defparameter +color-bg-light+ '(#xeb #xec #xd0 #xff))
-;; (defparameter +color-bg-dark+  '(#x73 #x95 #x52 #xff))
-
-(defparameter +color-bg-light+ '(#xde #xde #xde #xff))
-(defparameter +color-bg-dark+  '(#x22 #x22 #x22 #xff))
+(defparameter *color-bg-light* '(#xde #xde #xde #xff))
+(defparameter *color-bg-dark*  '(#x22 #x22 #x22 #xff))
 
 (defparameter *window-width*  (* +piece-size+ 8))
 (defparameter *window-height* (* +piece-size+ 8))

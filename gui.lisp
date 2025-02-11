@@ -228,7 +228,11 @@
 
   (when-let ((texture-pack (cdr (assoc sym texture-options))))
     (setf white-texture-data-list (cdr (assoc 'white texture-pack)))
-    (setf black-texture-data-list (cdr (assoc 'black texture-pack))))
+    (setf black-texture-data-list (cdr (assoc 'black texture-pack)))
+    (setf *color-bg-light* (cdr (assoc 'bg-light texture-pack)))
+    (setf *color-bg-dark*  (cdr (assoc 'bg-dark texture-pack))))
+
+  (format t "colors: ~a, ~a ~%" *color-bg-light* *color-bg-dark*)
 
   (load-textures))
 
