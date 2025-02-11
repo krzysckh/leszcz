@@ -20,6 +20,7 @@
    make-button
    make-button*
 
+   switch-textures-to
    configure-menu
    ))
 

@@ -11,6 +11,8 @@
    piece-type
    piece-color
    piece-point
+   whitep
+   blackp
    ;; game (custom)
    game-tick
    game-turn
@@ -142,3 +144,6 @@
           (game-ticker g)
           (game-halfmove-clock g)
           (game-fullmove-clock g)))
+
+(defun whitep (p) (eq (piece-color p) 'white))
+(defun blackp (p) (eq (piece-color p) 'black))

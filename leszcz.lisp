@@ -1,7 +1,7 @@
 ;;; Leszcz entrypoint
 
 (defpackage :leszcz
-  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net)
+  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net :fast)
   (:export
    main))
 
@@ -269,9 +269,6 @@
                    (= (point-y (piece-point p)) y))
           (return-from piece-at-point p)))
       nil)))
-
-(defun whitep (p) (eq (piece-color p) 'white))
-(defun blackp (p) (eq (piece-color p) 'black))
 
 (defun filter-own-pieces (game p move-list &key disallow-taking check-mode)
   (if check-mode
@@ -911,7 +908,7 @@
   (set-target-fps! 60)
   (set-exit-key! -1)
 
-  (load-textures)
+  (switch-textures-to 'pixel)
 
   (format t "white-texture-alist: ~a~%" white-texture-alist)
   (format t "black-texture-alist: ~a~%" black-texture-alist))
@@ -992,16 +989,14 @@
        (push thr *threads*))))
 
 (defun %main ()
-  (thread
-      "bot thread (server)"
+  (thread "bot thread (server)"
     (net:start-server
      #'(lambda (fen side conn)
          (let ((game (fen->game fen)))
            (initialize-game game side conn)
            (loop do
              (maybe-receive-something game)
-             (maybe-move-bot game))))
-     :fen "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0"))
+             (maybe-move-bot game))))))
 
   (sleep 1)
   (sb-thread:join-thread
