@@ -1,3 +1,3 @@
 (defsystem "fast"
-  :depends-on (:leszcz-types :leszcz-constants :alexandria :cl-ppcre :net)
+  :depends-on (:leszcz-types :leszcz-constants :alexandria :cl-ppcre)
   :components ((:file "fast")))

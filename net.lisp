@@ -1,5 +1,5 @@
 (defpackage :net
-  (:use :common-lisp :leszcz-constants :leszcz-types :alexandria :cl-ppcre :usocket)
+  (:use :common-lisp :leszcz-constants :leszcz-types :fast :alexandria :cl-ppcre :usocket)
   (:export
    start-server
    connect-to-server
@@ -123,7 +123,7 @@
     (t
      (error "unsupported type for make-server-packet ~a" type))))
 
-(defun make-client-packet (type &key (hii-nickname "") move-x1 move-y1 move-x2 move-y2)
+(defun make-client-packet (type &key (hii-nickname "") move-x1 move-y1 move-x2 move-y2 move-upgrade-type move-upgrade-p)
   (case type
     (hii (let ((nl-packets (string->rdata hii-nickname)))
            (append
@@ -135,7 +135,17 @@
             nl-packets)))
     (move `(,(vector (logior +move-type+ (logand #xf move-x1))
                      (logior (ash (logand #xf move-y1) 4) (logand #xf move-x2))
-                     (ash (logand #xf move-y2) 4)
+                     (logior
+                      (ash (logand #xf move-y2) 4)
+                      (if move-upgrade-p
+                          #b1000
+                          #b0000)
+                      (case move-upgrade-type
+                        (queen  #b0000)
+                        (rook   #b0010)
+                        (knight #b0100)
+                        (bishop #b0110)
+                        (t      #b0000)))
                      0)))
     (t
      (error "unsupported type for make-client-packet ~a" type))))
@@ -197,12 +207,22 @@
     nickname))
 
 (defun packet->movedata (p)
+  (format t "up type: ~a~%" (ash (logand (aref p 2) #b00000110) -1))
   (if (packet-of-type-p p +move-type+)
-      (values
-       (logand (aref p 0) #xf)
-       (ash (logand (aref p 1) #xf0) -4)
-       (logand (aref p 1) #x0f)
-       (ash (logand (aref p 2) #xf0) -4))
+      (let ((up-p (fast:bit-set-p (aref p 2) 4 :type-size 8)))
+        (values
+         (logand (aref p 0) #xf)
+         (ash (logand (aref p 1) #xf0) -4)
+         (logand (aref p 1) #x0f)
+         (ash (logand (aref p 2) #xf0) -4)
+         up-p
+         (if up-p
+             (case (ash (logand (aref p 2) #b00000110) -1)
+               (#b00 'queen)
+               (#b01 'rook)
+               (#b10 'knight)
+               (#b11 'bishop))
+             nil)))
       (error "expected MOVE packet, got ~a instead" p)))
 
 (defun start-p2p-server (game-handler &key fen (opponent-side 'white))

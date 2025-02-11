@@ -45,6 +45,7 @@
    screen->image
    unload-texture!
    unload-image!
+   window-ready-p
 
    ;; Constants
    +TEXTURE-FILTER-POINT+
@@ -327,6 +328,8 @@
 
 (defcfun ("UnloadTexture" unload-texture!) :void
   (txt (:struct texture)))
+
+(defcfun ("IsWindowReady" window-ready-p) :bool)
 
 (defconstant +TEXTURE-FILTER-POINT+ 0)
 (defconstant +TEXTURE-FILTER-BILINEAR+ 1)

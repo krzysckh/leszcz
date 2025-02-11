@@ -161,15 +161,16 @@ i *nicklen* pakietami kontynuacyjnymi
 
 * *move*
 
-;; TODO: protocol HAS to include data about the chosen piece after upgrade
-
 \begin{figure}[H]
   \centering
   \ttfamily
   \begin{bytefield}[bitheight=\widthof{~nieużywane~},boxformatting={\centering\small}]{32}
     \bitheader{0-31} \\
     \bitbox{3}{typ} & \bitbox{1}{} & \bitbox{28}{dane o ruszeniu bierki} \\
-    \bitboxes{1}{101} & \bitbox{1}{\rotatebox{90}{nieużywane}} & \bitbox{4}{x1} & \bitbox{4}{y1} & \bitbox{4}{x2} & \bitbox{4}{y2} & \bitbox{12}{zarezerwowane} \\
+    \bitboxes{1}{101} & \bitbox{1}{\rotatebox{90}{nieużywane}} & \bitbox{4}{x1} & \bitbox{4}{y1} &
+    \bitbox{4}{x2} & \bitbox{4}{y2} &
+    \bitbox{1}{\rotatebox{90}{upgrade-p}} & \bitbox{2}{\rotatebox{90}{upgrade}} &
+    \bitbox{9}{zarezerwowane} \\
   \end{bytefield}
   \rmfamily
   \caption{Pakiet move z danymi o ruchu wykonanym przez przesyłającego}

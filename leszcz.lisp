@@ -7,6 +7,8 @@
 
 (in-package :leszcz)
 
+(defvar *threads* nil)
+
 (defun hasp (el l)
   (member el l :test #'equal))
 
@@ -232,8 +234,8 @@
   (declare (type game g))
   (let ((i (if (eq (game-side g) 'white) 0 1)))
     (loop for y from 0 to 7 do
-      (loop for x from 0 to 8 do
-        (let ((color (if (= (mod i 2) 0) +color-bg-light+ +color-bg-dark+)))
+      (loop for x from 0 to 7 do
+        (let ((color (if (= (mod (+ y x) 2) 0) +color-bg-light+ +color-bg-dark+)))
           (draw-rectangle (* +piece-size+ x) (* +piece-size+ y) +piece-size+ +piece-size+ color)
           (incf i)))))
 
@@ -669,29 +671,24 @@
               (return-from brk t))))
       nil)))
 
-(defun game-do-move (game piece mx my &key no-recache no-check-mates)
+(defun game-do-move (game piece mx my &key no-recache no-check-mates no-funcall upgrade-type)
   (declare (type game game)
            (type piece piece))
   ;; (warn "game-do-move move ~a to ~a" piece (list mx my))
   (when (not (move-possible-p piece mx my game))
     (warn "game-do-move called with invalid data: ~a -> (~a ~a)" piece mx my))
 
-  (let ((inc-halfmove-p t))
-    (when-let ((f (move-possible-p piece mx my game)))
+  (let ((inc-halfmove-p t)
+        (upgrade-p (and
+                    (eq (piece-type piece) 'pawn)
+                    (or (= my 0) (= my 7)))))
+    (when-let ((f (move-possible-p piece mx my game))
+               (was-x (point-x (piece-point piece)))
+               (was-y (point-y (piece-point piece))))
       (when-let ((p (piece-at-point game mx my)))
         (setf (game-halfmove-clock game) 0)
         (setf inc-halfmove-p nil)
         (setf (game-pieces game) (remove p (game-pieces game) :test #'equal)))
-
-      (when (and (game-connection game) (eq (game-side game) (game-turn game)))
-        (net:write-packets
-         (game-connection game)
-         (net:make-client-packet
-          'move
-          :move-x1 (point-x (piece-point piece))
-          :move-y1 (point-y (piece-point piece))
-          :move-x2 mx
-          :move-y2 my)))
 
       (when (eq (piece-type piece) 'pawn)
         (setf inc-halfmove-p nil)
@@ -741,14 +738,7 @@
       ;        (or (= 0 (point-y (piece-point piece)))
       ;            (= 7 (point-y (piece-point piece)))))
       ;   (setf (piece-type piece) 'queen))
-
-      (when (game-turn-black-p game)
-        (incf (game-fullmove-clock game)))
-
-      (when inc-halfmove-p
-        (incf (game-halfmove-clock game)))
-
-      (game-tick game)
+      ;; ^- this got fixed somewhere else ~ kpm
 
       (when (eq (piece-type piece) 'king)
         (if (blackp piece)
@@ -759,12 +749,39 @@
               (setf (game-white-can-castle-kingside-p game) nil)
               (setf (game-white-can-castle-queenside-p game) nil))))
 
-      (when (functionp f) ;; TODO: this is a freaky hack
-        ;; this funcall can:
-        ;;  * move rook after castling
-        ;;  * set en-passant-target-square
-        ;;  * delete a pawn after en passant
-        (funcall f game))
+      (unless no-funcall
+        (when (functionp f) ;; TODO: this is a freaky hack
+          ;; this funcall can:
+          ;;  * move rook after castling
+          ;;  * set en-passant-target-square
+          ;;  * delete a pawn after en passant
+          ;;  * update the piece-type of a pawn after an upgrade
+          (funcall f game)))
+
+      ;; Received a upgrade-p packet, no-funcall is probably set and we can upgrade the
+      ;; piece type manually
+      (when (and upgrade-p upgrade-type)
+        (setf (piece-type piece) upgrade-type))
+
+      (when (and (game-connection game) (eq (game-side game) (game-turn game)))
+        (net:write-packets
+         (game-connection game)
+         (net:make-client-packet
+          'move
+          :move-x1 was-x
+          :move-y1 was-y
+          :move-x2 mx
+          :move-y2 my
+          :move-upgrade-p upgrade-p
+          :move-upgrade-type (piece-type piece))))
+
+      (when (game-turn-black-p game)
+        (incf (game-fullmove-clock game)))
+
+      (when inc-halfmove-p
+        (incf (game-halfmove-clock game)))
+
+      (game-tick game)
 
       (unless no-recache
         (game-update-points-cache game)
@@ -899,10 +916,12 @@
   (when (not (eq (game-side game) (game-turn game)))
     (when-let ((p (maybe-receive-packet (game-connection game))))
       (packet-case p
-        (move (multiple-value-bind (x1 y1 x2 y2)
+        (move (multiple-value-bind (x1 y1 x2 y2 upgrade-p upgrade-t)
                   (packet->movedata p)
                 (format t "received movedata of (~a ~a) -> (~a ~a)~%" x1 y1 x2 y2)
-                (game-do-move game (piece-at-point game x1 y1) x2 y2)))
+                (game-do-move game (piece-at-point game x1 y1) x2 y2
+                              :no-funcall upgrade-p
+                              :upgrade-type upgrade-t)))
         (t (error "Unhandled packet in maybe-receive-something ~a with type ~a" p (packet->name p)))))))
 
 (defun initialize-game (game side conn)
@@ -911,15 +930,7 @@
   (game-update-points-cache game)
   (game-update-possible-moves-cache game))
 
-(defun main-loop (game side conn)
-  (declare (type game game)
-           (type symbol side))
-
-  (initialize-game game side conn)
-
-  (setf gui::toplevel-console/log nil)
-  (setf gui::toplevel-console/state "")
-
+(defun initialize-window! ()
   (init-window *window-width* *window-height* ":leszcz")
   ;; TODO: unset target fps when the engine is thinking or switch contexts or wtv
   (set-target-fps! 60)
@@ -928,7 +939,19 @@
   (load-textures)
 
   (format t "white-texture-alist: ~a~%" white-texture-alist)
-  (format t "black-texture-alist: ~a~%" black-texture-alist)
+  (format t "black-texture-alist: ~a~%" black-texture-alist))
+
+(defun main-loop (game side conn)
+  (declare (type game game)
+           (type symbol side))
+
+  (when (not (window-ready-p))
+    (initialize-window!))
+
+  (initialize-game game side conn)
+
+  (setf gui::toplevel-console/log nil)
+  (setf gui::toplevel-console/state "")
 
   (setf *current-game* game)
   (format t "pieces: ~a~%" (game-pieces game))
@@ -978,17 +1001,32 @@
                  (chosen-move (nth (random (length available-moves)) available-moves)))
             (game-do-move game chosen-piece (car chosen-move) (cadr chosen-move))))))))
 
+(defun cleanup-threads! ()
+  (loop for thr in *threads* do
+    (ignore-errors
+     (sb-thread:terminate-thread thr)))
+  (setf *threads* nil))
+
+(defmacro thread (name &body b)
+  `(push
+    (sb-thread:make-thread
+     #'(lambda ()
+         ,@b)
+     :name ,name)
+    *threads*))
+
 (defun main ()
-  (sb-thread:make-thread
-   #'(lambda ()
-       (net:start-server
-        #'(lambda (fen side conn)
-            (let ((game (fen->game fen)))
-              (initialize-game game side conn)
-              (loop do
-                (maybe-receive-something game)
-                (maybe-move-bot game))))
-        :fen "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0")))
+  (cleanup-threads!)
+  (thread
+   "bot thread (server)"
+   (net:start-server
+    #'(lambda (fen side conn)
+        (let ((game (fen->game fen)))
+          (initialize-game game side conn)
+          (loop do
+            (maybe-receive-something game)
+            (maybe-move-bot game))))
+    :fen "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0"))
 
   (sleep 1)
-  (connect-to-master))
+  (thread "user thread (client)" (connect-to-master)))
