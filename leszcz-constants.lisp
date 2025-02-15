@@ -179,8 +179,12 @@
 (defparameter *color-bg-light* '(#xde #xde #xde #xff))
 (defparameter *color-bg-dark*  '(#x22 #x22 #x22 #xff))
 
+(declaim (type (integer 64 128) +piece-size+))
+
 (defparameter *window-width*  (* +piece-size+ 8))
 (defparameter *window-height* (* +piece-size+ 8))
+
+(declaim (type integer *window-width* *window-height*))
 
 (define-constant +initial-fen+ "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" :test #'equal)
 

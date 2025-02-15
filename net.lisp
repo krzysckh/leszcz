@@ -36,6 +36,10 @@
 
 (in-package :net)
 
+;; womp womp runtime vector dispatches
+;; TODO: i could actually store packets in a simple-array of (unsigned-byte 8) but eh
+(declaim (sb-ext:muffle-conditions sb-ext:compiler-note))
+
 (defconstant +port+ 3317)
 
 (defconstant +hii-type+     #b00000000)
@@ -84,13 +88,13 @@
                                         ,@(cdr c))))))
 
 (defun packet-of-type-p (packet type)
-  (declare (type vector packet)
+  (declare (type (vector (unsigned-byte 8)) packet)
            (type number type))
   (the boolean (= (logand (aref packet 0) type) type)))
 
 (defun safe-sref (s n)
   (declare (type string s)
-           (type number n))
+           (type integer n))
   (if (>= n (length s))
       0
       (char-code (aref s n))))
@@ -152,6 +156,7 @@
 
 (defun write-packet (conn packet)
   ;; (format t "will write packet ~a to ~a~%" packet conn)
+  (declare (type (vector (unsigned-byte 8)) packet))
   (let ((s (usocket:socket-stream conn)))
     (loop for byte across packet do
       (write-byte byte s))
@@ -175,9 +180,11 @@
     (write-packet conn p)))
 
 (defun receive-packets (conn n)
+  (declare (type fixnum n))
   (loop for i from 1 to n collect (receive-packet conn)))
 
 (defun rdata-packet->string (p)
+  (declare (type (vector (unsigned-byte 8)) p))
   (let ((c1 (aref p 1))
         (c2 (aref p 2))
         (c3 (aref p 3)))

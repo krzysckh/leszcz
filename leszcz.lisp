@@ -17,7 +17,7 @@
   (member el l :test #'equal))
 
 (defmethod game-turn ((g game))
-  (if (= (mod (game-ticker g) 2) 0) 'white 'black))
+  (if (= (mod (the fixnum (game-ticker g)) 2) 0) 'white 'black))
 
 (defmethod game-turn-white-p ((g game))
   (eq (game-turn g) 'white))
@@ -27,7 +27,6 @@
 
 ;; assuming a "vector" or "vector2" is a (list a b)
 (defun v2+ (a b)
-  (declare (type list a b))
   (list
    (+ (car a) (car b))
    (+ (cadr a) (cadr b))))
@@ -38,11 +37,10 @@
    (- (car a) (car b))
    (- (cadr a) (cadr b))))
 
-(defun maybe-reverse (g pt)
-  (declare (inline))
-  (if (eq (game-side g) 'white)
-      pt
-      (- 7 pt)))
+(defmacro maybe-reverse (g pt)
+  `(if (eq (game-side ,g) 'white)
+       ,pt
+       (- 7 ,pt)))
 
 (defparameter draw-piece/anim-frame-ticker 0)
 (defparameter draw-piece/anim-frame 0)
@@ -51,6 +49,7 @@
 (defun draw-piece (g p)
   (declare (type piece p)
            (type game g))
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note)) ;; meh this is not that important
 
   (let* ((point (piece-point p))
          (x (* +piece-size+ (maybe-reverse g (point-x point))))
@@ -122,6 +121,8 @@
    'string))
 
 (defun piece->char (p)
+  (declare (type piece p)
+           (values character))
   (let ((c (case (piece-type p)
              (king   #\k)
              (queen  #\q)
@@ -133,6 +134,7 @@
 
 (defun game->fen (g)
   (declare (type game g))
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
 
   (let ((result "")
         (acc 0))
@@ -140,12 +142,12 @@
       (loop for x from 0 to 7 do
         (if-let ((p (piece-at-point g x y)))
           (progn
-            (when (> acc 0)
+            (when (> (the fixnum acc) 0)
               (setf result (concatenate 'string result (write-to-string acc))))
             (setf acc 0)
             (setf result (concatenate 'string result (string (piece->char p)))))
-          (incf acc)))
-      (when (> acc 0)
+          (incf (the fixnum acc))))
+      (when (> (the fixnum acc) 0)
         (setf result (concatenate 'string result (write-to-string acc))))
       (setf acc 0)
       (when (< y 7)
@@ -172,6 +174,7 @@
 
 (defun fen->game (fen)
   (declare (type string fen))
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
 
   (let* ((l (split "\\s" fen))
          (fens (nth 0 l))
@@ -212,10 +215,10 @@
      :halfmove-clock (parse-integer (nth 4 l))
      :fullmove-clock (parse-integer (nth 5 l))
      :move-history nil
-     :wck-p (find #\K castle-rules)
-     :wcq-p (find #\Q castle-rules)
-     :bck-p (find #\k castle-rules)
-     :bcq-p (find #\q castle-rules)
+     :wck-p (find #\K (the string castle-rules))
+     :wcq-p (find #\Q (the string castle-rules))
+     :bck-p (find #\k (the string castle-rules))
+     :bcq-p (find #\q (the string castle-rules))
      :en-passant-target-square (pos->lst (nth 3 l))
      :side 'white
      :connection nil
@@ -223,6 +226,7 @@
 
 (defun draw-game (g)
   (declare (type game g))
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
   (let ((i (if (eq (game-side g) 'white) 0 1)))
     (loop for y from 0 to 7 do
       (loop for x from 0 to 7 do
@@ -235,9 +239,11 @@
       (draw-piece g p))))
 
 (defun coord->value (v)
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
   (floor (/ v +piece-size+)))
 
 (defun coords->point (x y)
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
   (values
    (coord->value x)
    (coord->value y)))
@@ -250,17 +256,19 @@
 
 (defun show-point-at-cursor (&rest r)
   (declare (ignore r))
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
     (draw-rectangle-lines (* px +piece-size+) (* py +piece-size+) +piece-size+ +piece-size+ +color-black+)))
 
 (defun piece-at-point (game x y)
+  (declare (type (integer 0 8) x y))
   (if-let ((ht (game-points-cache game)))
     (gethash (list x y) ht)
     (let ((pieces (game-pieces game)))
       (dolist (p pieces)
-        (when (and (= (point-x (piece-point p)) x)
-                   (= (point-y (piece-point p)) y))
+        (when (and (= (the fixnum (point-x (piece-point p))) x)
+                   (= (the fixnum (point-y (piece-point p))) y))
           (return-from piece-at-point p)))
       nil)))
 
@@ -278,6 +286,9 @@
   (declare (optimize (speed 3) (safety 0)))
   (loop for m in moveset collect (v2+ m position)))
 
+(deftype place ()
+  '(integer 0 8))
+
 (defun generate-sliding-moves (game p moveset &key check-mode)
   (declare (type game game)
            (type piece p))
@@ -289,8 +300,8 @@
       (loop for m in moveset do
         (block brk
           (loop for i from 1 to 8 do
-            (let* ((x* (+ x (* i (car m))))
-                   (y* (+ y (* i (cadr m))))
+            (let* ((x* (+ (the place x) (* (the fixnum i) (the place (car m)))))
+                   (y* (+ (the place y) (* (the fixnum i) (the place (cadr m)))))
                    (p* (piece-at-point game x* y*)))
               (cond
                 ((< x* 0)  (return-from brk))
@@ -428,8 +439,8 @@
   (declare (type piece p))
   (if (and
        (eq (piece-type p) 'pawn)
-       (or (= 0 (cadr next-pos))
-           (= 7 (cadr next-pos))))
+       (or (= 0 (the place (cadr next-pos)))
+           (= 7 (the place (cadr next-pos)))))
       (if (eq (game-side game) (piece-color p))
           (list
            (append next-pos (list #'(lambda (g*) ;; Ask interactively for upgrade type, also because asking interactively, just use p instead of looking for piece-at-point
@@ -462,7 +473,7 @@
                              (filter-own-pieces
                               game p
                               (append
-                               (if (and (whitep p) (= (point-y (piece-point p)) 6))
+                               (if (and (whitep p) (= (the place (point-y (piece-point p))) 6))
                                    (let ((pos (v2+ (list x y) '(0 -2))))
                                      (list (append
                                             pos
@@ -470,7 +481,7 @@
                                              #'(lambda (g*)
                                                  (setf (game-en-passant-target-square g*) pos))))))
                                    nil)
-                               (if (and (blackp p) (= (point-y (piece-point p)) 1))
+                               (if (and (blackp p) (= (the place (point-y (piece-point p))) 1))
                                    (let ((pos (v2+ (list x y) '(0 2))))
                                      (list (append
                                             pos
@@ -992,7 +1003,6 @@
            (loop do
              (maybe-receive-something game)
              (maybe-move-bot game))))
-     :fen "8/kq6/8/8/8/2R5/4Q3/4K3 w - - 0 1"
      ))
      ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
 
@@ -1003,4 +1013,6 @@
 (defun main ()
   (unwind-protect
        (%main)
-    (cleanup-threads!)))
+    (cleanup-threads!)
+    (when (window-ready-p)
+      (close-window))))

@@ -53,7 +53,7 @@
       (if (current-capturer-can-be-removed-p)
           (progn
             (when current-capturer
-              (funcall (capturer-delete current-capturer)))
+              (funcall (the function (capturer-delete current-capturer))))
             (setf current-capturer c))
           nil)))
 
@@ -77,8 +77,12 @@
 (defparameter toplevel-console/font-size 18)
 (defparameter toplevel-console/height (/ *window-height* 2))
 
+(declaim (type list toplevel-console/log))
+(declaim (type integer toplevel-console/font-size toplevel-console/height))
+
 (defun toplevel-console (g)
-  (declare (ignore g))
+  (declare (ignore g)
+           (sb-ext:muffle-conditions sb-ext:compiler-note))
 
   ;; the listener should check for capturer rights, but let's check and report bugs if something is wrong
   (when (not (keys-can-be-captured-p toplevel-console/capturer))
@@ -110,7 +114,7 @@
   (let* ((delta (- toplevel-console/height (* (1+ (length toplevel-console/log)) toplevel-console/font-size))))
     (when (< delta 0)
       (setf toplevel-console/log
-            (nthcdr (ceiling (/ (- delta) toplevel-console/font-size)) toplevel-console/log))))
+            (nthcdr (ceiling (the integer (/ (- delta) toplevel-console/font-size))) toplevel-console/log))))
 
   (loop for i from 0 to (- (length toplevel-console/log) 1) do
     (draw-text
@@ -127,6 +131,7 @@
   )
 
 (defun toplevel-console-listener (&rest r)
+  (declare (ignore r))
   (when (key-pressed-p #\`)
     (if (keys-can-be-captured-p toplevel-console/capturer)
         (progn ;; we're on screen -- exit
@@ -142,6 +147,7 @@
 (defparameter +color-golden+           '(#xf2 #xd3 #x0e #xff))
 
 (defun text-button (x* y* w* h* text &key (font-size (round (- h* 2))) (pad t))
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
   (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*))))
     (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
                                                        (mouse-y)))
@@ -160,6 +166,7 @@
       (and at-point-p (mouse-pressed-p 0)))))
 
 (defun texture-button (x y w h texture &key (pad t) (background-color nil))
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
   (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
                                                      (mouse-y)))
                                      (floatize (list x y w h)))))
@@ -187,11 +194,13 @@
   (multiple-value-bind (f a b)
       (make-button text-or-texture :height height :width width :background-color background-color)
     (values
-     #'(lambda (x y f*) (when (funcall f x y) (funcall f* identifier)))
+     #'(lambda (x y f*) (when (funcall (the function f) x y) (funcall (the function f*) identifier)))
      a
      b)))
 
 (defun make-button (text-or-texture &key height width background-color)
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+
   (when (null height)
     (error "Make-button: height required"))
   (if (stringp text-or-texture)
@@ -211,18 +220,20 @@
         (values
          #'(lambda (x y)
              (texture-button
-              x y width height (if (functionp text-or-texture) (funcall text-or-texture) text-or-texture)
+              x y width height (if (functionp text-or-texture) (funcall (the function text-or-texture)) text-or-texture)
               :background-color background-color))
          width
          height))))
 
 (defun unload-textures! (alist)
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
   (loop for c in alist do
     (if (vectorp (cdr c))
         (loop for x across (cdr c) do (unload-texture! x))
         (unload-texture! (cdr c)))))
 
 (defun switch-textures-to (sym)
+  (declare (type symbol sym))
   (unload-textures! white-texture-alist)
   (unload-textures! black-texture-alist)
 
@@ -241,6 +252,7 @@
 ;;       make it impossible to fuck up some clicks and clacks u know
 ;;       i will fix it later to use the cool ass capturer mechanism
 (defun configure-menu ()
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note warning))
   (let-values ((b1 w1 h1 (make-button* "sleek" :height 24 :identifier 'sleek))
                (b2 w2 h2 (make-button* "pixel" :height 24 :identifier 'pixel))
                (font (load-font spleen-data 24))

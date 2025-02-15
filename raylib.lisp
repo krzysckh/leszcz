@@ -66,11 +66,14 @@
 
 (in-package :raylib)
 
+(declaim (sb-ext:muffle-conditions sb-ext:compiler-note))
+
 (define-foreign-library raylib
   (:unix    "./raylib5.5.so")
   (:windows "raylib5.5.dll"))
 
 (defun floatize (l)
+  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
   (mapcar #'float l))
 
 (use-foreign-library raylib)
@@ -261,7 +264,7 @@
           (if (= c 0)
               (return-from break)
               (setf acc (append acc (list (code-char c))))))))
-    acc))
+    (coerce acc '(vector character))))
 
 (defparameter *font* (make-hash-table :test #'equal))
 
