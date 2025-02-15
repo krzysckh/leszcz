@@ -958,8 +958,8 @@
            (ignore r))
   (when (game-in-progress-p game)
     (when (eq (game-turn game) (game-side game))
-      (let-values ((_ pp mx my (game-search game 3)))
-        (format t "pp=~a, mx=~a, my=~a~%" pp mx my)
+      (let-values ((eval pp mx my (game-search game 3)))
+        (format t "bot chose position with eval ~a~%" eval)
         (game-do-move game (piece-at-point game (car pp) (cadr pp)) mx my)))))
       ;; (let* ((pre-ps (remove-if #'(lambda (p) (not (eq (piece-color p) (game-side game)))) (game-pieces game)))
       ;;        (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
@@ -992,6 +992,7 @@
            (loop do
              (maybe-receive-something game)
              (maybe-move-bot game))))
+     :fen "8/kq6/8/8/8/2R5/4Q3/4K3 w - - 0 1"
      ))
      ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
 

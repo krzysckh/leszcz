@@ -1,20 +1,59 @@
 (in-package :leszcz)
 
-;; (defun piece->value (p)
-;;   (declare (type piece p))
-;;   (case (piece-type p)
-;;     (king 1000)
-;;     (queen 9)
-;;     (rook 5)
-;;     (bishop 3)
-;;     (knight 3)
-;;     (pawn 1)))
+;; https://www.chessprogramming.org/Simplified_Evaluation_Function
+(define-constant +pawn-value+   100.0)
+(define-constant +bishop-value+ 330.0)
+(define-constant +knight-value+ 320.0)
+(define-constant +rook-value+   500.0)
+(define-constant +queen-value+  900.0)
 
-(define-constant +pawn-value+ 100.0)
-(define-constant +bishop-value+ 300.0)
-(define-constant +knight-value+ 300.0)
-(define-constant +rook-value+ 500.0)
-(define-constant +queen-value+ 900.0)
+;; defined for white
+(defparameter *bonus-table*
+  '((pawn   . #(#(0  0  0   0   0   0   0  0)
+                #(50 50 50  50  50  50  50 50)
+                #(10 10 20  30  30  20  10 10)
+                #(5  5  10  25  25  10  5  5)
+                #(0  0   0  20  20  0   0  0)
+                #(5 -5  -10  0  0   -10 -5 5)
+                #(5  10  10 -20 -20 10  10 5)
+                #(0  0   0  0   0   0   0  0)))
+    ;; (knight . #(#(-50 -40 -30 -30 -30 -30 -40 -50)
+    ;;             #(-40 -20   0   0   0   0 -20 -4)
+    ;;             #(-30   0  10  15  15  10   0 -3)
+    ;;             #(-30   5  15  20  20  15   5 -3)
+    ;;             #(-30   0  15  20  20  15   0 -3)
+    ;;             #(-30   5  10  15  15  10   5 -3)
+    ;;             #(-40 -20   0   5   5   0 -20 -4)
+    ;;             #(-50 -40 -30 -30 -30 -30 -40 -5)))
+    (bishop . #(#(-20 -10 -10 -10 -10 -10 -10 -20)
+                #(-10   0   0   0   0   0   0 -10)
+                #(-10   0   5  10  10   5   0 -10)
+                #(-10   5   5  10  10   5   5 -10)
+                #(-10   0  10  10  10  10   0 -10)
+                #(-10  10  10  10  10  10  10 -10)
+                #(-10   5   0   0   0   0   5 -10)
+                #(-20 -10 -10 -10 -10 -10 -10 -20)))
+    (rook   . #(#( 0   0   0   0   0   0   0   0)
+                #( 5  10  10  10  10  10  10   5)
+                #(-5   0   0   0   0   0   0  -5)
+                #(-5   0   0   0   0   0   0  -5)
+                #(-5   0   0   0   0   0   0  -5)
+                #(-5   0   0   0   0   0   0  -5)
+                #(-5   0   0   0   0   0   0  -5)
+                #( 0   0   0   5   5   0   0   0)))
+    (queen  . #(#(-20 -10 -10  -5  -5 -10 -10 -20)
+                #(-10   0   0   0   0   0   0 -10)
+                #(-10   0   5   5   5   5   0 -10)
+                #( -5   0   5   5   5   5   0  -5)
+                #(  0   0   5   5   5   5   0  -5)
+                #(-10   5   5   5   5   5   0 -10)
+                #(-10   0   5   0   0   0   0 -10)
+                #(-20 -10 -10  -5  -5 -10 -10 -20)))
+    ;; TODO: king
+              ))
+
+(defparameter *rev-bonus-table*
+  (mapcar #'(lambda (c) `(,(car c) . ,(reverse (cdr c)))) *bonus-table*))
 
 (declaim (type short-float
                +pawn-value+
@@ -32,6 +71,17 @@
           (* +knight-value+ (logcount (fb-knight ff)))
           (* +rook-value+   (logcount (fb-rook ff)))
           (* +queen-value+  (logcount (fb-queen ff))))))
+
+(defun count-bonuses (game)
+  (declare (type game game))
+
+  (loop for p in (game-pieces game)
+        sum (let* ((pt (piece-point p)))
+              ;; why no if-let*?
+              (if-let ((tbl (cdr (assoc (piece-type p) (if (whitep p) *bonus-table* *rev-bonus-table*)))))
+                (let ((v (aref (aref tbl (point-y pt)) (point-x pt))))
+                  (if (whitep p) v (- v)))
+                0))))
 
 (defun evaluate-position (game)
   (declare (type game game))
@@ -51,8 +101,11 @@
     (t
      (let* ((ff (fast:game->fast-board game))
             (white-material (count-material-of (fb-white ff)))
-            (black-material (count-material-of (fb-black ff))))
-       (- white-material black-material)))))
+            (black-material (count-material-of (fb-black ff)))
+            (pawn-bonus (count-bonuses game)))
+       (+ (- white-material black-material)
+          pawn-bonus
+          )))))
 
 ;; TODO: unmake move !!!!!!!!!!!!
 ;; (defun fuck-copy-game (g)
@@ -103,9 +156,9 @@
               (let* ((g* (copy-game g))
                      (p (leszcz::piece-at-point g* (caar ms) (cadar ms))))
                 (leszcz::game-update-points-cache g*)
-                (leszcz::game-update-possible-moves-cache g*) ;; <- dupa
+                ;; (leszcz::game-update-possible-moves-cache g*) ;; <- dupa
 
-                ;; (setf (game-possible-moves-cache g*) (game-possible-moves-cache g))
+                (setf (game-possible-moves-cache g*) (game-possible-moves-cache g))
 
                 (game-do-move
                  g*
@@ -113,10 +166,12 @@
                  (car m) (cadr m)
                  :no-send t
                  ;; :no-recache t ;; <- dupa 2
-                 ;; :no-display-check-mates t)
+                 :no-display-check-mates t
                  )
 
                 (let ((score (* -1 (game--search g* (1- depth) (- beta) (- alpha)))))
+                  (when (null best-move)
+                    (setf best-move (append `((,(caar ms) ,(cadar ms))) m)))
                   (when (> score best)
                     (setf best score)
                     (when (> score alpha)
