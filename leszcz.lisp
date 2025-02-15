@@ -261,8 +261,11 @@
       (coords->point (mouse-x) (mouse-y))
     (draw-rectangle-lines (* px +piece-size+) (* py +piece-size+) +piece-size+ +piece-size+ +color-black+)))
 
+(deftype place ()
+  '(integer -15 15))
+
 (defun piece-at-point (game x y)
-  (declare (type (integer 0 8) x y))
+  (declare (type place x y))
   (if-let ((ht (game-points-cache game)))
     (gethash (list x y) ht)
     (let ((pieces (game-pieces game)))
@@ -285,9 +288,6 @@
 (defun enposition-moveset (position moveset)
   (declare (optimize (speed 3) (safety 0)))
   (loop for m in moveset collect (v2+ m position)))
-
-(deftype place ()
-  '(integer 0 8))
 
 (defun generate-sliding-moves (game p moveset &key check-mode)
   (declare (type game game)

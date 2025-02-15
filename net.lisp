@@ -88,7 +88,7 @@
                                         ,@(cdr c))))))
 
 (defun packet-of-type-p (packet type)
-  (declare (type (vector (unsigned-byte 8)) packet)
+  (declare (type vector packet)
            (type number type))
   (the boolean (= (logand (aref packet 0) type) type)))
 
@@ -156,7 +156,7 @@
 
 (defun write-packet (conn packet)
   ;; (format t "will write packet ~a to ~a~%" packet conn)
-  (declare (type (vector (unsigned-byte 8)) packet))
+  (declare (type vector packet))
   (let ((s (usocket:socket-stream conn)))
     (loop for byte across packet do
       (write-byte byte s))
@@ -184,7 +184,7 @@
   (loop for i from 1 to n collect (receive-packet conn)))
 
 (defun rdata-packet->string (p)
-  (declare (type (vector (unsigned-byte 8)) p))
+  (declare (type vector p))
   (let ((c1 (aref p 1))
         (c2 (aref p 2))
         (c3 (aref p 3)))
