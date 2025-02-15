@@ -2,6 +2,7 @@
   (:use :common-lisp :leszcz-constants :leszcz-types :alexandria :cl-ppcre)
   (:export
    fast-board
+   fast-board-1
 
    bit-at
    bit-set-p
@@ -107,6 +108,49 @@
      ;; TODO: is en-passant target square needed?
      ; :en-passant-target-square (pos->lst (nth 3 l))
      )))
+
+(defun fb-make-piece-board (fb)
+  (declare (type fast-board fb))
+  (logior
+   (fb-pawn   (fb-white fb))
+   (fb-rook   (fb-white fb))
+   (fb-knight (fb-white fb))
+   (fb-bishop (fb-white fb))
+   (fb-queen  (fb-white fb))
+   (fb-king   (fb-white fb))
+   (fb-pawn   (fb-black fb))
+   (fb-rook   (fb-black fb))
+   (fb-knight (fb-black fb))
+   (fb-bishop (fb-black fb))
+   (fb-queen  (fb-black fb))
+   (fb-king   (fb-black fb))))
+
+(defun fb-display (n)
+  (declare (type (unsigned-byte 64) n))
+  (loop for i from 1 below 9 do
+    (let ((x (logand #xff (ash n (- (- 64 (* 8 i)))))))
+      (format t "~&~8,'0b~%" x))))
+
+(defvar pawn-magic-L (lognot #x8080808080808080)) ;; pawns without far left side
+(defvar pawn-magic-R (lognot #x0101010101010101))
+
+;; Color of checker
+(defun fb-make-check-board (fb color)
+  (declare (type symbol color)
+           (type fast-board fb))
+  (let* ((whitep (eq color 'white))
+         (f1 (if whitep (fb-white fb) (fb-black fb)))
+         (pawn-+1 (if whitep 9 -9))
+         (pawn-+2 (if whitep 7 -7)))
+    (logior
+     (ash (if whitep
+              (logand pawn-magic-L (fb-pawn f1))
+              (logand pawn-magic-R (fb-pawn f1)))
+          pawn-+1) ;; pawn L
+     (ash (if whitep
+              (logand pawn-magic-R (fb-pawn f1))
+              (logand pawn-magic-L (fb-pawn f1)))
+          pawn-+2)))) ;; pawn R
 
 (defun bit-at (n bit &key (type-size 64))
   (declare (type (unsigned-byte 64) n bit))

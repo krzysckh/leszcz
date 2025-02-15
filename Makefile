@@ -30,7 +30,7 @@ test:
 		--load t/test.lisp \
 		--quit
 clean:
-	rm -fr build leszcz.texi
+	rm -fr build leszcz.texi doc/*.html doc/*.pdf
 test-p2p:
 	( \
 	  CL_SOURCE_REGISTRY=$(PWD) $(SBCL) --eval "(ql:quickload :leszcz)" --eval "(leszcz::start-master-server)" --quit & \
@@ -43,7 +43,7 @@ docs:
 	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) \
 		--eval "(ql:quickload :net.didierverna.declt)" \
 		--eval "(net.didierverna.declt:nickname-package)" \
-		--eval "(declt:declt :leszcz)" \
+		--eval "(declt:declt :leszcz :introspection-level 2 :license :bsd :declt-notice :short :tagline nil)" \
 		--quit
 	makeinfo --no-split --pdf leszcz.texi -o doc/leszcz-reference-manual.pdf
 	makeinfo --no-split --html --css-include=doc/doc.css leszcz.texi -o doc/leszcz-reference-manual.html

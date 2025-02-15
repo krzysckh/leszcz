@@ -207,7 +207,6 @@ i *nicklen* pakietami kontynuacyjnymi
 \end{figure}
 
 \begin{figure}[H]
-  \centering
   \begin{Shaded}
   \begin{Highlighting}[]
 \DataTypeTok{A}: 16  0   0   0   \CommentTok{; hii :33 [p2p]}

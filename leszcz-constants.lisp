@@ -20,6 +20,8 @@
    *window-height*
    *window-width*
    +initial-fen+
+   *current-game*
+   *current-screen*
    texture-options
    let-values
 
@@ -184,6 +186,10 @@
 
 (defparameter white-texture-alist nil)
 (defparameter black-texture-alist nil)
+
+;; do not use this
+(defparameter *current-game* nil)
+(defparameter *current-screen* nil)
 
 (defmacro let-values (bindings &body b)
   (let ((l b)

@@ -1,7 +1,7 @@
 ;;; Leszcz entrypoint
 
 (defpackage :leszcz
-  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net :fast)
+  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net :fast :cl-mop)
   (:export
    main))
 
@@ -24,16 +24,6 @@
 
 (defmethod game-turn-black-p ((g game))
   (eq (game-turn g) 'black))
-
-(defun piece->value (p)
-  (declare (type piece p))
-  (case (piece-type p)
-    (king 1000)
-    (queen 9)
-    (rook 5)
-    (bishop 3)
-    (knight 3)
-    (pawn 1)))
 
 ;; assuming a "vector" or "vector2" is a (list a b)
 (defun v2+ (a b)
@@ -669,7 +659,7 @@
               (return-from brk t))))
       nil)))
 
-(defun game-do-move (game piece mx my &key no-recache no-check-mates no-funcall upgrade-type)
+(defun game-do-move (game piece mx my &key no-recache no-check-mates no-funcall upgrade-type no-send (no-display-check-mates nil))
   (declare (type game game)
            (type piece piece))
   ;; (warn "game-do-move move ~a to ~a" piece (list mx my))
@@ -761,7 +751,7 @@
       (when (and upgrade-p upgrade-type)
         (setf (piece-type piece) upgrade-type))
 
-      (when (and (game-connection game) (eq (game-side game) (game-turn game)))
+      (when (and (game-connection game) (eq (game-side game) (game-turn game)) (not no-send))
         (net:write-packets
          (game-connection game)
          (net:make-client-packet
@@ -781,12 +771,14 @@
 
       (game-tick game)
 
+      ;; (format t "evaluation of current position is: ~a~%" (evaluate-position game))
+
       (unless no-recache
         (game-update-points-cache game)
         (game-update-possible-moves-cache game))
 
       (unless no-check-mates
-        (game-check-for-mates game)))))
+        (game-check-for-mates game :call-display (not no-display-check-mates))))))
 
 (defun base-texture-of (thing)
   (if (vectorp thing)
@@ -966,13 +958,16 @@
            (ignore r))
   (when (game-in-progress-p game)
     (when (eq (game-turn game) (game-side game))
-      (let* ((pre-ps (remove-if #'(lambda (p) (not (eq (piece-color p) (game-side game)))) (game-pieces game)))
-             (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
-        (when (> (length ps) 0)
-          (let* ((chosen-piece (nth (random (length ps)) ps))
-                 (available-moves (possible-moves-for game chosen-piece))
-                 (chosen-move (nth (random (length available-moves)) available-moves)))
-            (game-do-move game chosen-piece (car chosen-move) (cadr chosen-move))))))))
+      (let-values ((_ pp mx my (game-search game 3)))
+        (format t "pp=~a, mx=~a, my=~a~%" pp mx my)
+        (game-do-move game (piece-at-point game (car pp) (cadr pp)) mx my)))))
+      ;; (let* ((pre-ps (remove-if #'(lambda (p) (not (eq (piece-color p) (game-side game)))) (game-pieces game)))
+      ;;        (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
+      ;;   (when (> (length ps) 0)
+      ;;     (let* ((chosen-piece (nth (random (length ps)) ps))
+      ;;            (available-moves (possible-moves-for game chosen-piece))
+      ;;            (chosen-move (nth (random (length available-moves)) available-moves)))
+      ;;       (game-do-move game chosen-piece (car chosen-move) (cadr chosen-move))))))))
 
 (defun cleanup-threads! ()
   (loop for thr in *threads* do
@@ -996,7 +991,9 @@
            (initialize-game game side conn)
            (loop do
              (maybe-receive-something game)
-             (maybe-move-bot game))))))
+             (maybe-move-bot game))))
+     ))
+     ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
 
   (sleep 1)
   (sb-thread:join-thread
