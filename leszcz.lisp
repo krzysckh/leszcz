@@ -13,7 +13,7 @@
 (defparameter *current-game* nil)
 (defparameter *current-screen* nil)
 
-(defparameter *current-board-evaluation* 0)
+(defparameter *current-board-evaluation* nil)
 
 (defun hasp (el l)
   (member el l :test #'equal))
@@ -898,10 +898,16 @@
         (setf (game-side g) s)))
     (delete-current-capturer!)))
 
+(defun maybe-draw-eval (&rest _)
+  (declare (ignore _))
+  (when-let ((e *current-board-evaluation*))
+    (draw-text (format nil "opponent sees eval as: ~a" (float (/ e 100))) 10 10 21 +color-white+)))
+
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
 (add-draw-hook 'maybe-switch-sides)
+(add-draw-hook 'maybe-draw-eval)
 
 (add-draw-hook 'gui:toplevel-console-listener)
 
@@ -924,7 +930,7 @@
          (when (fast::bit-set-p (aref p 0) 7 :type-size 8)
            (let ((eval-data (net:from-s16 (aref p 2) (aref p 3))))
              (format t "got EVAL data from opponent: ~a~%" eval-data)
-             (setf *current-board-evaluation* eval-data))))
+             (setf *current-board-evaluation* (if (eq (game-side game) 'white) (- eval-data) eval-data)))))
         (t (warn "Unhandled packet in maybe-receive-something ~a with type ~a" p (packet->name p)))))))
 
 (defun initialize-game (game side conn)
