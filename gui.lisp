@@ -68,7 +68,7 @@
 (defun remove-draw-hook (name)
   (setf mainloop-draw-hooks (remove name mainloop-draw-hooks)))
 
-(defparameter +color-grayish+ '(48 48 48 200))
+(defparameter +color-grayish-2+ '(20 20 20 200))
 (defparameter +color-hax0r-green+ '(0 255 0 255))
 
 (defparameter toplevel-console/capturer (make-instance 'capturer :can-be-removed-p nil))
@@ -88,7 +88,7 @@
   (when (not (keys-can-be-captured-p toplevel-console/capturer))
     (warn "toplevel-console caught BUG: getting called without capturer rights"))
 
-  (draw-rectangle 0 0 *window-width* toplevel-console/height +color-grayish+)
+  (draw-rectangle 0 0 *window-width* toplevel-console/height +color-grayish-2+)
 
   (setf toplevel-console/state
         (format nil "~a~a" toplevel-console/state (coerce (get-chars-pressed) 'string)))

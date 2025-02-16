@@ -24,6 +24,10 @@
    *current-screen*
    texture-options
    let-values
+   *window-wpad*
+   *window-hpad*
+   *board-begin*
+   *board-size*
 
    ;; symbols
    pawn
@@ -172,7 +176,7 @@
 (defparameter +color-white+ '(255 255 255 255))
 (defparameter +color-black+ '(0 0 0 255))
 (defparameter +color-purple+ '(200 0 200 255))
-(defparameter +color-grayish+ '(127 127 127 255))
+(defparameter +color-grayish+ '(48 48 48 255))
 (defparameter +color-greenish+ '(0 200 0 128))
 (defparameter +color-redish+ '(200 30 0 128))
 
@@ -181,8 +185,14 @@
 
 (declaim (type (integer 64 128) +piece-size+))
 
-(defparameter *window-width*  (* +piece-size+ 8))
-(defparameter *window-height* (* +piece-size+ 8))
+(defparameter *window-hpad* 128)
+(defparameter *window-wpad* 512)
+
+(defparameter *window-width*  (+ (* +piece-size+ 8) *window-wpad*))
+(defparameter *window-height* (+ (* +piece-size+ 8) *window-hpad*))
+
+(defparameter *board-size* (* +piece-size+ 8))
+(defparameter *board-begin* `(,(/ *window-wpad* 2) . ,(/ *window-hpad* 2)))
 
 (declaim (type integer *window-width* *window-height*))
 

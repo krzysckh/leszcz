@@ -55,7 +55,9 @@
          (x (* +piece-size+ (maybe-reverse g (point-x point))))
          (y (* +piece-size+ (maybe-reverse g (point-y point))))
          (al (if (whitep p) white-texture-alist black-texture-alist))
-         (texture (cdr (assoc (piece-type p) al))))
+         (texture (cdr (assoc (piece-type p) al)))
+         (bx (car *board-begin*))
+         (by (cdr *board-begin*)))
 
     (multiple-value-bind (px py)
         (coords->point (mouse-x) (mouse-y))
@@ -81,7 +83,7 @@
         (draw-texture
          texture
          (floatize (list 0 0 +texture-size+ +texture-size+))
-         (floatize (list x y +piece-size+ +piece-size+))
+         (floatize (list (+ bx x) (+ by y) +piece-size+ +piece-size+))
          (floatize (list 0 0))
          (float 0)
          +color-white+)))))
@@ -227,26 +229,29 @@
 (defun draw-game (g)
   (declare (type game g))
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
-  (let ((i (if (eq (game-side g) 'white) 0 1)))
+  (let ((i (if (eq (game-side g) 'white) 0 1))
+        (bx (car *board-begin*))
+        (by (cdr *board-begin*)))
     (loop for y from 0 to 7 do
       (loop for x from 0 to 7 do
         (let ((color (if (= (mod (+ y x) 2) 0) *color-bg-light* *color-bg-dark*)))
-          (draw-rectangle (* +piece-size+ x) (* +piece-size+ y) +piece-size+ +piece-size+ color)
+          (draw-rectangle
+           (+ bx (* +piece-size+ x))
+           (+ by (* +piece-size+ y))
+           +piece-size+ +piece-size+ color)
           (incf i)))))
 
   (let ((pieces (game-pieces g)))
     (dolist (p pieces)
       (draw-piece g p))))
 
-(defun coord->value (v)
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
-  (floor (/ v +piece-size+)))
-
 (defun coords->point (x y)
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
-  (values
-   (coord->value x)
-   (coord->value y)))
+  (let ((x* (- x (car *board-begin*)))
+        (y* (- y (cdr *board-begin*))))
+    (values
+     (floor (/ x* +piece-size+))
+     (floor (/ y* +piece-size+)))))
 
 (defun position-of (p)
   (declare (type piece p))
@@ -259,7 +264,10 @@
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
-    (draw-rectangle-lines (* px +piece-size+) (* py +piece-size+) +piece-size+ +piece-size+ +color-black+)))
+    (draw-rectangle-lines
+     (+ (car *board-begin*) (* px +piece-size+))
+     (+ (cdr *board-begin*) (* py +piece-size+))
+     +piece-size+ +piece-size+ +color-black+)))
 
 (deftype place ()
   '(integer -15 15))
@@ -413,7 +421,9 @@
     (let* ((bq (shid ut/upgrade-queen-texture  'queen))
            (br (shid ut/upgrade-rook-texture   'rook))
            (bn (shid ut/upgrade-knight-texture 'knight))
-           (bb (shid ut/upgrade-bishop-texture 'bishop)))
+           (bb (shid ut/upgrade-bishop-texture 'bishop))
+           (bx (car *board-begin*))
+           (by (cdr *board-begin*)))
       ;; Okay so basically i can't do that asynchronously (yet?) as the mainloop won't know that the turn did not end yet
       ;; So this is a big fucking TODO and a HACK im just stealing the mainloop here look
       (let* ((clicked nil)
@@ -424,11 +434,18 @@
         (loop while (not clicked) do
           (begin-drawing)
           (clear-background +color-white+)
-          (draw-texture bg (floatize (list 0 0 *window-width* *window-height*)) (floatize (list 0 0 *window-width* *window-height*)) (floatize '(0 0)) (float 0) +color-white+)
-          (funcall bq ut/upgrade-size ut/upgrade-size cleanup)
-          (funcall br (+ (* 2 ut/upgrade-size) ut/pad-size) ut/upgrade-size cleanup)
-          (funcall bn (+ (* 3 ut/upgrade-size) (* 2 ut/pad-size)) ut/upgrade-size cleanup)
-          (funcall bb (+ (* 4 ut/upgrade-size) (* 3 ut/pad-size)) ut/upgrade-size cleanup)
+
+          ;; this is fucked up --------------+
+          (draw-texture                 ;    |
+           bg                           ; <--+
+           (floatize (list 0 0 *window-width* *window-height*))
+           (floatize (list 0 0 *window-width* *window-height*))
+           (floatize '(0 0)) (float 0) +color-white+)
+
+          (funcall bq (+ bx ut/upgrade-size) (+ by ut/upgrade-size) cleanup)
+          (funcall br (+ bx (* 2 ut/upgrade-size) ut/pad-size)       (+ by ut/upgrade-size) cleanup)
+          (funcall bn (+ bx (* 3 ut/upgrade-size) (* 2 ut/pad-size)) (+ by ut/upgrade-size) cleanup)
+          (funcall bb (+ bx (* 4 ut/upgrade-size) (* 3 ut/pad-size)) (+ by ut/upgrade-size) cleanup)
           (set-mouse-cursor! +cursor-normal+)
           (end-drawing))
         (begin-drawing)
@@ -807,7 +824,9 @@
     (multiple-value-bind (px py)
         (coords->point (mouse-x) (mouse-y))
       (let ((px (maybe-reverse game px))
-            (py (maybe-reverse game py)))
+            (py (maybe-reverse game py))
+            (bx (car *board-begin*))
+            (by (cdr *board-begin*)))
         (cond
           ((mouse-pressed-p 0)  ; begin dragging
            (when (set-current-capturer! maybe-drag/capturer)
@@ -827,14 +846,14 @@
           (maybe-drag/piece
            (when (keys-can-be-captured-p maybe-drag/capturer)
              (draw-rectangle
-              (* +piece-size+ (maybe-reverse game (point-x (piece-point maybe-drag/piece))))
-              (* +piece-size+ (maybe-reverse game (point-y (piece-point maybe-drag/piece))))
+              (+ bx (* +piece-size+ (maybe-reverse game (point-x (piece-point maybe-drag/piece)))))
+              (+ by (* +piece-size+ (maybe-reverse game (point-y (piece-point maybe-drag/piece)))))
               +piece-size+
               +piece-size+
               '(80 80 80 129))
              (draw-rectangle
-              (* +piece-size+ (maybe-reverse game px))
-              (* +piece-size+ (maybe-reverse game py))
+              (+ bx (* +piece-size+ (maybe-reverse game px)))
+              (+ by (* +piece-size+ (maybe-reverse game py)))
               +piece-size+
               +piece-size+
               '(80 80 80 80)))))))))
@@ -843,11 +862,13 @@
   (declare (type game game)
            (ignore r))
 
-  (when-let ((p maybe-drag/piece))
+  (when-let ((p maybe-drag/piece)
+             (bx (car *board-begin*))
+             (by (cdr *board-begin*)))
     (dolist (pos (possible-moves-for game p))
       (draw-rectangle
-       (* +piece-size+ (maybe-reverse game (car pos)))
-       (* +piece-size+ (maybe-reverse game (cadr pos)))
+       (+ bx (* +piece-size+ (maybe-reverse game (car pos))))
+       (+ by (* +piece-size+ (maybe-reverse game (cadr pos))))
        +piece-size+
        +piece-size+
        +color-redish+))))
