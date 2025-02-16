@@ -13,6 +13,8 @@
    +port+
    packet->name
    packet-case
+   to-s16
+   from-s16
 
    +hii-type+
    +gdata-type+
@@ -89,8 +91,9 @@
 
 (defun packet-of-type-p (packet type)
   (declare (type vector packet)
-           (type number type))
-  (the boolean (= (logand (aref packet 0) type) type)))
+           (type (unsigned-byte 8) type))
+  (let ((pt (logand #b11100000 (aref packet 0))))
+    (= pt type)))
 
 (defun safe-sref (s n)
   (declare (type string s)
@@ -127,7 +130,30 @@
     (t
      (error "unsupported type for make-server-packet ~a" type))))
 
-(defun make-client-packet (type &key (hii-nickname "") move-x1 move-y1 move-x2 move-y2 move-upgrade-type move-upgrade-p)
+(defmacro ifz (a b)
+  `(if ,a ,b 0))
+
+(defun to-s16 (n)
+  (cond
+    ((= n sb-ext:short-float-negative-infinity) '(#xff #xff))
+    ((= n sb-ext:short-float-positive-infinity) '(#x7f #xff))
+    (t (handler-case
+           (let ((x (coerce (floor n) '(signed-byte 16))))
+             (list (ash (logand #xff00 x) -8)
+                   (logand #xff x)))
+         (t () '(0 0))))))
+
+(defun from-s16 (b1 b2)
+  (let ((v (logior (ash b1 8) b2)))
+    (if (> v #x7fff)
+        (- v #x10000)
+        v)))
+
+(defun make-client-packet (type &key
+                                  (hii-nickname "")
+                                  move-x1 move-y1 move-x2 move-y2 move-upgrade-type move-upgrade-p
+                                  gdata-drawp gdata-draw-ok gdata-surrender gdata-eval (gdata-eval-data 0)
+                                  )
   (case type
     (hii (let ((nl-packets (string->rdata hii-nickname)))
            (append
@@ -151,6 +177,16 @@
                         (bishop #b0110)
                         (t      #b0000)))
                      0)))
+    (gdata (let* ((eval (to-s16 gdata-eval-data)))
+             `(,(vector
+                 (logior +gdata-type+
+                         (ifz gdata-drawp     #b1000)
+                         (ifz gdata-draw-ok   #b0100)
+                         (ifz gdata-surrender #b0010)
+                         (ifz gdata-eval      #b0001))
+                 0
+                 (car eval)
+                 (cadr eval)))))
     (t
      (error "unsupported type for make-client-packet ~a" type))))
 
@@ -272,7 +308,7 @@
 (defun connect-to-server (ip nickname)
   (let ((conn (socket-connect ip +port+ :element-type '(unsigned-byte 8))))
     (let ((hii (receive-packet conn)))
-      (format t "[CLIENT] got hii: ~a~%" hii)
+      (format t "[CLIENT] got hii: ~a (~a)~%" hii (packet->name hii))
       (if* (logand (aref hii 0) #b00010000)
           (progn
             (write-packets conn (make-client-packet 'hii)) ;; we're in p2p land, don't use a nick

@@ -111,7 +111,9 @@ i *nicklen* pakietami kontynuacyjnymi
     \bitboxes{1}{001} & \bitbox{1}{\rotatebox{90}{nieu.}} &
     \bitbox{1}{\rotatebox{90}{draw?}} & \bitbox{1}{\rotatebox{90}{draw-ok}} &
     \bitbox{1}{\rotatebox{90}{poddaj}} &
-    \bitbox{17}{zarezerwowane} & \bitbox{8}{nieużywane} \\
+    \bitbox{1}{\rotatebox{90}{eval}} &
+    \bitbox{8}{zarezerwowane} &
+    \bitbox{16}{eval-data} \\
   \end{bytefield}
   \rmfamily
   \caption{Pakiet gdata do wysyłania zaszłości w grze}

@@ -13,6 +13,8 @@
 (defparameter *current-game* nil)
 (defparameter *current-screen* nil)
 
+(defparameter *current-board-evaluation* 0)
+
 (defun hasp (el l)
   (member el l :test #'equal))
 
@@ -905,20 +907,25 @@
 
 ;; (defparameter test-fen "5qk1/1q6/8/8/8/8/8/R3K2R w KQ-- - 0 1")
 
-;; TODO: protocol HAS to include data about the chosen piece after upgrade
 (defun maybe-receive-something (game)
   (declare (type game game))
 
   (when (not (eq (game-side game) (game-turn game)))
     (when-let ((p (maybe-receive-packet (game-connection game))))
+      (format t "got packet with type ~a~%" (packet->name p))
       (packet-case p
         (move (multiple-value-bind (x1 y1 x2 y2 upgrade-p upgrade-t)
                   (packet->movedata p)
-                (format t "received movedata of (~a ~a) -> (~a ~a)~%" x1 y1 x2 y2)
+                (format t "received movedata of ~a -> ~a~%" (lst->pos (list x1 y1)) (lst->pos (list x2 y2)))
                 (game-do-move game (piece-at-point game x1 y1) x2 y2
                               :no-funcall upgrade-p
                               :upgrade-type upgrade-t)))
-        (t (error "Unhandled packet in maybe-receive-something ~a with type ~a" p (packet->name p)))))))
+        (gdata
+         (when (fast::bit-set-p (aref p 0) 7 :type-size 8)
+           (let ((eval-data (net:from-s16 (aref p 2) (aref p 3))))
+             (format t "got EVAL data from opponent: ~a~%" eval-data)
+             (setf *current-board-evaluation* eval-data))))
+        (t (warn "Unhandled packet in maybe-receive-something ~a with type ~a" p (packet->name p)))))))
 
 (defun initialize-game (game side conn)
   (setf (game-connection game) conn)
@@ -992,6 +999,8 @@
     (when (eq (game-turn game) (game-side game))
       (let-values ((eval pp mx my (game-search game 3)))
         (format t "bot chose position with eval ~a~%" eval)
+        (when-let ((c (game-connection game)))
+          (net:write-packets c (net:make-client-packet 'gdata :gdata-eval t :gdata-eval-data eval)))
         (game-do-move game (piece-at-point game (car pp) (cadr pp)) mx my)))))
       ;; (let* ((pre-ps (remove-if #'(lambda (p) (not (eq (piece-color p) (game-side game)))) (game-pieces game)))
       ;;        (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
