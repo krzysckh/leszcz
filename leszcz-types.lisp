@@ -35,6 +35,7 @@
    game-fullmove-clock
    game-result
    game-connection
+   game-fb
 
    ))
 
@@ -115,6 +116,9 @@
    (connection
     :initarg :connection
     :accessor game-connection)
+   (fb
+    :initarg :fb
+    :accessor game-fb)
   ))
 
 (defmethod game-tick ((g game))

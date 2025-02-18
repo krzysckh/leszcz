@@ -143,8 +143,9 @@
 (defun fb-make-check-board (fb color)
   (declare (type symbol color)
            (type fast-board fb))
-  ;; fuck, i'd like to get rid of this -v
+  ;; fuck, i'd like to get rid of this ↓
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+
   (let* ((whitep (eq color 'white))
          (f1 (if whitep (fb-white fb) (fb-black fb)))
          (pawn-+1 (if whitep 9 -9))

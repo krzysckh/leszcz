@@ -18,6 +18,7 @@
  (leszcz::game->fen (leszcz::fen->game +initial-fen+)))
 
 (let ((g (leszcz::fen->game "8/8/5k2/8/8/8/1q6/K2n4 w - - 0 1")))
+  (leszcz::initialize-game g 'white nil)
   (leszcz::game-check-for-mates g :call-display nil)
   (is (leszcz::possible-moves-for g (leszcz::king-of g 'white)) nil)
   (is (game-result g) 'checkmate))
@@ -79,7 +80,7 @@
 (defparameter *expected-number-of-moves* '(48 2039 97862 4085603))
 (defparameter *test-fen* "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0")
 
-(defparameter *depth* 1)
+(defparameter *depth* 2)
 
 ;; (let ((g (leszcz::fen->game *test-fen*)))
 ;;   (leszcz::game-update-points-cache g)
@@ -93,14 +94,16 @@
 ;; (sb-ext:exit :code -1)
 
 ;; (tracer:with-tracing ("LESZCZ" "NET" "GUI" "LESZCZ-CONSTANTS")
-  (let ((games (list (leszcz::fen->game *test-fen*))))
+(let ((g1 (leszcz::fen->game *test-fen*)))
+  (leszcz::initialize-game g1 'white nil)
+  (let ((games (list g1)))
     (loop for i from 0 to *depth* do
       (setf captures 0)
       (setf checks 0)
       (setf games (mappend #'game-permute games))
       ;; TODO: figure out why the check count doesn't match https://www.chessprogramming.org/Perft_Results#Initial_Position and test that too
       ;; TODO: wow this is slow
-      (is (length games) (nth i *expected-number-of-moves*))))
+      (is (length games) (nth i *expected-number-of-moves*)))))
 ;;   )
 
 ;; (tracer:save-report "report.json")

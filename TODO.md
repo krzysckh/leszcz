@@ -73,13 +73,13 @@
   * [ ] efekty dźwiękowe
     * [ ] preferowalnie nie paszczowe
     * [ ] preferowalnie nie takie za które pójdę za kratki (CC0)
-* [ ] Gracz kontra komputer
-  * [ ] obejrzyj filmik sebusia i zerżnij pomysły (wszystkie)
-  * [ ] nazwij algorytmy tak żeby brzmiało mądrze
-    * [ ] "odcinanie chujowych ruchów" → minmax
-    * [ ] "mądre obcinanie chujowych ruchów" → redukcja alpha-beta
+* [x] Gracz kontra komputer
+  * [x] obejrzyj filmik sebusia i zerżnij pomysły (wszystkie)
+  * [x] nazwij algorytmy tak żeby brzmiało mądrze
+    * [x] "odcinanie chujowych ruchów" → minmax
+    * [x] "mądre obcinanie chujowych ruchów" → redukcja alpha-beta
     * [ ] "wybieranie ruchów z listy możliwych losowo zamiast liniowi" → wyszukiwanie w drzewie sposobem monte carlo
-    * [ ] preferencja figur dla danych pozycji
+    * [x] preferencja figur dla danych pozycji
   * [ ] a tak w ogóle to silnik miej w osobnym wątku żeby mniej się narobić a więcej zarobić
 * [ ] Gracz v Gracz na różnych komputerach w LAN (p2p)
   * [x] działa
@@ -92,8 +92,9 @@
     * [ ] lgames
     * [ ] pgame
     * [ ] ping
-    * [ ] move
+    * [x] move
       * [x] dane o ruchu
-      * [ ] dane o upgrejdzie piona !!!!!
+      * [x] dane o upgrejdzie piona !!!!!
     * [x] rdata
 * [ ] napisz resztę todo
+  * [x] pozdro
