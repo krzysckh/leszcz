@@ -14,6 +14,7 @@
      ,@b))
 
 ;; comment out to disable tracing
+
 ;; (setf *trace-p* t)
 ;; (push #P"/home/kpm/common-lisp/tracer/" asdf:*central-registry*)
 ;; (push (uiop:getcwd) asdf:*central-registry*)
@@ -127,15 +128,13 @@
        (setf checks 0)
        (setf games (mappend #'game-permute games))
        ;; TODO: figure out why the check count doesn't match https://www.chessprogramming.org/Perft_Results#Initial_Position and test that too
-       ;; TODO: wow this is slow
        (is (length games) (nth i *expected-number-of-moves*)))
 
      (when *fuck-we-debuggin*
-       ;; (let ((fuckfen "r3k2r/p1pp1qbn/bn2p1p1/3PN3/1p2P3/2N4p/PPPBBPPP/R3K1R1 b Qkq - 0 1"))
-
+       ;; (let ((fuckfen "8/2p5/3p4/KP5r/1R5k/6p1/4P3/8 b - - 0 1"))
        ;;   (setf games (list (fen->game* fuckfen)))
+       ;;   (setf (game-side (car games)) 'white)
        ;;   )
-
        (init-window *window-width* *window-height* ":leszcz")
        (set-target-fps! 60)
        (set-exit-key! -1)

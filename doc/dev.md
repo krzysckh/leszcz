@@ -27,14 +27,13 @@ Jeśli repl nie jest czymś co Ci się podoba, można wykonać `make run` by aut
 
 :3
 
-## problem: powolne
-
-bitboardy [@bitb]
+## bitboardy [@bitb]
 
 ```lisp
-;; Do przeszukiwania drzewa ruchów
-(game->fast g)
+(setf (game-fb ...) (game->fast-board ...))
 ```
+
+Generacja ruchów niektórych figur opiera się na bitplanszach `fast-board`, `fast-board-1` w pliku `fast.lisp`.
 
 ## cytaty
 

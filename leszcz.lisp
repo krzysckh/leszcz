@@ -277,12 +277,7 @@
           (draw-rectangle
            (+ (car *board-begin*) (* px +piece-size+))
            (+ (cdr *board-begin*) (* py +piece-size+))
-           (/ +piece-size+ 2) +piece-size+ +color-redish+))
-        (when-let ((d (old--point-checked-p g px py checked-by)))
-          (draw-rectangle
-           (+ (+ (car *board-begin*) (* px +piece-size+)) (/ +piece-size+ 2))
-           (+ (cdr *board-begin*) (* py +piece-size+))
-           (/ +piece-size+ 2) +piece-size+ '(10 120 120 200)))))))
+           +piece-size+ +piece-size+ +color-redish+))))))
 
 (deftype place ()
   '(integer -15 15))
@@ -298,21 +293,19 @@
             (return-from piece-at-point p)))
         nil))))
 
-(defun filter-own-pieces (game p move-list &key disallow-taking check-mode)
-  (if check-mode
-      move-list
-      (remove-if
-       #'(lambda (pos)
-           (when-let ((p* (piece-at-point game (car pos) (cadr pos))))
-             (or (eq (piece-color p*) (piece-color p)) disallow-taking)))
-       move-list)))
+(defun filter-own-pieces (game p move-list &key disallow-taking)
+  (remove-if
+   #'(lambda (pos)
+       (when-let ((p* (piece-at-point game (car pos) (cadr pos))))
+         (or (eq (piece-color p*) (piece-color p)) disallow-taking)))
+   move-list))
 
 ;; i used 100% of my brain for this name
 (defun enposition-moveset (position moveset)
   (declare (optimize (speed 3) (safety 0)))
   (loop for m in moveset collect (v2+ m position)))
 
-(defun generate-sliding-moves (game p moveset &key check-mode)
+(defun generate-sliding-moves (game p moveset)
   (declare (type game game)
            (type piece p))
   (declare (optimize (speed 3) (safety 0)))
@@ -332,15 +325,11 @@
                 ((>= x* 8) (return-from brk))
                 ((>= y* 8) (return-from brk))
                 ((and p* (eq (piece-color p) (piece-color p*))) ; same-colored piece, no more moves unless check mode, then defended
-                 (when check-mode
-                   (push `(,x* ,y*) acc))
                  (return-from brk))
                 (p* ; diff-colored piece, can be captured but no more unless it's a king in check mode
                  (push `(,x* ,y*) acc)
-                 (unless (and
-                          check-mode
-                          (when-let ((p (piece-at-point game x* y*)))
-                            (eq (piece-type p) 'king)))
+                 (unless (when-let ((p (piece-at-point game x* y*)))
+                           (eq (piece-type p) 'king))
                    (return-from brk)))
                 (t ; empty square, can go there and possibly further
                  (push `(,x* ,y*) acc)))))))
@@ -493,7 +482,7 @@
 
       (list next-pos)))
 
-(defun pre--possible-moves-for (game p check-mode)
+(defun pre--possible-moves-for (game p)
   (multiple-value-bind (x y)
       (position-of p)
     (case (piece-type p)
@@ -501,36 +490,34 @@
       ;; TODO: no troche spaghetti
       ;; TODO: ja pierdole
       ;; TODO: zastrzele sie
-      (pawn (let* ((m (when (not check-mode)
-                        (filter-own-pieces
-                         game p
-                         (pre--possible-moves-for/upgrade game p (v2+ (list x y) (list 0 (if (whitep p) -1 1))))
-                         :disallow-taking t)))
-                   (m (when (not check-mode)
-                        (if m
+      (pawn (let* ((m (filter-own-pieces
+                       game p
+                       (pre--possible-moves-for/upgrade game p (v2+ (list x y) (list 0 (if (whitep p) -1 1))))
+                       :disallow-taking t))
+                   (m (if m
+                          (append
+                           m
+                           (filter-own-pieces
+                            game p
                             (append
-                             m
-                             (filter-own-pieces
-                              game p
-                              (append
-                               (if (and (whitep p) (= (the place (point-y (piece-point p))) 6))
-                                   (let ((pos (v2+ (list x y) '(0 -2))))
-                                     (list (append
-                                            pos
-                                            (list
-                                             #'(lambda (g*)
-                                                 (setf (game-en-passant-target-square g*) pos))))))
-                                   nil)
-                               (if (and (blackp p) (= (the place (point-y (piece-point p))) 1))
-                                   (let ((pos (v2+ (list x y) '(0 2))))
-                                     (list (append
-                                            pos
-                                            (list
-                                             #'(lambda (g*)
-                                                 (setf (game-en-passant-target-square g*) pos))))))
-                                   nil))
-                              :disallow-taking t))
-                            nil))))
+                             (if (and (whitep p) (= (the place (point-y (piece-point p))) 6))
+                                 (let ((pos (v2+ (list x y) '(0 -2))))
+                                   (list (append
+                                          pos
+                                          (list
+                                           #'(lambda (g*)
+                                               (setf (game-en-passant-target-square g*) pos))))))
+                                 nil)
+                             (if (and (blackp p) (= (the place (point-y (piece-point p))) 1))
+                                 (let ((pos (v2+ (list x y) '(0 2))))
+                                   (list (append
+                                          pos
+                                          (list
+                                           #'(lambda (g*)
+                                               (setf (game-en-passant-target-square g*) pos))))))
+                                 nil))
+                            :disallow-taking t))
+                          nil)))
 
               ;; going forwards done, generate capturing moves
               (macrolet ((maybe-pushmove (x* y*)
@@ -550,8 +537,8 @@
                                                      (remove p (game-pieces g*) :test #'equal)))))
                                    m)
                                   ;; normal capturing
-                                  (when-let ((p* (or check-mode (piece-at-point game ,x* ,y*))))
-                                    (when (or check-mode (not (eq (piece-color p) (piece-color p*))))
+                                  (when-let ((p* (piece-at-point game ,x* ,y*)))
+                                    (when (not (eq (piece-color p) (piece-color p*)))
                                       (let ((vs* (pre--possible-moves-for/upgrade game p (list ,x* ,y*))))
                                         (dolist (v vs*)
                                           (push v m)))))))))
@@ -563,18 +550,17 @@
                       (maybe-pushmove (- x 1) (+ y 1))
                       (maybe-pushmove (+ x 1) (+ y 1)))))
               m))
-      (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+) :check-mode check-mode))
+      (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+)))
       (king   (append
                (remove-if
                 #'(lambda (pos)
-                    (unless check-mode
-                      (point-checked-p game (car pos) (cadr pos) (if (whitep p) 'black 'white))))
+                    (point-checked-p game (car pos) (cadr pos) (if (whitep p) 'black 'white)))
                 (filter-own-pieces game p (enposition-moveset (list x y) +king-moves+)))
                ;; TODO: check for checks in maybe-castling-moves
                (maybe-castling-moves game p)))
-      (rook   (generate-sliding-moves game p +rook-offsets+   :check-mode check-mode))
-      (bishop (generate-sliding-moves game p +bishop-offsets+ :check-mode check-mode))
-      (queen  (generate-sliding-moves game p +queen-offsets+  :check-mode check-mode))
+      (rook   (generate-sliding-moves game p +rook-offsets+))
+      (bishop (generate-sliding-moves game p +bishop-offsets+))
+      (queen  (generate-sliding-moves game p +queen-offsets+))
       (t
        (warn "unreachable reached D:")))))
 
@@ -585,7 +571,7 @@
       (when (and (eq (piece-type p) 'king)
                  (eq (piece-color p) color))
         (return-from b p)))
-    nil))
+    (error "couldn't find a king of ~a in game ~a!" color game (game-move-history game))))
 
 (defun display-mate (game)
   (declare (type game game))
@@ -640,39 +626,38 @@
       (t
        (values)))))
 
-(defun possible-moves-for (game p &key check-mode recache)
+(defun possible-moves-for (game p &key recache)
   (declare (type piece p)
            (type game game))
-  (if (or recache check-mode)
+  (if recache
       (let ((point (piece-point p)))
         (remove-if
          #'(lambda (pos)
              ;; TODO: this reimplements game-do-move (badly) -- make it so i can just call stripped game-do-move
-             (when (not check-mode)
-               (let ((g* (copy-game game)))
+             (let ((g* (copy-game game)))
                  ;; (setf (game-points-cache g*) nil) ;; <- dupa 2
-                 (game-update-points-cache g*)
+               (game-update-points-cache g*)
 
                ;; (let ((p-was (piece-at-point game (car pos) (cadr pos))))
                  ;; (setf (piece-point p) (make-instance 'point :x (car pos) :y (cadr pos)))
-                 (let* ((king (king-of g* (piece-color p)))
-                        (king-point (piece-point king))
-                        (pt (piece-at-point g* (point-x point) (point-y point))))
-                   (when-let ((w (piece-at-point g* (car pos) (cadr pos))))
-                     (setf (game-pieces g*) (remove w (game-pieces g*))))
-                   (setf (point-x (piece-point pt)) (car pos))
-                   (setf (point-y (piece-point pt)) (cadr pos))
-                   ;; this fucking sucks ↓
-                   (when (functionp (caddr pos))
-                     (unless (and (eq (piece-type pt) 'pawn) (or (point-y point) 0) (point-y point) 7) ; skip pawns so the user doesn't get FUCKING asked interactively during a move search...
-                       (funcall (caddr pos) g*)))
+               (let* ((king (king-of g* (piece-color p)))
+                      (king-point (piece-point king))
+                      (pt (piece-at-point g* (point-x point) (point-y point))))
+                 (when-let ((w (piece-at-point g* (car pos) (cadr pos))))
+                   (setf (game-pieces g*) (remove w (game-pieces g*))))
+                 (setf (point-x (piece-point pt)) (car pos))
+                 (setf (point-y (piece-point pt)) (cadr pos))
+                 ;; this fucking sucks ↓
+                 (when (functionp (caddr pos))
+                   (unless (and (eq (piece-type pt) 'pawn) (or (= (point-y point) 0) (= (point-y point) 7))) ; skip pawns so the user doesn't get FUCKING asked interactively during a move search...
+                     (funcall (caddr pos) g*)))
 
-                   (game-update-points-cache g*) ;; TODO: only update the 2 things that might have changed
-                   (setf (game-fb g*) (game->fast-board g*)) ;; update fb, maybe -||-
-                   (point-checked-p
-                    g*
-                    (point-x king-point) (point-y king-point)
-                    (if (whitep king) 'black 'white))))))
+                 (game-update-points-cache g*) ;; TODO: only update the 2 things that might have changed
+                 (setf (game-fb g*) (game->fast-board g*)) ;; update fb, maybe -||-
+                 (point-checked-p
+                  g*
+                  (point-x king-point) (point-y king-point)
+                  (if (whitep king) 'black 'white)))))
          (remove-if
           #'(lambda (pos)
               (or
@@ -680,20 +665,20 @@
                (< (cadr pos) 0)
                (> (car pos) 7)
                (> (cadr pos) 7)))
-          (pre--possible-moves-for game p check-mode))))
+          (pre--possible-moves-for game p))))
       (let ((p (piece-point p)))
         (cdr (assoc (list (point-x p) (point-y p)) (game-possible-moves-cache game) :test #'equal)))))
 
-(defun move-possible-p (p px py game &key check-mode)
+(defun move-possible-p (p px py game)
   (block b
-    (loop for m in (possible-moves-for game p :check-mode check-mode) do
+    (loop for m in (possible-moves-for game p) do
       (when (and (eq px (car m)) (eq py (cadr m)))
         (return-from b (if (caddr m) (caddr m) t))))
     nil))
 
 ;; by: checked by ('white or 'black)
 ;; TODO: macro-ize? manually unroll? look at disassembly?
-(defun new--point-checked-p (game px py by)
+(defun old--point-checked-p (game px py by)
   (or
    (fast::bit-set-p
     (fast::fb-make-check-board (game-fb game) by)
@@ -806,45 +791,38 @@
      (and (eq by (piece-color p)) (eq (piece-type p) 'king)))
    ))
 
-(defun old--point-checked-p (game px py by)
-  (declare (type game game)
-           (type number px)
-           (type number py)
-           (type symbol by))
-  (assert (or
-           (eq by 'white)
-           (eq by 'black)))
-  (let ((checkers (remove-if
-                   #'(lambda (p) (not (eq by (piece-color p))))
-                   (game-pieces game))))
-    (block brk
-      (loop for p in checkers do
-        (if (eq (piece-type p) 'king)
-            (let ((x (point-x (piece-point p)))
-                  (y (point-y (piece-point p))))
-              (when (and (or (= px x)
-                             (= px (- x 1))
-                             (= px (+ x 1)))
-                         (or (= py y)
-                             (= py (- y 1))
-                             (= py (+ y 1))))
-                (return-from brk t)))
-            (when (move-possible-p p px py game :check-mode t)
-              ;; (format t "point (~a, ~a) is checkable by ~a (~a)~%" px py p (piece-type p))
-              (return-from brk t))))
-      nil)))
+(defun new--point-checked-p (game px py by)
+  (when (and (>= px 0) (< px 8) (>= py 0) (< py 8))
+    (let* ((bb (ash 1 (- 63 (* py 8) px)))
+           (fb (game-fb game))
+           (fb1 (if (eq by 'white) (fb-white fb) (fb-black fb))))
+      (or
+       (= (logand bb (fb-make-check-board fb by)) bb)
+       (let ((rm (fb-generate-rook-moves fb px py (if (eq by 'white) 'black 'white))))
+         (or
+          (not (= 0 (logand rm (fb-rook fb1))))
+          (not (= 0 (logand rm (fb-queen fb1))))))
+       (let ((bm (fb-generate-bishop-moves fb px py (if (eq by 'white) 'black 'white))))
+         (or
+          (not (= 0 (logand bm (fb-bishop fb1))))
+          (not (= 0 (logand bm (fb-queen fb1))))))
+       (let ((k (piece-point (king-of game by))))
+         (= (logand bb (fb-generate-king-area (point-x k) (point-y k))) bb))))))
+
+;;; new--
+;; real	0m7,302s
+;; user	0m7,078s
+;; sys	0m0,215s
+;;; old--
+;; real	0m6,407s
+;; user	0m6,182s
+;; sys	0m0,205s
+;;
+;; i'm keeping the new one bc of the bitboard usage
+(defun point-checked-p (game px py by)
+  (old--point-checked-p game px py by))
 
 (declaim (inline point-checked-p))
-;; "shit"
-(defun point-checked-p (game px py by)
-  (new--point-checked-p game px py by))
-  ;; (let ((a (new--point-checked-p game px py by))
-  ;;       (b (old--point-checked-p game px py by)))
-  ;;   (if (eq (and a t) b)
-  ;;       b
-  ;;       (when (and (>= px 0) (< px 8) (>= py 0) (< py 8))
-  ;;         (prog1 a
-  ;;           (format t "point-checked-p disagree on point (~a, ~a) w/ fen ~a being checked by ~a (~a vs ~a)~%" px py (game->fen game) by a b))))))
 
 (defun game-do-move (game piece mx my &key no-recache no-check-mates no-funcall upgrade-type no-send (no-display-check-mates nil))
   (declare (type game game)

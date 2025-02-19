@@ -17,6 +17,13 @@
    fb-king
    fb-white
    fb-black
+
+   fb-generate-bishop-moves
+   fb-generate-knight-moves
+   fb-generate-queen-moves
+   fb-generate-rook-moves
+   fb-generate-king-area
+   fb-make-check-board
    ))
 
 (in-package :fast)
@@ -112,23 +119,35 @@
      ; :en-passant-target-square (pos->lst (nth 3 l))
      )))
 
+(defun fb--make-color-board (fb1)
+  (declare (type fast-board-1 fb1)
+           (values (unsigned-byte 64))
+           (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (logior
+   (fb-pawn   fb1)
+   (fb-rook   fb1)
+   (fb-knight fb1)
+   (fb-bishop fb1)
+   (fb-queen  fb1)
+   (fb-king   fb1)))
+
+(defun fb-make-white-board (fb)
+  (declare (type fast-board fb)
+           (values (unsigned-byte 64))
+           (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (fb--make-color-board (fb-white fb)))
+
+(defun fb-make-black-board (fb)
+  (declare (type fast-board fb)
+           (values (unsigned-byte 64))
+           (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (fb--make-color-board (fb-black fb)))
+
 (defun fb-make-piece-board (fb)
   (declare (type fast-board fb)
            (values (unsigned-byte 64))
            (sb-ext:muffle-conditions sb-ext:compiler-note))
-  (logior
-   (fb-pawn   (fb-white fb))
-   (fb-rook   (fb-white fb))
-   (fb-knight (fb-white fb))
-   (fb-bishop (fb-white fb))
-   (fb-queen  (fb-white fb))
-   (fb-king   (fb-white fb))
-   (fb-pawn   (fb-black fb))
-   (fb-rook   (fb-black fb))
-   (fb-knight (fb-black fb))
-   (fb-bishop (fb-black fb))
-   (fb-queen  (fb-black fb))
-   (fb-king   (fb-black fb))))
+  (logior (fb-make-black-board fb) (fb-make-white-board fb)))
 
 (defun fb-display (n)
   (declare (type (unsigned-byte 64) n))
@@ -162,6 +181,7 @@
 (declaim (inline fb--knight-check-board))
 
 ;; Color of checker
+;; Warning: only produces check board of pawns and knights
 (defun fb-make-check-board (fb color)
   (declare (type symbol color)
            (type fast-board fb))
@@ -182,6 +202,140 @@
               (logand pawn-magic-L (fb-pawn f1)))
           pawn-+2) ;; pawn R
      (fb--knight-check-board (fb-knight f1)))))
+
+(defmacro fb1-at (fb1 x y)
+  `(bit-at ,fb1 (+ ,x (* ,y 8))))
+
+(defmacro fb1-set-p (fb1 x y)
+  `(bit-set-p ,fb1 (+ ,x (* ,y 8))))
+
+(defun fb-generate-knight-moves (fb px py color)
+  (declare (type fast-board fb)
+           (type fixnum px py)
+           (values (unsigned-byte 64)))
+  (let ((z 0)
+        (ob (if (eq 'white color) (fb-make-white-board fb) (fb-make-black-board fb)))  ;; "own board"
+        (eb (if (eq 'white color) (fb-make-black-board fb) (fb-make-white-board fb)))) ;; "enemy board"
+    (setf (logbitpr z (+ px (* py 8))) t)
+    (let ((cb (fb--knight-check-board z)))
+      (logior
+       (logand cb (lognot ob))
+       (logand cb eb)))))
+
+;; color is the color of a piece to generate moves for
+(defun fb-generate-rook-moves (fb px py color)
+  (declare (type fast-board fb)
+           (type fixnum px py)
+           (type symbol color)
+           (values (unsigned-byte 64)))
+  (let ((res 0)
+        (ob (if (eq 'white color) (fb-make-white-board fb) (fb-make-black-board fb)))  ;; "own board"
+        (eb (if (eq 'white color) (fb-make-black-board fb) (fb-make-white-board fb)))) ;; "enemy board"
+    (block b
+      (loop for x from (1- px) downto 0 do
+        (when (fb1-set-p ob x py)
+          (return-from b))
+        (setf (logbitpr res (+ x (* py 8))) t)
+        (when (fb1-set-p eb x py)
+          (return-from b))))
+    (block b
+      (loop for x from (1+ px) to 7 do
+        (when (fb1-set-p ob x py)
+          (return-from b))
+        (setf (logbitpr res (+ x (* py 8))) t)
+        (when (fb1-set-p eb x py)
+          (return-from b))))
+    (block b
+      (loop for y from (1- py) downto 0 do
+        (when (fb1-set-p ob px y)
+          (return-from b))
+        (setf (logbitpr res (+ px (* y 8))) t)
+        (when (fb1-set-p eb px y)
+          (return-from b))))
+    (block b
+      (loop for y from (1+ py) to 7 do
+        (when (fb1-set-p ob px y)
+          (return-from b))
+        (setf (logbitpr res (+ px (* y 8))) t)
+        (when (fb1-set-p eb px y)
+          (return-from b))))
+    res))
+
+(defun fb-generate-bishop-moves (fb px py color)
+  (declare (type fast-board fb)
+           (type fixnum px py)
+           (type symbol color)
+           (values (unsigned-byte 64)))
+  (let ((res 0)
+        (ob (if (eq 'white color) (fb-make-white-board fb) (fb-make-black-board fb)))  ;; "own board"
+        (eb (if (eq 'white color) (fb-make-black-board fb) (fb-make-white-board fb)))) ;; "enemy board"
+    (block b
+      (loop for x from (1- px) downto 0
+            for y from (1- py) downto 0
+            do
+               (when (fb1-set-p ob x y)
+                 (return-from b))
+               (setf (logbitpr res (+ x (* y 8))) t)
+               (when (fb1-set-p eb x y)
+                 (return-from b))))
+    (block b
+      (loop for x from (1- px) downto 0
+            for y from (1+ py) to 7
+            do
+               (when (fb1-set-p ob x y)
+                 (return-from b))
+               (setf (logbitpr res (+ x (* y 8))) t)
+               (when (fb1-set-p eb x y)
+                 (return-from b))))
+    (block b
+      (loop for x from (1+ px) to 7
+            for y from (1- py) downto 0
+            do
+               (when (fb1-set-p ob x y)
+                 (return-from b))
+               (setf (logbitpr res (+ x (* y 8))) t)
+               (when (fb1-set-p eb x y)
+                 (return-from b))))
+    (block b
+      (loop for x from (1+ px) to 7
+            for y from (1+ py) to 7
+            do
+               (when (fb1-set-p ob x y)
+                 (return-from b))
+               (setf (logbitpr res (+ x (* y 8))) t)
+               (when (fb1-set-p eb x y)
+                 (return-from b))))
+    res))
+
+(defun fb-generate-queen-moves (fb px py color)
+  (declare (type fast-board fb)
+           (type fixnum px py)
+           (type symbol color)
+           (values (unsigned-byte 64)))
+  (logior
+   (fb-generate-bishop-moves fb px py color)
+   (fb-generate-rook-moves   fb px py color)))
+
+;; TODO: bitshift approach (knight-like)
+(defun fb-generate-king-area (px py)
+  (declare (type fixnum px py)
+           (values (unsigned-byte 64)))
+  (let ((z 0))
+    (loop for m in '((0 . -1)
+                     (1 . -1)
+                     (1 . 0)
+                     (1 . 1)
+                     (0 . 1)
+                     (-1 . 1)
+                     (-1 . 0)
+                     (-1 . -1))
+          do
+             (let* ((x (+ px (car m)))
+                    (y (+ py (cdr m)))
+                    (p (+ x (* y 8))))
+               (when (and (>= x 0) (< x 8) (>= y 0) (< y 8))
+                 (setf (logbitpr z p) t))))
+    z))
 
 (defun bit-at (n bit &key (type-size 64))
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
