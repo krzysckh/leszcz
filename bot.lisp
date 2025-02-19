@@ -188,7 +188,9 @@
               'piece
               :type (piece-type p)
               :color (piece-color p)
-              :point (piece-point p))))
+              :point (make-instance 'point
+                                    :x (point-x (piece-point p))
+                                    :y (point-y (piece-point p))))))
 
 (defun copy-game (g)
   (declare (type game g))
@@ -202,13 +204,13 @@
              :wck-p (game-white-can-castle-kingside-p g)
              :en-passant-target-square (game-en-passant-target-square g)
              :ticker (game-ticker g)
-             :possible-moves-cache nil
              :side (game-side g)
-             :points-cache nil
              :halfmove-clock (game-halfmove-clock g)
              :fullmove-clock (game-fullmove-clock g)
              :result (game-result g)
              :fb (game-fb g) ;; TODO: should i copy the thing here?
+             :possible-moves-cache nil
+             :points-cache nil
              :connection (game-connection g))))
 
 ;; https://www.chessprogramming.org/Negamax
@@ -234,8 +236,8 @@
                  p
                  (car m) (cadr m)
                  :no-send t
-                 ;; :no-recache t ;; <- dupa 2
                  :no-display-check-mates t
+                 ;; :no-recache t ;; <- dupa 2
                  )
 
                 (let ((score (* -1 (game--search g* (1- depth) (- beta) (- alpha)))))

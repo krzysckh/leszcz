@@ -3,11 +3,20 @@
 
 (in-package :leszcz-test)
 
-(declaim (optimize (speed 3) (safety 0) (debug 0)))
+(setf leszcz-constants:*debug* t)
 
-(push #P"/home/kpm/common-lisp/tracer/" asdf:*central-registry*)
-(push (uiop:getcwd) asdf:*central-registry*)
-(asdf:load-system :tracer)
+;; (declaim (optimize (speed 3) (safety 0) (debug 0)))
+
+;; (push #P"/home/kpm/common-lisp/tracer/" asdf:*central-registry*)
+;; (push (uiop:getcwd) asdf:*central-registry*)
+;; (asdf:load-system :tracer)
+
+(defparameter *fuck-we-debuggin* nil)
+
+(defun fen->game* (fen)
+  (let ((g (leszcz::fen->game fen)))
+    (leszcz::initialize-game g 'white nil)
+    g))
 
 (plan 7)
 
@@ -23,8 +32,8 @@
   (is (leszcz::possible-moves-for g (leszcz::king-of g 'white)) nil)
   (is (game-result g) 'checkmate))
 
-(defun copy-game (g)
-  (leszcz::fen->game (leszcz::game->fen g)))
+;; (defun copy-game (g)
+;;   (leszcz::fen->game (leszcz::game->fen g)))
 
 (defun n-possible-moves (g)
   (reduce #'+ (mapcar #'length (mapcar #'cdr (game-possible-moves-cache g)))))
@@ -39,7 +48,7 @@
   (let ((games nil))
     (loop for ms in (game-possible-moves-cache g) do
       (loop for m in (cdr ms) do
-        (let* ((g* (copy-game g))
+        (let* ((g* (leszcz::copy-game g))
                (p (leszcz::piece-at-point g* (caar ms) (cadar ms))))
           (leszcz::game-update-points-cache g*)
           ;; (leszcz::game-update-possible-moves-cache g*)
@@ -77,10 +86,13 @@
 
 ;; (defparameter *expected-number-of-moves* '(20 400 8902 197281))
 ;; (defparameter *test-fen* +initial-fen+)
-(defparameter *expected-number-of-moves* '(48 2039 97862 4085603))
-(defparameter *test-fen* "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0")
+;; (defparameter *expected-number-of-moves* '(48 2039 97862 4085603))
+;; (defparameter *test-fen* "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0")
 
-(defparameter *depth* 2)
+(defparameter *expected-number-of-moves* '(14 191 2812 43238 674624))
+(defparameter *test-fen* "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1")
+
+(defparameter *depth* 4)
 
 ;; (let ((g (leszcz::fen->game *test-fen*)))
 ;;   (leszcz::game-update-points-cache g)
@@ -103,26 +115,50 @@
       (setf games (mappend #'game-permute games))
       ;; TODO: figure out why the check count doesn't match https://www.chessprogramming.org/Perft_Results#Initial_Position and test that too
       ;; TODO: wow this is slow
-      (is (length games) (nth i *expected-number-of-moves*)))))
+      (is (length games) (nth i *expected-number-of-moves*)))
 ;;   )
 
-;; (tracer:save-report "report.json")
+    (when *fuck-we-debuggin*
+      (let ((fuckfen "r3k2r/p1pp1qbn/bn2p1p1/3PN3/1p2P3/2N4p/PPPBBPPP/R3K1R1 b Qkq - 0 1"))
 
-  ;; (init-window *window-width* *window-height* ":leszcz")
-  ;; (set-target-fps! 60)
-  ;; (set-exit-key! -1)
-  ;; (load-textures)
+        (setf games (list (fen->game* fuckfen)))
+        ;; (setf (game-fb (car games)) (fast:game->fast-board (car games)))
+        ;; (leszcz::game-update-possible-moves-cache (car games))
+        )
 
-  ;; (loop :while (not (window-close-p)) :do
-  ;;   (set-mouse-cursor! +cursor-normal+)
+      (init-window *window-width* *window-height* ":leszcz")
+      (set-target-fps! 60)
+      (set-exit-key! -1)
+      (load-textures)
 
-  ;;   (when (key-pressed-p #\A)
-  ;;     (setf games (cdr games)))
+      (loop :while (not (window-close-p)) :do
+        (set-mouse-cursor! +cursor-normal+)
 
-  ;;   (begin-drawing)
-  ;;   (clear-background +color-grayish+)
-  ;;   (leszcz::draw-game (car games))
+        (when (key-pressed-p #\A)
+          (setf games (cdr games)))
 
-  ;;   (end-drawing)))
+        (begin-drawing)
+        (clear-background +color-grayish+)
+        (leszcz::draw-game (car games))
+
+        ;; (format t "~a~%" (game-move-history (car games)))
+
+        (leszcz::maybe-drag (car games))
+        (leszcz::show-point-at-cursor (car games))
+        (leszcz::highlight-possible-moves (car games))
+
+        (let ((ll (game-move-history (car games))))
+          (loop for l in (car ll) do
+            (draw-rectangle
+             (+ (car *board-begin*) (* (point-x l) +piece-size+))
+             (+ (cdr *board-begin*) (* (point-y l) +piece-size+)) ;
+             +piece-size+ +piece-size+ '(0 120 120 200)))
+          (loop for l in (cadr ll) do
+            (draw-rectangle
+             (+ (car *board-begin*) (* (point-x l) +piece-size+))
+             (+ (cdr *board-begin*) (* (point-y l) +piece-size+))
+             +piece-size+ +piece-size+ +color-redish+)))
+
+        (end-drawing)))))
 
 (finalize)

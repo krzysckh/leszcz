@@ -270,20 +270,27 @@
      (+ (car *board-begin*) (* px +piece-size+))
      (+ (cdr *board-begin*) (* py +piece-size+))
      +piece-size+ +piece-size+ +color-black+)
-    (when-let ((d (point-checked-p g px py 'black)))
-      (format t "checked by: ~a~%" d)
-      (draw-rectangle
-       (+ (car *board-begin*) (* px +piece-size+))
-       (+ (cdr *board-begin*) (* py +piece-size+))
-       +piece-size+ +piece-size+ +color-redish+))))
+    (when *debug*
+      (let ((checked-by 'white))
+        (when-let ((d (new--point-checked-p g px py checked-by)))
+          (format t "checked by: ~a~%" d)
+          (draw-rectangle
+           (+ (car *board-begin*) (* px +piece-size+))
+           (+ (cdr *board-begin*) (* py +piece-size+))
+           (/ +piece-size+ 2) +piece-size+ +color-redish+))
+        (when-let ((d (old--point-checked-p g px py checked-by)))
+          (draw-rectangle
+           (+ (+ (car *board-begin*) (* px +piece-size+)) (/ +piece-size+ 2))
+           (+ (cdr *board-begin*) (* py +piece-size+))
+           (/ +piece-size+ 2) +piece-size+ '(10 120 120 200)))))))
 
 (deftype place ()
   '(integer -15 15))
 
 (defun piece-at-point (game x y)
   (when (and (>= x 0) (< x 8) (>= y 0) (< y 8))
-    (if-let ((ht (game-points-cache game)))
-      (gethash (list x y) ht)
+    (if-let ((a (game-points-cache game)))
+      (aref a (+ x (* y 8)))
       (let ((pieces (game-pieces game)))
         (dolist (p pieces)
           (when (and (= (the fixnum (point-x (piece-point p))) x)
@@ -369,7 +376,7 @@
           (eq (piece-type (piece-at-point game 0 7)) 'rook))
      (list
       (list 2 7 #'(lambda (g*)
-                    (let ((r (piece-at-point game 0 7)))
+                    (let ((r (piece-at-point g* 0 7))) ;; TY KURWO JEBANA KRZYSZTOF CZEMU TU BYŁO PIECE-AT-POINT GAME ??!?!?
                       (setf (game-white-can-castle-kingside-p g*) nil)
                       (setf (game-white-can-castle-queenside-p g*) nil)
                       (setf (piece-point r) (make-instance 'point :x 3 :y 7)))))))
@@ -469,6 +476,7 @@
       (if (eq (game-side game) (piece-color p))
           (list
            (append next-pos (list #'(lambda (g*) ;; Ask interactively for upgrade type, also because asking interactively, just use p instead of looking for piece-at-point
+                                      (format t "asking interactively for upgrade type!~%")
                                       (setf (piece-type p) (ask-for-upgrade-type g* p))))))
           (let ((px (point-x (piece-point p)))
                 (py (point-y (piece-point p))))
@@ -477,6 +485,7 @@
              (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'rook)))))
              (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'bishop)))))
              (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'knight))))))))
+
       (list next-pos)))
 
 (defun pre--possible-moves-for (game p check-mode)
@@ -486,6 +495,7 @@
       ;; TODO: ale swietny kod
       ;; TODO: no troche spaghetti
       ;; TODO: ja pierdole
+      ;; TODO: zastrzele sie
       (pawn (let* ((m (when (not check-mode)
                         (filter-own-pieces
                          game p
@@ -586,23 +596,22 @@
   (setf (game-possible-moves-cache g) nil)
   (dolist (p (game-pieces g))
     (when (eq (piece-color p) (game-turn g))
-      (let ((possible (possible-moves-for g p :recache t)))
-        (when possible
-          (setf (game-possible-moves-cache g)
-                (acons (list (point-x (piece-point p))
-                             (point-y (piece-point p)))
-                       possible
-                       (game-possible-moves-cache g)))))))
+      (when-let ((possible (possible-moves-for g p :recache t)))
+        (setf (game-possible-moves-cache g)
+              (acons (list (point-x (piece-point p))
+                           (point-y (piece-point p)))
+                     possible
+                     (game-possible-moves-cache g))))))
 
   ;; (format t "cache is ~a~%" (game-possible-moves-cache g))
   (values))
 
 (defmethod game-update-points-cache ((g game))
-  (let ((ht (make-hash-table :test #'equal)))
+  (let ((a (make-array '(64) :initial-element nil)))
     (dolist (p (game-pieces g))
       (let ((point (piece-point p)))
-        (setf (gethash (list (point-x point) (point-y point)) ht) p)))
-    (setf (game-points-cache g) ht)))
+        (setf (aref a (+ (point-x point) (* 8 (point-y point)))) p)))
+    (setf (game-points-cache g) a)))
 
 (defmethod game-check-for-mates ((g game) &key (call-display t))
   (let ((c (game-possible-moves-cache g))
@@ -633,21 +642,30 @@
       (let ((point (piece-point p)))
         (remove-if
          #'(lambda (pos)
+             ;; TODO: this reimplements game-do-move (badly) -- make it so i can just call stripped game-do-move
              (when (not check-mode)
-               (let ((p-was (piece-at-point game (car pos) (cadr pos))))
-                 (setf (piece-point p) (make-instance 'point :x (car pos) :y (cadr pos)))
-                 (let* ((king (king-of game (piece-color p)))
+               (let ((g* (copy-game game)))
+                 ;; (setf (game-points-cache g*) nil) ;; <- dupa 2
+                 (game-update-points-cache g*)
+
+               ;; (let ((p-was (piece-at-point game (car pos) (cadr pos))))
+                 ;; (setf (piece-point p) (make-instance 'point :x (car pos) :y (cadr pos)))
+                 (let* ((king (king-of g* (piece-color p)))
                         (king-point (piece-point king))
-                        (points-cache (game-points-cache game)))
-                   (setf (game-points-cache game) nil)
-                   (when p-was
-                     (setf (game-pieces game) (remove p-was (game-pieces game) :test #'equal)))
-                   (prog1
-                       (point-checked-p game (point-x king-point) (point-y king-point) (if (whitep king) 'black 'white))
-                     (setf (piece-point p) point)
-                     (setf (game-points-cache game) points-cache)
-                     (when p-was
-                       (push p-was (game-pieces game))))))))
+                        (pt (piece-at-point g* (point-x point) (point-y point))))
+                   (when-let ((w (piece-at-point g* (car pos) (cadr pos))))
+                     (setf (game-pieces g*) (remove w (game-pieces g*))))
+                   (setf (point-x (piece-point pt)) (car pos))
+                   (setf (point-y (piece-point pt)) (cadr pos))
+                   (when (functionp (caddr pos))
+                     (funcall (caddr pos) g*))
+
+                   (game-update-points-cache g*) ;; TODO: only update the 2 things that might have changed
+                   (setf (game-fb g*) (game->fast-board g*)) ;; update fb, maybe -||-
+                   (point-checked-p
+                    g*
+                    (point-x king-point) (point-y king-point)
+                    (if (whitep king) 'black 'white))))))
          (remove-if
           #'(lambda (pos)
               (or
@@ -667,7 +685,8 @@
     nil))
 
 ;; by: checked by ('white or 'black)
-(defun point-checked-p (game px py by)
+;; TODO: macro-ize? manually unroll? look at disassembly?
+(defun new--point-checked-p (game px py by)
   (or
    (fast::bit-set-p
     (fast::fb-make-check-board (game-fb game) by)
@@ -675,28 +694,32 @@
    ;; ←
    (block brk
      (loop for x from (- px 1) downto 0 by 1 do
-       (when-let ((p (piece-at-point game x py)))
+       (when-let* ((p (piece-at-point game x py))
+                   (_ (not (and (eq (piece-type p) 'king) (eq (piece-color p) (if (eq by 'white) 'black 'white))))))
          (if (and (eq (piece-color p) by) (or (eq (piece-type p) 'queen) (eq (piece-type p) 'rook)))
              (return-from brk 'rook1)
              (return-from brk nil)))))
    ;; →
    (block brk
      (loop for x from (+ px 1) below 8 do
-       (when-let ((p (piece-at-point game x py)))
+       (when-let* ((p (piece-at-point game x py))
+                  (_ (not (and (eq (piece-type p) 'king) (eq (piece-color p) (if (eq by 'white) 'black 'white))))))
          (if (and (eq (piece-color p) by) (or (eq (piece-type p) 'queen) (eq (piece-type p) 'rook)))
              (return-from brk 'rook2)
              (return-from brk nil)))))
    ;; ↑
    (block brk
      (loop for y from (- py 1) downto 0 by 1 do
-       (when-let ((p (piece-at-point game px y)))
+       (when-let* ((p (piece-at-point game px y))
+                  (_ (not (and (eq (piece-type p) 'king) (eq (piece-color p) (if (eq by 'white) 'black 'white))))))
          (if (and (eq (piece-color p) by) (or (eq (piece-type p) 'queen) (eq (piece-type p) 'rook)))
              (return-from brk 'rook3)
              (return-from brk nil)))))
    ;; ↓
    (block brk
      (loop for y from (+ py 1) below 8 do
-       (when-let ((p (piece-at-point game px y)))
+       (when-let* ((p (piece-at-point game px y))
+                  (_ (not (and (eq (piece-type p) 'king) (eq (piece-color p) (if (eq by 'white) 'black 'white))))))
          (if (and (eq (piece-color p) by) (or (eq (piece-type p) 'queen) (eq (piece-type p) 'rook)))
              (return-from brk 'rook4)
              (return-from brk nil)))))
@@ -705,7 +728,8 @@
      (loop for y from (+ py 1) below 8
            for x from (+ px 1) below 8
            do
-              (when-let ((p (piece-at-point game x y)))
+              (when-let* ((p (piece-at-point game x y))
+                         (_ (not (and (eq (piece-type p) 'king) (eq (piece-color p) (if (eq by 'white) 'black 'white))))))
                 (if (and (eq (piece-color p) by) (or (eq (piece-type p) 'queen) (eq (piece-type p) 'bishop)))
                     (return-from brk 'bishop1)
                     (return-from brk nil)))))
@@ -714,7 +738,8 @@
      (loop for y from (- py 1) downto 0 by 1
            for x from (+ px 1) below 8
            do
-              (when-let ((p (piece-at-point game x y)))
+              (when-let* ((p (piece-at-point game x y))
+                         (_ (not (and (eq (piece-type p) 'king) (eq (piece-color p) (if (eq by 'white) 'black 'white))))))
                 (if (and (eq (piece-color p) by) (or (eq (piece-type p) 'queen) (eq (piece-type p) 'bishop)))
                     (return-from brk 'bishop2)
                     (return-from brk nil)))))
@@ -723,7 +748,8 @@
      (loop for y from (+ py 1) below 8
            for x from (- px 1) downto 0 by 1
            do
-              (when-let ((p (piece-at-point game x y)))
+              (when-let* ((p (piece-at-point game x y))
+                         (_ (not (and (eq (piece-type p) 'king) (eq (piece-color p) (if (eq by 'white) 'black 'white))))))
                 (if (and (eq (piece-color p) by) (or (eq (piece-type p) 'queen) (eq (piece-type p) 'bishop)))
                     (return-from brk 'bishop3)
                     (return-from brk nil)))))
@@ -732,7 +758,8 @@
      (loop for y from (- py 1) downto 0 by 1
            for x from (- px 1) downto 0 by 1
            do
-              (when-let ((p (piece-at-point game x y)))
+              (when-let* ((p (piece-at-point game x y))
+                         (_ (not (and (eq (piece-type p) 'king) (eq (piece-color p) (if (eq by 'white) 'black 'white))))))
                 (if (and (eq (piece-color p) by) (or (eq (piece-type p) 'queen) (eq (piece-type p) 'bishop)))
                     (return-from brk 'bishop4)
                     (return-from brk nil)))))
@@ -799,6 +826,18 @@
               ;; (format t "point (~a, ~a) is checkable by ~a (~a)~%" px py p (piece-type p))
               (return-from brk t))))
       nil)))
+
+(declaim (inline point-checked-p))
+;; "shit"
+(defun point-checked-p (game px py by)
+  (new--point-checked-p game px py by))
+  ;; (let ((a (new--point-checked-p game px py by))
+  ;;       (b (old--point-checked-p game px py by)))
+  ;;   (if (eq (and a t) b)
+  ;;       b
+  ;;       (when (and (>= px 0) (< px 8) (>= py 0) (< py 8))
+  ;;         (prog1 a
+  ;;           (format t "point-checked-p disagree on point (~a, ~a) w/ fen ~a being checked by ~a (~a vs ~a)~%" px py (game->fen game) by a b))))))
 
 (defun game-do-move (game piece mx my &key no-recache no-check-mates no-funcall upgrade-type no-send (no-display-check-mates nil))
   (declare (type game game)
@@ -1016,11 +1055,28 @@
   (when-let ((e *current-board-evaluation*))
     (draw-text (format nil "opponent sees eval as: ~a" (float (/ e 100))) 10 10 21 +color-white+)))
 
+(defparameter +hlm/last-from+ '(120 120 20 100))
+(defparameter +hlm/last-to+   '(120 80  20 100))
+
+(defun highlight-last-move (g &rest _)
+  (declare (ignore _)
+           (type game g))
+  (when-let ((m (car (game-move-history g))))
+    (draw-rectangle
+     (+ (car *board-begin*) (* (point-x (car m)) +piece-size+))
+     (+ (cdr *board-begin*) (* (point-y (car m)) +piece-size+))
+     +piece-size+ +piece-size+ +hlm/last-from+)
+    (draw-rectangle
+     (+ (car *board-begin*) (* (point-x (cadr m)) +piece-size+))
+     (+ (cdr *board-begin*) (* (point-y (cadr m)) +piece-size+))
+     +piece-size+ +piece-size+ +hlm/last-to+)))
+
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
 (add-draw-hook 'maybe-switch-sides)
 (add-draw-hook 'maybe-draw-eval)
+(add-draw-hook 'highlight-last-move)
 
 (add-draw-hook 'gui:toplevel-console-listener)
 

@@ -28,6 +28,7 @@
    *window-hpad*
    *board-begin*
    *board-size*
+   *debug*
 
    ;; symbols
    pawn
@@ -51,6 +52,8 @@
 
 
 (in-package :leszcz-constants)
+
+(defparameter *debug* nil)
 
 (defun file->vec (fname)
   (let* ((f (open fname :element-type '(unsigned-byte 8)))

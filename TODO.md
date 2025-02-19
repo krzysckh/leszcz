@@ -41,8 +41,8 @@
       * [x] paty
     * [x] :3 meow meow meow meow
       * [x] meow meow meow meow meow meow 1
-      * [ ] meow meow meow meow meow meow 2
-      * [ ] meow meow meow meow meow meow 3
+      * [x] meow meow meow meow meow meow 2
+      * [x] meow meow meow meow meow meow 3
       * [ ] meow meow meow meow meow meow 4
       * [ ] meow meow meow meow meow meow 5
       * [ ] meow meow meow meow meow meow 6
@@ -55,14 +55,15 @@
     * [x] AAAAAAAAAAA !!!!!!
     * [x] bot typu losowy
     * [ ] przyspiesz generacje ruchów
-      * [ ] może jest okej ale cache trzeba trzymać jako bitboard + eval + ???
-    * [ ] dodaj jakiś eval
+      * [x] może jest okej ale cache trzeba trzymać jako bitboard + eval + ???
+    * [x] dodaj jakiś eval
   * [ ] jeśli ci się będzie nudzić
     * [ ] [asdf:test-system](https://github.com/fukamachi/prove?tab=readme-ov-file#asdf-integration) zamiast make test
     * [ ] grep -R TODO
 * [ ] Gracz v Gracz na jednym komputerze
   * [x] ej bo to juz w sumie jest
     * [x] kłamałem
+      * [x] ja pierdole
   * [ ] wybór w menu (parz preludija → menu)
   * [ ] timer
   * [ ] edytor pozycji
@@ -77,12 +78,13 @@
   * [x] obejrzyj filmik sebusia i zerżnij pomysły (wszystkie)
   * [x] nazwij algorytmy tak żeby brzmiało mądrze
     * [x] "odcinanie chujowych ruchów" → minmax
-    * [x] "mądre obcinanie chujowych ruchów" → redukcja alpha-beta
+    * [x] "mądre obcinanie chujowych ruchów" = "jak ruch slabszy niz wczescniej widziany to juz nie licz dalej" → redukcja alpha-beta
     * [ ] "wybieranie ruchów z listy możliwych losowo zamiast liniowi" → wyszukiwanie w drzewie sposobem monte carlo
-    * [x] preferencja figur dla danych pozycji
+    * [x] preferencja figur dla danych pozycji (`*bonus-table*`)
   * [ ] a tak w ogóle to silnik miej w osobnym wątku żeby mniej się narobić a więcej zarobić
 * [ ] Gracz v Gracz na różnych komputerach w LAN (p2p)
   * [x] działa
+  * [ ] jakiekolwiek menu do hostowania/łączenia
   * [ ] ładne menu do hostowania/łączenia
 * [ ] protokół
   * [ ] napisane docsy w całości
@@ -98,3 +100,4 @@
     * [x] rdata
 * [ ] napisz resztę todo
   * [x] pozdro
+  * [x] pozdro 2

@@ -7,6 +7,8 @@
 \usepackage{float}
 \usepackage{bytefield}
 \usepackage{etoolbox}
+\usepackage{epigraph}
+\usepackage{emoji}
 
 \renewcommand{\figurename}{Rysunek}
 
@@ -24,3 +26,18 @@
 
 \newunicodechar{→}{\textfallback{→}}
 \newunicodechar{∆}{\textfallback{∆}}
+
+\setlength\epigraphwidth{16cm}
+\setlength\epigraphrule{0pt}
+
+%% \makeatletter
+%% \renewcommand\@epitext[1]{{\fontfamily{cmr}\selectfont #1}}
+%% \makeatother
+
+\usepackage{etoolbox}
+\makeatletter
+\newlength\epitextskip
+\pretocmd{\@epitext}{\em}{}{}
+\apptocmd{\@epitext}{\em}{}{}
+\patchcmd{\epigraph}{\@epitext{#1}\\}{\@epitext{#1}\\[\epitextskip]}{}{}
+\makeatother

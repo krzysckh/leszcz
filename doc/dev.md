@@ -1,7 +1,7 @@
 # Co i Jak (dla "deweloperów")
 
 ## Co ("środowisko uruchomieniowe")
-* win64 - skompilowałem te biblioteki dla *ciebie* czytelniku 💜
+* win64 - skompilowałem te biblioteki dla *ciebie* czytelniku \emoji{purple-heart}
   * [raylib](https://pub.krzysckh.org/msc25/raylib5.5.dll)
   * [libffi](https://pub.krzysckh.org/msc25/libffi-8.dll)
 * unix
@@ -29,9 +29,18 @@ Jeśli repl nie jest czymś co Ci się podoba, można wykonać `make run` by aut
 
 ## problem: powolne
 
-bitboardy [@cchess1970]
+bitboardy [@bitb]
 
 ```lisp
 ;; Do przeszukiwania drzewa ruchów
 (game->fast g)
 ```
+
+## cytaty
+
+\epigraph{jezu chryste p \textbf{(6 6)} to piece(PAWN[BLACK])@\textbf{point(5 7)}}{--- \textup{pre--possible-moves-for/upgrade}, leszcz.lisp}
+\epigraph{point-checked-p disagree on point (4, 0) w/ fen r3k2r/p1pp1qbn/bn2p1p1/3PN3/1p2P3/2N4p/PPPBBPPP/R3K1R1 b Qkq - 0 1 being checked by WHITE (NIL vs T)}{--- \textup{point-checked-p}, leszcz.lisp}
+\epigraph{``\emoji{cross-mark} 97818 is expected to be 97862"}{--- t/test.lisp}
+
+
+
