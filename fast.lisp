@@ -139,6 +139,28 @@
 (defvar pawn-magic-L #.(lognot #x8080808080808080)) ;; pawns without far left side
 (defvar pawn-magic-R #.(lognot #x0101010101010101))
 
+(defconstant u64-max (the (unsigned-byte 64) #xffffffffffffffff))
+(defmacro u64 (n)
+  `(the (unsigned-byte 64) (logand u64-max ,n)))
+
+;; https://www.chessprogramming.org/Knight_Pattern
+(defun fb--knight-check-board (knights)
+  (declare (type (unsigned-byte 64) knights)
+           (values (unsigned-byte 64)))
+  (let ((l1 (logand (u64 (ash knights -1)) #x7f7f7f7f7f7f7f7f))
+        (l2 (logand (u64 (ash knights -2)) #x3f3f3f3f3f3f3f3f))
+        (r1 (logand (u64 (ash knights 1))  #xfefefefefefefefe))
+        (r2 (logand (u64 (ash knights 2))  #xfcfcfcfcfcfcfcfc)))
+    (let* ((h1 (logior l1 r1))
+           (h2 (logior l2 r2)))
+      (logior
+       (u64 (ash h1 16))
+       (u64 (ash h1 -16))
+       (u64 (ash h2 8))
+       (u64 (ash h2 -8))))))
+
+(declaim (inline fb--knight-check-board))
+
 ;; Color of checker
 (defun fb-make-check-board (fb color)
   (declare (type symbol color)
@@ -158,7 +180,8 @@
      (ash (if whitep
               (logand pawn-magic-R (fb-pawn f1))
               (logand pawn-magic-L (fb-pawn f1)))
-          pawn-+2)))) ;; pawn R
+          pawn-+2) ;; pawn R
+     (fb--knight-check-board (fb-knight f1)))))
 
 (defun bit-at (n bit &key (type-size 64))
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))

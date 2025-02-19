@@ -347,8 +347,8 @@
       acc)))
 
 (defmacro safe-piece-type (p)
-  `(when p
-     (piece-type p)
+  `(if-let ((v ,p))
+     (piece-type v)
      nil))
 
 (defun maybe-castling-moves (game p)
@@ -662,8 +662,10 @@
                      (setf (game-pieces g*) (remove w (game-pieces g*))))
                    (setf (point-x (piece-point pt)) (car pos))
                    (setf (point-y (piece-point pt)) (cadr pos))
+                   ;; this fucking sucks ↓
                    (when (functionp (caddr pos))
-                     (funcall (caddr pos) g*))
+                     (unless (and (eq (piece-type pt) 'pawn) (or (point-y point) 0) (point-y point) 7) ; skip pawns so the user doesn't get FUCKING asked interactively during a move search...
+                       (funcall (caddr pos) g*)))
 
                    (game-update-points-cache g*) ;; TODO: only update the 2 things that might have changed
                    (setf (game-fb g*) (game->fast-board g*)) ;; update fb, maybe -||-
@@ -769,22 +771,22 @@
                     (return-from brk 'bishop4)
                     (return-from brk nil)))))
 
-   (when-let ((p (piece-at-point game (- px 1) (- py 2))))
-     (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
-   (when-let ((p (piece-at-point game (+ px 1) (- py 2))))
-     (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
-   (when-let ((p (piece-at-point game (+ px 2) (- py 1))))
-     (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
-   (when-let ((p (piece-at-point game (+ px 2) (+ py 1))))
-     (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
-   (when-let ((p (piece-at-point game (+ px 1) (+ py 2))))
-     (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
-   (when-let ((p (piece-at-point game (- px 1) (+ py 2))))
-     (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
-   (when-let ((p (piece-at-point game (- px 2) (+ py 1))))
-     (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
-   (when-let ((p (piece-at-point game (- px 2) (- py 1))))
-     (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
+   ;; (when-let ((p (piece-at-point game (- px 1) (- py 2))))
+   ;;   (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
+   ;; (when-let ((p (piece-at-point game (+ px 1) (- py 2))))
+   ;;   (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
+   ;; (when-let ((p (piece-at-point game (+ px 2) (- py 1))))
+   ;;   (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
+   ;; (when-let ((p (piece-at-point game (+ px 2) (+ py 1))))
+   ;;   (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
+   ;; (when-let ((p (piece-at-point game (+ px 1) (+ py 2))))
+   ;;   (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
+   ;; (when-let ((p (piece-at-point game (- px 1) (+ py 2))))
+   ;;   (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
+   ;; (when-let ((p (piece-at-point game (- px 2) (+ py 1))))
+   ;;   (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
+   ;; (when-let ((p (piece-at-point game (- px 2) (- py 1))))
+   ;;   (and (eq (piece-type p) 'knight) (eq (piece-color p) by)))
 
    (when-let ((p (piece-at-point game (- px 1) (- py 1))))
      (and (eq by (piece-color p)) (eq (piece-type p) 'king)))
@@ -1214,7 +1216,6 @@
            (loop do
              (maybe-receive-something game)
              (maybe-move-bot game))))
-     :fen "rn2k1nr/ppp2ppp/8/3pp3/PbP3b1/3P3P/1P1B4/RN1QKBq1 b KQkq - 2 11"
      ))
      ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
 
