@@ -346,6 +346,11 @@
                  (push `(,x* ,y*) acc)))))))
       acc)))
 
+(defmacro safe-piece-type (p)
+  `(when p
+     (piece-type p)
+     nil))
+
 (defun maybe-castling-moves (game p)
   (declare (type game game)
            (type piece p))
@@ -358,7 +363,7 @@
           (null (piece-at-point game 6 7))
           (not (point-checked-p game 5 7 'black))
           (not (point-checked-p game 6 7 'black))
-          (eq (piece-type (piece-at-point game 7 7)) 'rook))
+          (eq (safe-piece-type (piece-at-point game 7 7)) 'rook))
      (list
       (list 6 7 #'(lambda (g*)
                     (let ((r (piece-at-point g* 7 7)))
@@ -373,7 +378,7 @@
           (null (piece-at-point game 3 7))
           (not (point-checked-p game 2 7 'black))
           (not (point-checked-p game 3 7 'black))
-          (eq (piece-type (piece-at-point game 0 7)) 'rook))
+          (eq (safe-piece-type (piece-at-point game 0 7)) 'rook))
      (list
       (list 2 7 #'(lambda (g*)
                     (let ((r (piece-at-point g* 0 7))) ;; TY KURWO JEBANA KRZYSZTOF CZEMU TU BYŁO PIECE-AT-POINT GAME ??!?!?
@@ -388,7 +393,7 @@
           (null (piece-at-point game 6 0))
           (not (point-checked-p game 5 0 'white))
           (not (point-checked-p game 6 0 'white))
-          (eq (piece-type (piece-at-point game 7 0)) 'rook))
+          (eq (safe-piece-type (piece-at-point game 7 0)) 'rook))
      (list
       (list 6 0 #'(lambda (g*)
                     (let ((r (piece-at-point g* 7 0)))
@@ -403,7 +408,7 @@
           (null (piece-at-point game 3 0))
           (not (point-checked-p game 2 0 'white))
           (not (point-checked-p game 3 0 'white))
-          (eq (piece-type (piece-at-point game 0 0)) 'rook))
+          (eq (safe-piece-type (piece-at-point game 0 0)) 'rook))
      (list
       (list 2 0 #'(lambda (g*)
                     (let ((r (piece-at-point g* 0 0)))
@@ -1209,6 +1214,7 @@
            (loop do
              (maybe-receive-something game)
              (maybe-move-bot game))))
+     :fen "rn2k1nr/ppp2ppp/8/3pp3/PbP3b1/3P3P/1P1B4/RN1QKBq1 b KQkq - 2 11"
      ))
      ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
 
