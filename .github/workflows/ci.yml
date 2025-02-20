@@ -30,7 +30,7 @@ jobs:
       - name: install quicklisp
         run: |
           wget https://beta.quicklisp.org/quicklisp.lisp
-          sbcl --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --quit
+          sbcl --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql:add-to-init-file)' --quit
       - name: install sbcl for windows & build
         run: |
           Xvfb :1 &
@@ -58,10 +58,10 @@ jobs:
 
           cp -v libffi-8.dll build/
           cp -v raylib5.5.dll build/
-      - name: build docs
-        run: |
-          make docs
-          cp -v doc/*.pdf build/
+      # - name: build docs
+      #   run: |
+      #     make docs
+      #     cp -v doc/*.pdf build/
       - name: upload as artifact
         uses: actions/upload-artifact@v4
         with:

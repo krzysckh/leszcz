@@ -20,7 +20,9 @@ run:
 build: all
 all: *.lisp
 	mkdir -p build
+	# rm -f *.fasl
 	# $(SBCL) --load build.lisp --quit
+	rm -f *.fasl
 	wine sbcl.exe --core sbcl.core --load build.lisp --quit
 test:
 	# i don't think prove should be in an asdf package for leszcz, as we're dumping core to save the executeble and it would still be lingering in there
@@ -30,7 +32,7 @@ test:
 		--load t/test.lisp \
 		--quit
 clean:
-	rm -fr build leszcz.texi doc/*.html doc/*.pdf
+	rm -fr build leszcz.texi doc/*.html doc/*.pdf dist *.tgz
 test-p2p:
 	( \
 	  CL_SOURCE_REGISTRY=$(PWD) $(SBCL) --eval "(ql:quickload :leszcz)" --eval "(leszcz::start-master-server)" --quit & \
@@ -48,5 +50,13 @@ docs:
 		--quit
 	makeinfo --no-split --pdf leszcz.texi -o doc/leszcz-reference-manual.pdf
 	makeinfo --no-split --html --css-include=doc/doc.css leszcz.texi -o doc/leszcz-reference-manual.html
-pubcpy: docs
+pubcpy: docs dist
+	tar cvzf leszcz-win64-dist.tgz dist
+	yes | pubcpy leszcz-win64-dist.tgz
 	cd doc ; for f in leszcz-reference-manual.pdf leszcz-reference-manual.html leszcz.pdf ; do yes | pubcpy $$f ; done
+dist: all docs
+	mkdir -p dist/
+	cp -v build/leszcz.exe dist/
+	cp -v libffi-8.dll dist/
+	cp -v raylib5.5.dll dist/
+	cp -v doc/*.pdf dist/

@@ -22,3 +22,6 @@ _p.png
 *.vrs
 *.json
 *.mp4
+dist
+*.tgz
+*.txt

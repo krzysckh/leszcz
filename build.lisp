@@ -6,7 +6,7 @@
 
 (push (pathname (uiop:getcwd)) ql:*local-project-directories*)
 
-(ql:quickload :leszcz) ; :verbose t)
+(ql:quickload :leszcz ) ; :verbose t)
 
 (defparameter *bin-path*
   (if (uiop/os:os-windows-p)

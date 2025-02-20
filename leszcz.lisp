@@ -1343,7 +1343,9 @@
 
 (defun main ()
   (unwind-protect
-       (%main)
+       (sb-int:with-float-traps-masked ;; TODO: weird untraceable problems on ms windows
+           (:invalid :overflow :underflow :divide-by-zero :inexact)
+         (%main))
     (cleanup-threads!)
     (when (window-ready-p)
       (close-window))))
