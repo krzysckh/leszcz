@@ -581,16 +581,17 @@
           (push `(,x ,y) l))))
     l))
 
-(defmacro for-every-bb (as fb &body b)
-  (append
-   '(progn)
-   (apply
-    #'append
-    (loop
-      for ca in '(fb-white fb-black)
+(defmacro for-every-bb (as n &body b)
+  ;; n to tak naprawdę fb tylko dużo zabawniejszy jest let pacan
+  (append                                        ;          |
+   '(progn)                                      ;          |
+   (apply                                        ;          |
+    #'append                                     ;          |
+    (loop                                        ;          |
+      for ca in '(fb-white fb-black)             ;          |
       collect (loop for pa in '(fb-pawn fb-rook fb-knight fb-bishop fb-queen fb-king)
-                    collect
-                    `(let ((,as (,pa (,ca ,fb))))
+                    collect                      ;          |
+                    `(let ((,as (,pa (,ca ,n)))) ; <- tu o -+
                        ,@b))))))
 
 ;;; not for king and pawn as they require additional funcalls
