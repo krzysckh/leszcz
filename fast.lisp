@@ -4,6 +4,7 @@
    fast-board
    fast-board-1
 
+   logbitpr
    bit-at
    bit-set-p
    game->fast-board
@@ -17,6 +18,7 @@
    fb-king
    fb-white
    fb-black
+   copy-fast-board
 
    fb-generate-bishop-moves
    fb-generate-knight-moves
@@ -53,6 +55,21 @@
   (wcq-p t :type boolean)
   (bck-p t :type boolean)
   (bcq-p t :type boolean))
+
+;; WARNING: redefinition of COPY-FAST-BOARD clobbers structure copier
+;; "ups"
+(defun copy-fast-board (fb)
+  (declare (type fast-board fb))
+  (let ((fb* (make-instance 'fast-board)))
+    (setf (fb-ticker fb*) (fb-ticker fb))
+    (setf (fb-wck-p  fb*) (fb-wck-p  fb))
+    (setf (fb-wcq-p  fb*) (fb-wcq-p  fb))
+    (setf (fb-bck-p  fb*) (fb-bck-p  fb))
+    (setf (fb-bcq-p  fb*) (fb-bcq-p  fb))
+    (setf (fb-black  fb*) (copy-fast-board-1 (fb-black fb)))
+    (setf (fb-white  fb*) (copy-fast-board-1 (fb-white fb)))
+    fb*))
+
 
 (defmacro logbitpr (n bit &key (type-size 64))
   `(logbitp (- ,type-size 1 ,bit) ,n))

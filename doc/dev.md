@@ -41,6 +41,6 @@ Generacja ruchów niektórych figur opiera się na bitplanszach `fast-board`, `f
 \epigraph{point-checked-p disagree on point (4, 0) w/ fen r3k2r/p1pp1qbn/bn2p1p1/3PN3/1p2P3/2N4p/PPPBBPPP/R3K1R1 b Qkq - 0 1 being checked by WHITE (NIL vs T)}{--- \textup{point-checked-p}, leszcz.lisp}
 \epigraph{``\emoji{cross-mark} 97818 is expected to be 97862"}{--- t/test.lisp}
 \epigraph{``safe piece type of point (7 7) is NIL in contrary to the unsafe one which is ROOK"}{--- \textup{maybe-castling-moves}, leszcz.lisp}
-
+\epigraph{``King couldn't be found in #S(FAST-BOARD-1 ...)"}{--- fb1-king-of, fast.lisp}
 
 

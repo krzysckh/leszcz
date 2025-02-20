@@ -581,18 +581,80 @@
           (push `(,x ,y) l))))
     l))
 
+(defmacro for-every-bb (as fb &body b)
+  (append
+   '(progn)
+   (apply
+    #'append
+    (loop
+      for ca in '(fb-white fb-black)
+      collect (loop for pa in '(fb-pawn fb-rook fb-knight fb-bishop fb-queen fb-king)
+                    collect
+                    `(let ((,as (,pa (,ca ,fb))))
+                       ,@b))))))
+
+;;; not for king and pawn as they require additional funcalls
+;; bb: a bitboard of moves to check
+;; from: a bitboard of the piece location
+;; color-accessor: fb-white or fb-black
+;; piece-accessor: same as above but for pieces
+(defmacro fb-filter-check-moves (fb* color-accessor piece-accessor from bb)
+  `(progn
+     (let-values ((bb ,bb) ;; make sure it's in a variable
+                  (fb ,fb*)
+                  (kx ky (fb1-king-of (,color-accessor fb))))
+       (setf (,piece-accessor (,color-accessor fb))
+             (logxor (,piece-accessor (,color-accessor fb)) ,from))
+       (loop for i from 0 below 64 do
+         (when-let* ((_ (fast:bit-set-p bb i))
+                     (m (ash 1 (- 63 i)))) ;; current move "bitboard"
+           (setf (,piece-accessor (,color-accessor fb)) ;; make move
+                 (logior (,piece-accessor (,color-accessor fb)) m))
+           (let ((was (make-array '(12)))
+                 (i* 0))
+             (for-every-bb bitb fb
+               (setf (aref was i*) bitb)
+               (incf i*)
+               (setf bitb (logxor bitb m)))
+             (when (fb-point-checked-p fb kx ky (if (eq ',color-accessor 'fb-white) 'black 'white))
+               (setf bb (logxor bb m)))
+             (setf i* 0)
+             (setf (,piece-accessor (,color-accessor fb)) ;; unmake move
+                   (logxor (,piece-accessor (,color-accessor fb)) m))
+             (for-every-bb bitb fb
+               (setf bitb (aref was i*))
+               (incf i*)))))
+       (setf (,piece-accessor (,color-accessor fb))
+             (logior (,piece-accessor (,color-accessor fb)) ,from))
+       bb)))
+
+      ;; (for-every-bb ,bb fb
+      ;;   (setf bb (logior bb m)
+
+(defmacro fb-filter-check-moves* (fb color piece-accessor x y bb)
+  `(if (eq color 'white)
+       (fb-filter-check-moves ,fb fb-white ,piece-accessor (ash 1 (- 63 (+ ,x (* 8 ,y)))) ,bb)
+       (fb-filter-check-moves ,fb fb-black ,piece-accessor (ash 1 (- 63 (+ ,x (* 8 ,y)))) ,bb)))
+
 (defun pre--possible-moves-for (game p)
   (declare (type game game)
            (type piece p)
            (values list))
-  (multiple-value-bind (x y)
-      (position-of p)
+  (let-values ((x y (position-of p))
+               (fb (game-fb game))
+               (color (piece-color p)))
     (case (piece-type p)
+
+      (knight (bb->move-lst
+               (fb-filter-check-moves* fb color fb-knight x y (fb-generate-knight-moves fb x y color))))
+      (bishop (bb->move-lst
+               (fb-filter-check-moves* fb color fb-bishop x y (fb-generate-bishop-moves fb x y color))))
+      (queen  (bb->move-lst
+               (fb-filter-check-moves* fb color fb-queen x y (fb-generate-queen-moves fb x y color))))
+      (rook   (bb->move-lst
+               (fb-filter-check-moves* fb color fb-rook x y (fb-generate-rook-moves fb x y color))))
+
       (pawn   (pre--possible-moves-for/pawn game p))
-      (knight (bb->move-lst (fb-generate-knight-moves (game-fb game) x y (piece-color p))))
-      (bishop (bb->move-lst (fb-generate-bishop-moves (game-fb game) x y (piece-color p))))
-      (queen  (bb->move-lst (fb-generate-queen-moves  (game-fb game) x y (piece-color p))))
-      (rook   (bb->move-lst (fb-generate-rook-moves   (game-fb game) x y (piece-color p))))
       (king   (append
                (bb->move-lst (fb-generate-king-moves   (game-fb game) x y (piece-color p)))
                (maybe-castling-moves game p)))
@@ -669,30 +731,31 @@
         (remove-if
          #'(lambda (pos)
              ;; TODO: this reimplements game-do-move (badly) -- make it so i can just call stripped game-do-move
-             (let ((g* (copy-game game)))
+             (when (or (eq (piece-type p) 'king) (eq (piece-type p) 'pawn))
+               (let ((g* (copy-game game)))
                  ;; (setf (game-points-cache g*) nil) ;; <- dupa 2
-               (game-update-points-cache g*)
+                 (game-update-points-cache g*)
 
-               ;; (let ((p-was (piece-at-point game (car pos) (cadr pos))))
+                 ;; (let ((p-was (piece-at-point game (car pos) (cadr pos))))
                  ;; (setf (piece-point p) (make-instance 'point :x (car pos) :y (cadr pos)))
-               (let* ((king (king-of g* (piece-color p)))
-                      (king-point (piece-point king))
-                      (pt (piece-at-point g* (point-x point) (point-y point))))
-                 (when-let ((w (piece-at-point g* (car pos) (cadr pos))))
-                   (setf (game-pieces g*) (remove w (game-pieces g*))))
-                 (setf (point-x (piece-point pt)) (car pos))
-                 (setf (point-y (piece-point pt)) (cadr pos))
-                 ;; this fucking sucks ↓
-                 (when (functionp (caddr pos))
-                   (unless (and (eq (piece-type pt) 'pawn) (or (= (point-y point) 0) (= (point-y point) 7))) ; skip pawns so the user doesn't get FUCKING asked interactively during a move search...
-                     (funcall (caddr pos) g*)))
+                 (let* ((king (king-of g* (piece-color p)))
+                        (king-point (piece-point king))
+                        (pt (piece-at-point g* (point-x point) (point-y point))))
+                   (when-let ((w (piece-at-point g* (car pos) (cadr pos))))
+                     (setf (game-pieces g*) (remove w (game-pieces g*))))
+                   (setf (point-x (piece-point pt)) (car pos))
+                   (setf (point-y (piece-point pt)) (cadr pos))
+                   ;; this fucking sucks ↓
+                   (when (functionp (caddr pos))
+                     (unless (and (eq (piece-type pt) 'pawn) (or (= (point-y point) 0) (= (point-y point) 7))) ; skip pawns so the user doesn't get FUCKING asked interactively during a move search...
+                       (funcall (caddr pos) g*)))
 
-                 (game-update-points-cache g*) ;; TODO: only update the 2 things that might have changed
-                 (setf (game-fb g*) (game->fast-board g*)) ;; update fb, maybe -||-
-                 (point-checked-p
-                  g*
-                  (point-x king-point) (point-y king-point)
-                  (if (whitep king) 'black 'white)))))
+                   (game-update-points-cache g*) ;; TODO: only update the 2 things that might have changed
+                   (setf (game-fb g*) (game->fast-board g*)) ;; update fb, maybe -||-
+                   (point-checked-p
+                    g*
+                    (point-x king-point) (point-y king-point)
+                    (if (whitep king) 'black 'white))))))
          (remove-if
           #'(lambda (pos)
               (or
@@ -826,10 +889,22 @@
      (and (eq by (piece-color p)) (eq (piece-type p) 'king)))
    ))
 
-(defun new--point-checked-p (game px py by)
+(defun fb1-king-of (fb1)
+  (declare (type fast-board-1 fb1)
+           (values place place))
+  (loop for y from 0 below 8 do
+    (loop for x from 0 below 8 do
+      (when (fast:bit-set-p (fb-king fb1) (+ x (* y 8)))
+        (return-from fb1-king-of (values x y)))))
+  (error "King couldn't be found in ~a" fb1)) ;; TODO: this should not be an error
+
+(defun fb-point-checked-p (fb px py by)
+  (declare (type fast-board fb)
+           (type fixnum px py)
+           (type symbol by)
+           (values boolean))
   (when (and (>= px 0) (< px 8) (>= py 0) (< py 8))
     (let* ((bb (ash 1 (- 63 (* py 8) px)))
-           (fb (game-fb game))
            (fb1 (if (eq by 'white) (fb-white fb) (fb-black fb))))
       (or
        (= (logand bb (fb-make-check-board fb by)) bb)
@@ -841,8 +916,11 @@
          (or
           (not (= 0 (logand bm (fb-bishop fb1))))
           (not (= 0 (logand bm (fb-queen fb1))))))
-       (let ((k (piece-point (king-of game by))))
-         (= (logand bb (fb-generate-king-area (point-x k) (point-y k))) bb))))))
+       (let-values ((kx ky (fb1-king-of fb1)))
+         (= (logand bb (fb-generate-king-area kx ky)) bb))))))
+
+(defun new--point-checked-p (game px py by)
+  (fb-point-checked-p (game-fb game) px py by))
 
 ;;; new--
 ;; real	0m7,302s
@@ -1005,7 +1083,7 @@
           ((mouse-pressed-p 0)  ; begin dragging
            (when (set-current-capturer! maybe-drag/capturer)
              ;; this when is spread like that so when you want to play both players you can implement the code for that easier
-             (when (eq (game-turn game) (game-side game))
+             (when (or (eq (game-turn game) (game-side game)) (null *threads*)) ;; TODO: assuming threads are not running in debug mode is bad
                (when-let ((p (piece-at-point game px py)))
                  (when (eq (piece-color p) (game-turn game))
                    (setf maybe-drag/piece p)))
@@ -1105,7 +1183,7 @@
 (defun maybe-receive-something (game)
   (declare (type game game))
 
-  (when (not (eq (game-side game) (game-turn game)))
+  (when (and (not (eq (game-side game) (game-turn game))) (game-connection game))
     (when-let ((p (maybe-receive-packet (game-connection game))))
       (format t "got packet with type ~a~%" (packet->name p))
       (packet-case p
@@ -1235,6 +1313,11 @@
   (sleep 1)
   (sb-thread:join-thread
    (thread "user thread (client)" (connect-to-master))))
+
+(defun %test-main ()
+  (let ((g (fen->game "2k5/8/8/6q1/8/8/8/2B3K1 w - - 0 1")))
+    (initialize-game g 'white nil)
+    (main-loop g 'white nil)))
 
 (defun main ()
   (unwind-protect

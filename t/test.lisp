@@ -15,16 +15,17 @@
 
 ;; comment out to disable/enable tracing
 
-(setf *trace-p* t)
-(push #P"/home/kpm/common-lisp/tracer/" asdf:*central-registry*)
-(push (uiop:getcwd) asdf:*central-registry*)
-(asdf:load-system :tracer)
-(defmacro maybe-trace (&body b)
-  (append
-   `(progn
-      (tracer:with-tracing ("LESZCZ" "NET" "GUI" "LESZCZ-CONSTANTS")
-        ,@b)
-      (tracer:save-report "leszcz-trace.json"))))
+;; (setf *trace-p* t)
+;; (push #P"/home/kpm/common-lisp/tracer/" asdf:*central-registry*)
+;; (push (uiop:getcwd) asdf:*central-registry*)
+;; (asdf:load-system :tracer)
+;; (defmacro maybe-trace (&body b)
+;;   (append
+;;    `(progn
+;;       (tracer:with-tracing ("LESZCZ" "NET" "GUI" "LESZCZ-CONSTANTS")
+;;         ,@b)
+;;       (tracer:save-report "leszcz-trace.json"))))
+
 
 (defun fen->game* (fen)
   (let ((g (leszcz::fen->game fen)))
@@ -100,13 +101,13 @@
 ;; (defparameter *expected-number-of-moves* '(20 400 8902 197281))
 ;; (defparameter *test-fen* +initial-fen+)
 
-;; (defparameter *expected-number-of-moves* '(48 2039 97862 4085603))
-;; (defparameter *test-fen* "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0")
+(defparameter *expected-number-of-moves* '(48 2039 97862 4085603))
+(defparameter *test-fen* "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0")
 
-(defparameter *expected-number-of-moves* '(14 191 2812 43238 674624))
-(defparameter *test-fen* "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1")
+;; (defparameter *expected-number-of-moves* '(14 191 2812 43238 674624))
+;; (defparameter *test-fen* "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1")
 
-(defparameter *depth* 1)
+(defparameter *depth* 2)
 
 ;; (let ((g (leszcz::fen->game *test-fen*)))
 ;;   (leszcz::game-update-points-cache g)
@@ -130,11 +131,19 @@
        ;; TODO: figure out why the check count doesn't match https://www.chessprogramming.org/Perft_Results#Initial_Position and test that too
        (is (length games) (nth i *expected-number-of-moves*)))
 
+     (with-open-file (str "fens.txt"
+                          :direction :output
+                          :if-exists :supersede
+                          :if-does-not-exist :create)
+       (loop for g in games do
+         (format str "~a (~a)~%" (leszcz::game->fen g) (car (game-move-history g)))))
+
      (when *fuck-we-debuggin*
-       ;; (let ((fuckfen "8/2p5/3p4/KP5r/1R5k/6p1/4P3/8 b - - 0 1"))
-       ;;   (setf games (list (fen->game* fuckfen)))
-       ;;   (setf (game-side (car games)) 'white)
-       ;;   )
+       (let ((fuckfen "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N5/PPPBBPQP/R4K1R b kq - 0 1"))
+         (setf games (list (fen->game* fuckfen)))
+         (setf (game-side (car games)) 'white)
+         )
+
        (init-window *window-width* *window-height* ":leszcz")
        (set-target-fps! 60)
        (set-exit-key! -1)
