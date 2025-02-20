@@ -482,87 +482,122 @@
 
       (list next-pos)))
 
+(defun pre--possible-moves-for/pawn (game p)
+  (declare (type game game)
+           (type piece p)
+           (values list))
+  (let-values ((x y (position-of p)))
+    (let* ((m (filter-own-pieces
+               game p
+               (pre--possible-moves-for/upgrade game p (v2+ (list x y) (list 0 (if (whitep p) -1 1))))
+               :disallow-taking t))
+           (m (if m
+                  (append
+                   m
+                   (filter-own-pieces
+                    game p
+                    (append
+                     (if (and (whitep p) (= (the place (point-y (piece-point p))) 6))
+                         (let ((pos (v2+ (list x y) '(0 -2))))
+                           (list (append
+                                  pos
+                                  (list
+                                   #'(lambda (g*)
+                                       (setf (game-en-passant-target-square g*) pos))))))
+                         nil)
+                     (if (and (blackp p) (= (the place (point-y (piece-point p))) 1))
+                         (let ((pos (v2+ (list x y) '(0 2))))
+                           (list (append
+                                  pos
+                                  (list
+                                   #'(lambda (g*)
+                                       (setf (game-en-passant-target-square g*) pos))))))
+                         nil))
+                    :disallow-taking t))
+                  nil)))
+
+      ;; going forwards done, generate capturing moves
+      (macrolet ((maybe-pushmove (x* y*)
+                   ;; en passant?
+                   `(let* ((ts (game-en-passant-target-square game))
+                           (pt (when ts
+                                 (if (whitep p)
+                                     (v2- (game-en-passant-target-square game) '(0 1))
+                                     (v2+ (game-en-passant-target-square game) '(0 1))))))
+                      (if (and ts (equal (list ,x* ,y*) pt))
+                          (push
+                           (list ,x*
+                                 ,y*
+                                 #'(lambda (g*)
+                                     (let ((p (piece-at-point g* (car ts) (cadr ts))))
+                                       (setf (game-pieces g*)
+                                             (remove p (game-pieces g*) :test #'equal)))))
+                           m)
+                          ;; normal capturing
+                          (when-let ((p* (piece-at-point game ,x* ,y*)))
+                            (when (not (eq (piece-color p) (piece-color p*)))
+                              (let ((vs* (pre--possible-moves-for/upgrade game p (list ,x* ,y*))))
+                                (dolist (v vs*)
+                                  (push v m)))))))))
+        (if (whitep p)
+            (progn
+              (maybe-pushmove (- x 1) (- y 1))
+              (maybe-pushmove (+ x 1) (- y 1)))
+            (progn
+              (maybe-pushmove (- x 1) (+ y 1))
+              (maybe-pushmove (+ x 1) (+ y 1)))))
+      m)))
+
+;; (defun old--pre--possible-moves-for (game p)
+;;   (multiple-value-bind (x y)
+;;       (position-of p)
+;;     (case (piece-type p)
+;;       ;; TODO: ale swietny kod
+;;       ;; TODO: no troche spaghetti
+;;       ;; TODO: ja pierdole
+;;       ;; TODO: zastrzele sie
+;;       (pawn   (pre--possible-moves-for/pawn game p))
+;;       (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+)))
+;;       (king   (append
+;;                (remove-if
+;;                 #'(lambda (pos)
+;;                     (point-checked-p game (car pos) (cadr pos) (if (whitep p) 'black 'white)))
+;;                 (filter-own-pieces game p (enposition-moveset (list x y) +king-moves+)))
+;;                ;; TODO: check for checks in maybe-castling-moves
+;;                (maybe-castling-moves game p)))
+;;       (rook   (generate-sliding-moves game p +rook-offsets+))
+;;       (bishop (generate-sliding-moves game p +bishop-offsets+))
+;;       (queen  (generate-sliding-moves game p +queen-offsets+))
+;;       (t
+;;        (warn "unreachable reached D:")))))
+
+(defun bb->move-lst (bb)
+  (declare (type (unsigned-byte 64) bb)
+           (values list))
+  (let ((l nil))
+    (loop for y from 0 below 8 do
+      (loop for x from 0 below 8 do
+        (when (fast:bit-set-p bb (+ x (* y 8)) :type-size 64)
+          (push `(,x ,y) l))))
+    l))
+
 (defun pre--possible-moves-for (game p)
+  (declare (type game game)
+           (type piece p)
+           (values list))
   (multiple-value-bind (x y)
       (position-of p)
     (case (piece-type p)
-      ;; TODO: ale swietny kod
-      ;; TODO: no troche spaghetti
-      ;; TODO: ja pierdole
-      ;; TODO: zastrzele sie
-      (pawn (let* ((m (filter-own-pieces
-                       game p
-                       (pre--possible-moves-for/upgrade game p (v2+ (list x y) (list 0 (if (whitep p) -1 1))))
-                       :disallow-taking t))
-                   (m (if m
-                          (append
-                           m
-                           (filter-own-pieces
-                            game p
-                            (append
-                             (if (and (whitep p) (= (the place (point-y (piece-point p))) 6))
-                                 (let ((pos (v2+ (list x y) '(0 -2))))
-                                   (list (append
-                                          pos
-                                          (list
-                                           #'(lambda (g*)
-                                               (setf (game-en-passant-target-square g*) pos))))))
-                                 nil)
-                             (if (and (blackp p) (= (the place (point-y (piece-point p))) 1))
-                                 (let ((pos (v2+ (list x y) '(0 2))))
-                                   (list (append
-                                          pos
-                                          (list
-                                           #'(lambda (g*)
-                                               (setf (game-en-passant-target-square g*) pos))))))
-                                 nil))
-                            :disallow-taking t))
-                          nil)))
-
-              ;; going forwards done, generate capturing moves
-              (macrolet ((maybe-pushmove (x* y*)
-                           ;; en passant?
-                           `(let* ((ts (game-en-passant-target-square game))
-                                   (pt (when ts
-                                         (if (whitep p)
-                                            (v2- (game-en-passant-target-square game) '(0 1))
-                                            (v2+ (game-en-passant-target-square game) '(0 1))))))
-                              (if (and ts (equal (list ,x* ,y*) pt))
-                                  (push
-                                   (list ,x*
-                                         ,y*
-                                         #'(lambda (g*)
-                                             (let ((p (piece-at-point g* (car ts) (cadr ts))))
-                                               (setf (game-pieces g*)
-                                                     (remove p (game-pieces g*) :test #'equal)))))
-                                   m)
-                                  ;; normal capturing
-                                  (when-let ((p* (piece-at-point game ,x* ,y*)))
-                                    (when (not (eq (piece-color p) (piece-color p*)))
-                                      (let ((vs* (pre--possible-moves-for/upgrade game p (list ,x* ,y*))))
-                                        (dolist (v vs*)
-                                          (push v m)))))))))
-                (if (whitep p)
-                    (progn
-                      (maybe-pushmove (- x 1) (- y 1))
-                      (maybe-pushmove (+ x 1) (- y 1)))
-                    (progn
-                      (maybe-pushmove (- x 1) (+ y 1))
-                      (maybe-pushmove (+ x 1) (+ y 1)))))
-              m))
-      (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+)))
+      (pawn   (pre--possible-moves-for/pawn game p))
+      (knight (bb->move-lst (fb-generate-knight-moves (game-fb game) x y (piece-color p))))
+      (bishop (bb->move-lst (fb-generate-bishop-moves (game-fb game) x y (piece-color p))))
+      (queen  (bb->move-lst (fb-generate-queen-moves  (game-fb game) x y (piece-color p))))
+      (rook   (bb->move-lst (fb-generate-rook-moves   (game-fb game) x y (piece-color p))))
       (king   (append
-               (remove-if
-                #'(lambda (pos)
-                    (point-checked-p game (car pos) (cadr pos) (if (whitep p) 'black 'white)))
-                (filter-own-pieces game p (enposition-moveset (list x y) +king-moves+)))
-               ;; TODO: check for checks in maybe-castling-moves
+               (bb->move-lst (fb-generate-king-moves   (game-fb game) x y (piece-color p)))
                (maybe-castling-moves game p)))
-      (rook   (generate-sliding-moves game p +rook-offsets+))
-      (bishop (generate-sliding-moves game p +bishop-offsets+))
-      (queen  (generate-sliding-moves game p +queen-offsets+))
       (t
-       (warn "unreachable reached D:")))))
+       (error "unknown piece-type: ~a" (piece-type p))))))
 
 ;; TODO: cache that
 (defun king-of (game color)
@@ -822,7 +857,7 @@
 (defun point-checked-p (game px py by)
   (old--point-checked-p game px py by))
 
-(declaim (inline point-checked-p))
+(declaim (sb-ext:maybe-inline point-checked-p))
 
 (defun game-do-move (game piece mx my &key no-recache no-check-mates no-funcall upgrade-type no-send (no-display-check-mates nil))
   (declare (type game game)

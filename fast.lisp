@@ -23,6 +23,8 @@
    fb-generate-queen-moves
    fb-generate-rook-moves
    fb-generate-king-area
+   fb-generate-king-moves
+
    fb-make-check-board
    ))
 
@@ -336,6 +338,18 @@
                (when (and (>= x 0) (< x 8) (>= y 0) (< y 8))
                  (setf (logbitpr z p) t))))
     z))
+
+(defun fb-generate-king-moves (fb px py color)
+  (declare (type fast-board fb)
+           (type fixnum px py)
+           (type symbol color)
+           (values (unsigned-byte 64)))
+  (let ((ob (if (eq 'white color) (fb-make-white-board fb) (fb-make-black-board fb)))  ;; "own board"
+        (eb (if (eq 'white color) (fb-make-black-board fb) (fb-make-white-board fb)))) ;; "enemy board"
+    (let ((ka (fb-generate-king-area px py)))
+      (logior
+       (logand ka (lognot ob))
+       (logand ka eb)))))
 
 (defun bit-at (n bit &key (type-size 64))
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))

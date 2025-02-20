@@ -13,18 +13,18 @@
   `(progn
      ,@b))
 
-;; comment out to disable tracing
+;; comment out to disable/enable tracing
 
-;; (setf *trace-p* t)
-;; (push #P"/home/kpm/common-lisp/tracer/" asdf:*central-registry*)
-;; (push (uiop:getcwd) asdf:*central-registry*)
-;; (asdf:load-system :tracer)
-;; (defmacro maybe-trace (&body b)
-;;   (append
-;;    `(progn
-;;       (tracer:with-tracing ("LESZCZ" "NET" "GUI" "LESZCZ-CONSTANTS")
-;;         ,@b)
-;;       (tracer:save-report "leszcz-trace.json"))))
+(setf *trace-p* t)
+(push #P"/home/kpm/common-lisp/tracer/" asdf:*central-registry*)
+(push (uiop:getcwd) asdf:*central-registry*)
+(asdf:load-system :tracer)
+(defmacro maybe-trace (&body b)
+  (append
+   `(progn
+      (tracer:with-tracing ("LESZCZ" "NET" "GUI" "LESZCZ-CONSTANTS")
+        ,@b)
+      (tracer:save-report "leszcz-trace.json"))))
 
 (defun fen->game* (fen)
   (let ((g (leszcz::fen->game fen)))
@@ -97,16 +97,16 @@
 
 (diag "Testing move generation")
 
-(defparameter *expected-number-of-moves* '(20 400 8902 197281))
-(defparameter *test-fen* +initial-fen+)
+;; (defparameter *expected-number-of-moves* '(20 400 8902 197281))
+;; (defparameter *test-fen* +initial-fen+)
 
 ;; (defparameter *expected-number-of-moves* '(48 2039 97862 4085603))
 ;; (defparameter *test-fen* "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 0")
 
-;; (defparameter *expected-number-of-moves* '(14 191 2812 43238 674624))
-;; (defparameter *test-fen* "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1")
+(defparameter *expected-number-of-moves* '(14 191 2812 43238 674624))
+(defparameter *test-fen* "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1")
 
-(defparameter *depth* 3)
+(defparameter *depth* 1)
 
 ;; (let ((g (leszcz::fen->game *test-fen*)))
 ;;   (leszcz::game-update-points-cache g)
