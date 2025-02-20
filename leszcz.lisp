@@ -592,7 +592,9 @@
       collect (loop for pa in '(fb-pawn fb-rook fb-knight fb-bishop fb-queen fb-king)
                     collect                      ;          |
                     `(let ((,as (,pa (,ca ,n)))) ; <- tu o -+
-                       ,@b))))))
+                       ,@b
+                       (setf (,pa (,ca ,n)) ,as)
+                       ))))))
 
 ;;; not for king and pawn as they require additional funcalls
 ;; bb: a bitboard of moves to check
@@ -605,27 +607,35 @@
                   (fb ,fb*)
                   (kx ky (fb1-king-of (,color-accessor fb))))
        (setf (,piece-accessor (,color-accessor fb))
-             (logxor (,piece-accessor (,color-accessor fb)) ,from))
+             (logxor (,piece-accessor (,color-accessor fb)) ,from)) 
        (loop for i from 0 below 64 do
          (when-let* ((_ (fast:bit-set-p bb i))
                      (m (ash 1 (- 63 i)))) ;; current move "bitboard"
-           (setf (,piece-accessor (,color-accessor fb)) ;; make move
-                 (logior (,piece-accessor (,color-accessor fb)) m))
            (let ((was (make-array '(12)))
                  (i* 0))
+
              (for-every-bb bitb fb
                (setf (aref was i*) bitb)
                (incf i*)
-               (setf bitb (logxor bitb m)))
-             (when (fb-point-checked-p fb kx ky (if (eq ',color-accessor 'fb-white) 'black 'white))
+               (setf bitb (logand bitb (lognot64 m))))
+
+             (setf (,piece-accessor (,color-accessor fb)) ;; make move (add m to fb)
+                   (logior (,piece-accessor (,color-accessor fb)) m))
+
+             (when-let ((by (fb-point-checked-p fb kx ky (if (eq ',color-accessor 'fb-white) 'black 'white))))
+               ;; (format t "point map after move is: (would be checked by ~a)~%" by)
+               ;; (fast::fb-display (fast::fb-make-piece-board fb))
+               ;; (format t "check map of black is: ~%")
+               ;; (fast::fb-display (fb-make-check-board fb 'black))
                (setf bb (logxor bb m)))
+
              (setf i* 0)
-             (setf (,piece-accessor (,color-accessor fb)) ;; unmake move
+             (setf (,piece-accessor (,color-accessor fb)) ;; unmake move (delete new point = m)
                    (logxor (,piece-accessor (,color-accessor fb)) m))
              (for-every-bb bitb fb
                (setf bitb (aref was i*))
                (incf i*)))))
-       (setf (,piece-accessor (,color-accessor fb))
+       (setf (,piece-accessor (,color-accessor fb)) ;; set piece back to point
              (logior (,piece-accessor (,color-accessor fb)) ,from))
        bb)))
 
@@ -903,22 +913,32 @@
   (declare (type fast-board fb)
            (type fixnum px py)
            (type symbol by)
-           (values boolean))
+           )
+           ;; (values boolean))
   (when (and (>= px 0) (< px 8) (>= py 0) (< py 8))
     (let* ((bb (ash 1 (- 63 (* py 8) px)))
            (fb1 (if (eq by 'white) (fb-white fb) (fb-black fb))))
       (or
-       (= (logand bb (fb-make-check-board fb by)) bb)
-       (let ((rm (fb-generate-rook-moves fb px py (if (eq by 'white) 'black 'white))))
-         (or
-          (not (= 0 (logand rm (fb-rook fb1))))
-          (not (= 0 (logand rm (fb-queen fb1))))))
+       (when (= (logand bb (fb-make-check-board fb by)) bb)
+           'pawn-or-knight
+           )
+       (when
+        (let ((rm (fb-generate-rook-moves fb px py (if (eq by 'white) 'black 'white))))
+          (or
+           (not (= 0 (logand rm (fb-rook fb1))))
+           (not (= 0 (logand rm (fb-queen fb1))))))
+         'rook-or-queen)
+       (when
        (let ((bm (fb-generate-bishop-moves fb px py (if (eq by 'white) 'black 'white))))
          (or
           (not (= 0 (logand bm (fb-bishop fb1))))
           (not (= 0 (logand bm (fb-queen fb1))))))
+         'bishop-or-queen)
        (let-values ((kx ky (fb1-king-of fb1)))
-         (= (logand bb (fb-generate-king-area kx ky)) bb))))))
+         (when
+             (= (logand bb (fb-generate-king-area kx ky)) bb)
+           'king
+           ))))))
 
 (defun new--point-checked-p (game px py by)
   (fb-point-checked-p (game-fb game) px py by))
@@ -1316,7 +1336,8 @@
    (thread "user thread (client)" (connect-to-master))))
 
 (defun %test-main ()
-  (let ((g (fen->game "2k5/8/8/6q1/8/8/8/2B3K1 w - - 0 1")))
+  ;; (let ((g (fen->game "r1b1k1nr/ppp2ppp/5q2/3Pp3/2B5/2N2N2/PPPPn1PP/R1BQ1RK1 w kq - 3 9")))
+  (let ((g (fen->game +initial-fen+)))
     (initialize-game g 'white nil)
     (main-loop g 'white nil)))
 

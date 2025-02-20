@@ -9,6 +9,7 @@
    bit-set-p
    game->fast-board
    fast-board->game
+   lognot64
 
    fb-pawn
    fb-rook
@@ -196,6 +197,9 @@
        (u64 (ash h1 -16))
        (u64 (ash h2 8))
        (u64 (ash h2 -8))))))
+
+(defun lognot64 (a)
+  (logxor #xffffffffffffffff a))
 
 (declaim (inline fb--knight-check-board))
 

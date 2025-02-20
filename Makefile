@@ -42,7 +42,7 @@ docs:
 		| pandoc $(PANDOC_COMMON_FLAGS) $(PANDOC_PDF_FLAGS) -t pdf -o doc/leszcz.pdf
 	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) \
 		--eval "(load (truename #P\"~/quicklisp/setup.lisp\"))" \
-		--eval "(ql:quickload :net.didierverna.declt)" \
+		--eval "(ql:quickload \"net.didierverna.declt\")" \
 		--eval "(net.didierverna.declt:nickname-package)" \
 		--eval "(declt:declt :leszcz :introspection-level 2 :license :bsd :declt-notice :short :tagline nil)" \
 		--quit
