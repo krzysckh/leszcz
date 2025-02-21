@@ -43,7 +43,7 @@
       * [x] meow meow meow meow meow meow 1
       * [x] meow meow meow meow meow meow 2
       * [x] meow meow meow meow meow meow 3
-      * [ ] meow meow meow meow meow meow 4
+      * [x] meow meow meow meow meow meow 4
       * [ ] meow meow meow meow meow meow 5
       * [ ] meow meow meow meow meow meow 6
       * [ ] meow meow meow meow meow meow 7
@@ -54,7 +54,7 @@
   * [ ] "bot"
     * [x] AAAAAAAAAAA !!!!!!
     * [x] bot typu losowy
-    * [ ] przyspiesz generacje ruchów
+    * [x] przyspiesz generacje ruchów
       * [x] może jest okej ale cache trzeba trzymać jako bitboard + eval + ???
     * [x] dodaj jakiś eval
   * [ ] jeśli ci się będzie nudzić
@@ -74,14 +74,16 @@
   * [ ] efekty dźwiękowe
     * [ ] preferowalnie nie paszczowe
     * [ ] preferowalnie nie takie za które pójdę za kratki (CC0)
-* [x] Gracz kontra komputer
+* [ ] Gracz kontra komputer
   * [x] obejrzyj filmik sebusia i zerżnij pomysły (wszystkie)
   * [x] nazwij algorytmy tak żeby brzmiało mądrze
     * [x] "odcinanie chujowych ruchów" → minmax
     * [x] "mądre obcinanie chujowych ruchów" = "jak ruch slabszy niz wczescniej widziany to juz nie licz dalej" → redukcja alpha-beta
-    * [ ] "wybieranie ruchów z listy możliwych losowo zamiast liniowi" → wyszukiwanie w drzewie sposobem monte carlo
+    * [x] "wybieranie ruchów z listy możliwych losowo zamiast liniowi" → wyszukiwanie w drzewie sposobem monte carlo
+      * [x] to nie działa
     * [x] preferencja figur dla danych pozycji (`*bonus-table*`)
-  * [ ] a tak w ogóle to silnik miej w osobnym wątku żeby mniej się narobić a więcej zarobić
+  * [x] a tak w ogóle to silnik miej w osobnym wątku żeby mniej się narobić a więcej zarobić
+  * [ ] bot nie może apgrejdować piona XDDD
 * [ ] Gracz v Gracz na różnych komputerach w LAN (p2p)
   * [x] działa
   * [ ] jakiekolwiek menu do hostowania/łączenia
