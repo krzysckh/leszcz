@@ -1151,7 +1151,7 @@
           ((mouse-pressed-p 0)  ; begin dragging
            (when (set-current-capturer! maybe-drag/capturer)
              ;; this when is spread like that so when you want to play both players you can implement the code for that easier
-             (when (or (eq (game-turn game) (game-side game)) (null *threads*)) ;; TODO: assuming threads are not running in debug mode is bad
+             (when (or (eq (game-turn game) (game-side game)) *debug*)
                (when-let ((p (piece-at-point game px py)))
                  (when (eq (piece-color p) (game-turn game))
                    (setf maybe-drag/piece p)))
@@ -1414,8 +1414,12 @@
 ;; Become a p2p "Master" server, accept a connection and begin game
 (defun start-master-server ()
   (net:start-server
-   #'(lambda (fen side conn)
-       (game-main-loop (fen->game fen) side conn))))
+   #'(lambda (fen side conn time)
+       (let ((g (fen->game fen)))
+         (initialize-game g side conn)
+         (setf (game-time-white g) (* 60 time))
+         (setf (game-time-black g) (* 60 time))
+         (game-main-loop g side conn)))))
 
 (defun connect-to-master (&key (server "localhost") (username (symbol-name (gensym "username"))))
   (multiple-value-bind (fen side conn time)
