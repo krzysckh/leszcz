@@ -1,12 +1,14 @@
 (defpackage :leszcz-constants
   (:use :common-lisp :alexandria)
   (:export
-   load-textures
    white-texture-data-list
    black-texture-data-list
    white-texture-alist
    black-texture-alist
+   leszcz-logos-alist
+   logo-data-alist
    spleen-data
+   alagard-data
    +texture-size+
    +piece-size+
    +color-white+
@@ -48,6 +50,9 @@
    in-progress
    checkmate
    draw
+
+   leszcz1
+   leszcz2
    ))
 
 
@@ -118,7 +123,9 @@
    (cons 'king   (list
                   (file->vec "res/png/kl1.png")
                   (file->vec "res/png/kl2.png")
-                  (file->vec "res/png/kl3.png")))))
+                  (file->vec "res/png/kl3.png")
+                  (file->vec "res/png/kl2.png")))
+   ))
 
 (defparameter black-texture-data-list-pixel
   (list
@@ -156,7 +163,14 @@
    (cons 'king   (list
                   (file->vec "res/png/kd1.png")
                   (file->vec "res/png/kd2.png")
-                  (file->vec "res/png/kd3.png")))))
+                  (file->vec "res/png/kd3.png")
+                  (file->vec "res/png/kd2.png")))
+   ))
+
+(defparameter logo-data-alist
+  (list
+   (cons 'leszcz1 (file->vec "res/png/logo/leszcz1.png"))
+   (cons 'leszcz2 (file->vec "res/png/logo/leszcz2.png"))))
 
 (defparameter white-texture-data-list white-texture-data-list-pixel)
 (defparameter black-texture-data-list black-texture-data-list-pixel)
@@ -173,6 +187,7 @@
     ))
 
 (defparameter spleen-data (file->vec "res/font/spleen-16x32.otf"))
+(defparameter alagard-data (file->vec "res/font/alagard.ttf"))
 
 (defparameter +texture-size+ 1024)
 (defparameter +piece-size+ 64)
@@ -203,6 +218,7 @@
 
 (defparameter white-texture-alist nil)
 (defparameter black-texture-alist nil)
+(defparameter leszcz-logos-alist  nil)
 
 ;; do not use this
 (defparameter *current-game* nil)

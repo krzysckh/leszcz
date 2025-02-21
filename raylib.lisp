@@ -14,17 +14,23 @@
    mouse-x
    mouse-y
    mouse-pos
+   mouse-pos-1
    draw-rectangle-lines
    draw-rectangle-lines-2
    draw-rectangle
    clear-background
    draw-text
+   draw-text-alagard
+   draw-text-alagard-centered
+   draw-text-1
+   draw-text-2
    draw-line
    mouse-pressed-p
    mouse-released-p
    load-image-from-memory
    load-font-from-memory
    image->texture
+   texture->image
    make-texture
    make-font
    draw-texture
@@ -42,12 +48,17 @@
    begin-scissor-mode
    end-scissor-mode
    measure-text
+   measure-text-1
    point-in-rect-p
    set-mouse-cursor!
    screen->image
    unload-texture!
    unload-image!
    window-ready-p
+   begin-texture-mode
+   end-texture-mode
+   make-render-texture
+   unload-render-texture!
 
    ;; Constants
    +TEXTURE-FILTER-POINT+
@@ -62,6 +73,7 @@
 
    ;; exported variables
    *font*
+   *alagard*
    ))
 
 (in-package :raylib)
@@ -123,6 +135,11 @@
   (recs :pointer)
   (glyphs :pointer))
 
+(defcstruct (render-texture :class type-render-texture)
+  (id :uint)
+  (texture (:struct texture))
+  (depth (:struct texture)))
+
 (defmacro make-trans (type stype slots)
   `(progn
      (defmethod translate-into-foreign-memory (l (type ,type) pointer)
@@ -139,6 +156,7 @@
 (make-trans type-texture texture (id width height mipmaps format))
 (make-trans type-vec2 vec2 (x y))
 (make-trans type-rectangle rectangle (x y w h))
+;; (make-trans type-render-texture render-texture (id texture depth))
 ;; (make-trans type-glyph-info glyph-info (value offX offY advX img))
 ;; (make-trans type-font font (base-size glyph-count glyph-pad texture recs glyphs))
 
@@ -157,6 +175,16 @@
 
 (defcfun ("LoadTextureFromImage" image->texture) (:struct texture)
   (img (:struct image)))
+
+(defcfun ("LoadImageFromTexture" texture->image) (:struct image)
+  (img (:struct texture)))
+
+(defcfun ("LoadRenderTexture" make-render-texture) (:struct render-texture)
+  (width :int)
+  (height :int))
+
+(defcfun ("UnloadRenderTexture" unload-render-texture!) :void
+  (rt (:struct render-texture)))
 
 (defun make-texture (texture-data data-type)
   (with-foreign-object (data :uint8 (length texture-data))
@@ -197,6 +225,9 @@
 
 (defun mouse-pos ()
   (values (mouse-x) (mouse-y)))
+
+(defun mouse-pos-1 ()
+  (list (mouse-x) (mouse-y)))
 
 (defcfun ("DrawRectangleLines" draw-rectangle-lines) :void
   (x :int)
@@ -267,18 +298,29 @@
     (coerce acc '(vector character))))
 
 (defparameter *font* (make-hash-table :test #'equal))
+(defparameter *alagard* (make-hash-table :test #'equal))
 
-(defun load-font (data size &key (type ".otf"))
-  (if-let ((f (gethash size *font*)))
+(defun load-font (data size &key (type ".otf") (loaded-font-hash *font*))
+  (if-let ((f (gethash size loaded-font-hash)))
     f
     (progn
-      (setf (gethash size *font*) (make-font data type size 1024))
-      (gethash size *font*))))
+      (setf (gethash size loaded-font-hash) (make-font data type size 1024))
+      (gethash size loaded-font-hash))))
 
 (defun draw-text (text x y font-size color)
   (let ((font (load-font spleen-data font-size)))
     (draw-text-2 font text (floatize (list x y)) (float font-size) 0.0 color)))
+
+(defun draw-text-alagard (text x y font-size color)
+  (let ((font (load-font alagard-data font-size :loaded-font-hash *alagard*)))
+    (draw-text-2 font text (floatize (list x y)) (float font-size) 0.0 color)))
       ;; (draw-text-1 text (float x) (float y) (float font-size) color)))
+
+;; centered only on x axis!
+(defun draw-text-alagard-centered (text center-x y font-size color)
+  (let-values ((font (load-font alagard-data font-size :loaded-font-hash *alagard* :type ".ttf"))
+               (w h (measure-text-1 font text (float font-size) 0.0)))
+    (draw-text-2 font text (floatize (list (- center-x (/ w 2)) y)) (float font-size) 0.0 color)))
 
 (defcfun ("IsMouseButtonPressed" mouse-pressed-p) :bool
   (b :int))
@@ -319,6 +361,10 @@
   (font-size :float)
   (spacing :float))
 
+(defun measure-text-1 (font text font-size spacing)
+  (let ((v (measure-text font text font-size spacing)))
+    (values (car v) (cadr v))))
+
 (defcfun ("CheckCollisionPointRec" point-in-rect-p) :bool
   (point (:struct vec2))
   (rec (:struct rectangle)))
@@ -333,6 +379,11 @@
 
 (defcfun ("UnloadTexture" unload-texture!) :void
   (txt (:struct texture)))
+
+(defcfun ("BeginTextureMode" begin-texture-mode) :void
+  (txt (:struct render-texture)))
+
+(defcfun ("EndTextureMode" end-texture-mode) :void)
 
 (defcfun ("IsWindowReady" window-ready-p) :bool)
 
@@ -366,8 +417,20 @@
   '())
 
 (defun load-textures ()
+  ;; Draw two (2) frames
+  (begin-drawing)
+  (clear-background '(#x22 #x22 #x22 #xff))
+  (draw-text-1 "loading textures..." 10 10 24 '(#xde #xde #xde #xff)) ; basic raylib font
+  (end-drawing)
+
+  (begin-drawing)
+  (clear-background '(#x22 #x22 #x22 #xff))
+  (draw-text "loading textures..." 10 10 24 '(#xde #xde #xde #xff)) ; spleen, this takes some time to load though
+  (end-drawing)
+
   (setf white-texture-alist nil)
   (setf black-texture-alist nil)
+  (setf leszcz-logos-alist nil)
   (setf raylib:*font* (make-hash-table :test #'equal)) ;; reset *font* every texture reload
 
   ;; (setf raylib:*font* (make-font spleen-data ".otf" 18 1024))
@@ -377,6 +440,7 @@
   ;; (set-texture-filter! texture +TEXTURE-FILTER-POINT+)
   (macrolet ((load* (data-list alist)
                `(dolist (e ,data-list)
+                  (format t "will load ~a~%" (car e))
                   (if (listp (cdr e))
                       (let ((textures (mapcar #'(lambda (data) (make-texture data ".png")) (cdr e))))
                         (push (cons (car e) (coerce textures 'vector)) ,alist))
@@ -384,5 +448,6 @@
                         (push (cons (car e) texture) ,alist))))))
     (load* white-texture-data-list white-texture-alist)
     (load* black-texture-data-list black-texture-alist)
+    (load* logo-data-alist leszcz-logos-alist)
 
     (format t "loaded textures~%")))

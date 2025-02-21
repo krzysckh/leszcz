@@ -1,7 +1,7 @@
 ;;; Leszcz entrypoint
 
 (defpackage :leszcz
-  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net :fast :cl-mop)
+  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net :fast :cl-mop :cffi)
   (:export
    main))
 
@@ -1263,7 +1263,7 @@
   (format t "white-texture-alist: ~a~%" white-texture-alist)
   (format t "black-texture-alist: ~a~%" black-texture-alist))
 
-(defun main-loop (game side conn)
+(defun game-main-loop (game side conn)
   (declare (type game game)
            (type symbol side))
 
@@ -1277,6 +1277,19 @@
 
   (setf *current-game* game)
   (format t "pieces: ~a~%" (game-pieces game))
+
+  (let* ((txt (make-render-texture *window-width* *window-height*)))
+    (begin-drawing)
+    (begin-texture-mode txt)
+    (clear-background +color-grayish+)
+    (draw-game game)
+    (end-texture-mode)
+    (end-drawing)
+
+    (let ((i (texture->image (nth 3 txt))))
+      (unshade-screen i 60 :flip t)
+      (unload-image! i)
+      (unload-render-texture! txt)))
 
   (loop :while (not (window-close-p)) :do
     (setf *current-screen* (screen->image)) ;; TODO: this sucks
@@ -1304,14 +1317,14 @@
 (defun start-master-server ()
   (net:start-server
    #'(lambda (fen side conn)
-       (main-loop (fen->game fen) side conn))))
+       (game-main-loop (fen->game fen) side conn))))
 
 (defun connect-to-master (&key (server "localhost") (username (symbol-name (gensym "username"))))
   (multiple-value-bind (fen side conn)
       (connect-to-server server username)
     (let ((g (fen->game fen)))
       (setf (game-interactive-p g) t)
-      (main-loop g side conn))))
+      (game-main-loop g side conn))))
 
 (defun maybe-move-bot (game &rest r)
   (declare (type game game)
@@ -1345,7 +1358,7 @@
      (prog1 thr
        (push thr *threads*))))
 
-(defun %main ()
+(defun %player-vs-bot ()
   (thread "bot thread (server)"
     (net:start-server
      #'(lambda (fen side conn)
@@ -1354,20 +1367,110 @@
            (loop do
              (maybe-receive-something game)
              (maybe-move-bot game))))
-     :fen "8/8/4k3/8/8/PP6/KRp5/QB6 b - - 0 1"
      ))
+     ;; :fen "8/8/4k3/8/8/PP6/KRp5/QB6 b - - 0 1" ;; <- TODO: upgrade to knight mates fen test
      ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
 
   (sleep 1)
-  (sb-thread:join-thread
-   (thread "user thread (client)" (connect-to-master))))
+  (connect-to-master))
+  ;; (sb-thread:join-thread
+  ;;  (thread "user thread (client)" (connect-to-master))))
 
 (defun %test-main ()
   ;; (let ((g (fen->game "r1b1k1nr/ppp2ppp/5q2/3Pp3/2B5/2N2N2/PPPPn1PP/R1BQ1RK1 w kq - 3 9")))
   (let ((g (fen->game "N7/8/4k3/8/8/PP6/KRp5/QB6 w - - 0 1")))
     (initialize-game g 'white nil)
     (setf (game-interactive-p g) t)
-    (main-loop g 'white nil)))
+    (game-main-loop g 'white nil)))
+
+(defparameter menu/bg-light '(#x2e #x2e #x2e #xff))
+(defparameter menu/bg-dark  '(#x22 #x22 #x22 #xff))
+(defparameter menu/frame-ctr 0)
+(defparameter menu/frame-ctr-magic 4)
+(defparameter menu/frame-ctr-mod (* menu/frame-ctr-magic +piece-size+))
+
+(defun f/ (a b)
+  (floor (/ a b)))
+
+(defun animate-menu-bg ()
+  (loop for y from (- +piece-size+) to *window-height* by +piece-size+ do
+    (loop for x from (- +piece-size+) to *window-width* by +piece-size+ do
+      (let ((color (if (= (mod (+ (f/ y +piece-size+) (f/ x +piece-size+)) 2) 0)
+                       menu/bg-light
+                       menu/bg-dark))
+            (n (f/ menu/frame-ctr menu/frame-ctr-magic)))
+        (draw-rectangle (+ x n) (+ y n) +piece-size+ +piece-size+ color))))
+  (setf menu/frame-ctr (mod (1+ menu/frame-ctr) menu/frame-ctr-mod)))
+
+(defun shade--screen (screen n-frames func &key flip)
+  (declare (type fixnum n-frames))
+  (let ((step (ceiling (/ 255 n-frames)))
+        (shade 0)
+        (tx (image->texture screen)))
+    (loop for i from 0 below n-frames do
+      (begin-drawing)
+
+      (clear-background (list 0 0 0 0))
+      (if flip
+          (draw-texture
+           tx
+           (floatize (list 0 0 *window-width* (- *window-height*)))
+           (floatize (list 0 0 *window-width* *window-height*))
+           (floatize '(0 0)) (float 0)
+           (list 255 255 255 (min 255 (funcall (the function func) shade))))
+          (draw-texture
+           tx
+           (floatize (list 0 0 *window-width* *window-height*))
+           (floatize (list 0 0 *window-width* *window-height*))
+           (floatize '(0 0)) (float 0)
+           (list 255 255 255 (min 255 (funcall (the function func) shade)))))
+
+      (incf shade step)
+      (end-drawing))
+    (unload-texture! tx)))
+
+(defun shade-screen (screen n-frames &key flip)
+  (shade--screen screen n-frames #'(lambda (x) (- 255 x)) :flip flip))
+
+(defun unshade-screen (screen n-frames &key flip)
+  (shade--screen screen n-frames #'(lambda (x) x) :flip flip))
+
+(defun %main ()
+  (when (not (window-ready-p))
+    (initialize-window!))
+
+  (let ((continuation nil))
+    (let-values ((b1 w1 h1 (gui:make-button* "zagraj se na bota" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+      (loop while (and (not (window-close-p)) (not continuation)) do
+        (setf *current-screen* (screen->image)) ;; TODO: this sucks
+        (set-mouse-cursor! +cursor-normal+)
+        (begin-drawing)
+
+        (clear-background +color-grayish+)
+        (animate-menu-bg)
+
+        (let ((r `(,(float (car *board-begin*)) ,(float (cdr *board-begin*)) 512.0 256.0))
+              (r2 `(,(+ (float (car *board-begin*)) 128) ,(+ (float (cdr *board-begin*)) 64) 256.0 128.0)))
+          (draw-texture
+           (cdr (assoc (if (point-in-rect-p (floatize (mouse-pos-1)) r2) 'leszcz2 'leszcz1) leszcz-logos-alist))
+           '(0.0 0.0 512.0 256.0)
+           r
+           (floatize (list 0 0))
+           (float 0)
+           +color-white+))
+
+        (funcall b1
+                 (- (/ *window-width* 2) (/ w1 2))
+                 (/ *window-height* 2)
+                 #'(lambda (_)
+                     (declare (ignore _))
+                     (setf continuation #'%player-vs-bot)))
+        (end-drawing)
+        (unless continuation
+          (unload-image! *current-screen*))))
+    (shade-screen *current-screen* 10)
+    (when continuation
+      (funcall continuation))))
 
 (defun main ()
   (unwind-protect

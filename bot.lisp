@@ -19,9 +19,9 @@
                 #(0  0   0  0   0   0   0  0)))
     ;; (knight . #(#(-50 -40 -30 -30 -30 -30 -40 -50)
     ;;             #(-40 -20   0   0   0   0 -20 -4)
-    ;;             #(-30   0  10  15  15  10   0 -3)
-    ;;             #(-30   5  15  20  20  15   5 -3)
-    ;;             #(-30   0  15  20  20  15   0 -3)
+    ;;             #(-30   0  10  10  10  10   0 -3)
+    ;;             #(-30   5  10  15  15  10   5 -3)
+    ;;             #(-30   0  15  15  15  15   0 -3)
     ;;             #(-30   5  10  15  15  10   5 -3)
     ;;             #(-40 -20   0   5   5   0 -20 -4)
     ;;             #(-50 -40 -30 -30 -30 -30 -40 -5)))
@@ -64,6 +64,9 @@
 (defun rand64 ()
   (the (unsigned-byte 64) (random (- (ash 1 64) 1) *bot-random-state*)))
 
+(defparameter *zobrist-table* nil)
+(defparameter *zobrist-black-to-move* nil)
+
 (defun initialize-zobrist ()
   (setf *zobrist-table* (make-array '(64 13) :element-type '(unsigned-byte 64)))
   (loop for i from 0 below 64 do
@@ -83,9 +86,6 @@
     h))
 
 (defparameter *transposition-table* (make-hash-table :hash-function #'hash-zobrist))
-
-(defparameter *zobrist-table* nil)
-(defparameter *zobrist-black-to-move* nil)
 
 (enumerate 0
   z-white-pawn
@@ -170,9 +170,9 @@
      (let* ((ff (fast:game->fast-board game))
             (white-material (count-material-of (fb-white ff)))
             (black-material (count-material-of (fb-black ff)))
-            (pawn-bonus (count-bonuses game)))
+            (bonus (count-bonuses game)))
        (+ (- white-material black-material)
-          pawn-bonus
+          bonus
           )))))
 
 ;; TODO: unmake move !!!!!!!!!!!!
@@ -241,8 +241,6 @@
                  :no-display-check-mates t
                  ;; :no-recache t ;; <- dupa 2
                  )
-
-                (format t "in game--search state is: ~a~%" (game-result g*))
 
                 (let ((score (* -1 (game--search g* (1- depth) (- beta) (- alpha)))))
                   (when (null best-move)

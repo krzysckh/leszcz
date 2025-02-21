@@ -141,29 +141,37 @@
           (when (set-current-capturer! toplevel-console/capturer)
             (add-draw-hook 'toplevel-console))))))
 
-(defparameter +color-light-brownish+   '(#x54 #x33 #x09 #xff))
-(defparameter +color-lighter-brownish+ '(#x74 #x53 #x10 #xff))
-(defparameter +color-dark-brownish+    '(#x2f #x17 #x08 #xff))
-(defparameter +color-golden+           '(#xf2 #xd3 #x0e #xff))
+(defparameter tb/color-bg       '(#x11 #x11 #x11 #xff))
+(defparameter tb/color-bg-hover '(#x22 #x22 #x22 #xff))
+(defparameter tb/color-margin   '(#xe4 #xf6 #x14 #xff))
+(defparameter tb/color-text     '(#xde #xde #xde #xff))
 
-(defun text-button (x* y* w* h* text &key (font-size (round (- h* 2))) (pad t))
+(defparameter tb/padx 32)
+
+(defun text-button (x* y* w* h* text text-width &key (font-size (round (- h* 2))) (text-draw-fn #'raylib:draw-text))
+  (declare (type function text-draw-fn))
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
-  (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*))))
-    (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
-                                                       (mouse-y)))
-                                       (floatize (list x y w h)))))
-      (when at-point-p
-        (set-mouse-cursor! +cursor-pointer+))
-      (draw-rectangle x y w h (if at-point-p
-                                  +color-lighter-brownish+
-                                  +color-light-brownish+))
-      (when pad
-        (draw-rectangle-lines-2
-         (floatize (list (- x 8) (- y 8) (+ w 16) (+ h 16)))
-         (float 8)
-         +color-dark-brownish+))
-      (draw-text text x y font-size +color-golden+)
-      (and at-point-p (mouse-pressed-p 0)))))
+  (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*)))
+               (full-rect (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
+               (at-point-p (point-in-rect-p (floatize (list (mouse-x) (mouse-y))) (floatize full-rect))))
+    (when at-point-p
+      (set-mouse-cursor! +cursor-pointer+))
+
+    (draw-rectangle (nth 0 full-rect)
+                    (nth 1 full-rect)
+                    (nth 2 full-rect)
+                    (nth 3 full-rect)
+                    (if at-point-p
+                        tb/color-bg-hover
+                        tb/color-bg))
+
+    (draw-rectangle-lines-2
+     (floatize (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
+     (float 2)
+     tb/color-margin)
+
+    (funcall text-draw-fn text (+ (nth 0 full-rect) (/ (- (nth 2 full-rect) text-width) 2)) y font-size tb/color-text)
+    (and at-point-p (mouse-pressed-p 0))))
 
 (defun texture-button (x y w h texture &key (pad t) (background-color nil))
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
@@ -190,28 +198,30 @@
        +color-dark-brownish+))
     (and at-point-p (mouse-pressed-p 0))))
 
-(defun make-button* (text-or-texture &key height width background-color identifier)
+(defun make-button* (text-or-texture &key height width background-color identifier (font-data spleen-data) (font-hash raylib::*font*) (text-draw-fn #'draw-text))
   (multiple-value-bind (f a b)
-      (make-button text-or-texture :height height :width width :background-color background-color)
+      (make-button text-or-texture :height height :width width :background-color background-color :text-draw-fn text-draw-fn)
     (values
      #'(lambda (x y f*) (when (funcall (the function f) x y) (funcall (the function f*) identifier)))
      a
      b)))
 
-(defun make-button (text-or-texture &key height width background-color)
+(defun make-button (text-or-texture &key height width background-color (font-data spleen-data) (font-hash raylib::*font*) (text-draw-fn #'draw-text))
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
 
   (when (null height)
     (error "Make-button: height required"))
   (if (stringp text-or-texture)
-      (let* ((font (load-font spleen-data height))
+      (let* ((font (load-font font-data height :loaded-font-hash font-hash))
              (v2 (measure-text font text-or-texture (float height) 0.0)))
         (values
          #'(lambda (x y)
              (text-button
               x y (floor (car v2)) (floor (cadr v2))
               text-or-texture
-              :font-size height))
+              (car v2)
+              :font-size height
+              :text-draw-fn text-draw-fn))
          (car v2)
          (cadr v2)))
       (progn
