@@ -1,7 +1,7 @@
 ;;; Leszcz entrypoint
 
 (defpackage :leszcz
-  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net :fast :cl-mop :cffi)
+  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net :fast :cl-mop :local-time)
   (:export
    main))
 
@@ -266,18 +266,19 @@
   (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
-    (draw-rectangle-lines
-     (+ (car *board-begin*) (* px +piece-size+))
-     (+ (cdr *board-begin*) (* py +piece-size+))
-     +piece-size+ +piece-size+ +color-black+)
-    (when *debug*
-      (let ((checked-by 'white))
-        (when-let ((d (new--point-checked-p g px py checked-by)))
-          (format t "checked by: ~a~%" d)
-          (draw-rectangle
-           (+ (car *board-begin*) (* px +piece-size+))
-           (+ (cdr *board-begin*) (* py +piece-size+))
-           +piece-size+ +piece-size+ +color-redish+))))))
+    (when (and (>= px 0) (< px 8) (>= py 0) (< py 8))
+      (draw-rectangle-lines
+       (+ (car *board-begin*) (* px +piece-size+))
+       (+ (cdr *board-begin*) (* py +piece-size+))
+       +piece-size+ +piece-size+ +color-black+)
+      (when *debug*
+        (let ((checked-by 'white))
+          (when-let ((d (new--point-checked-p g px py checked-by)))
+            (format t "checked by: ~a~%" d)
+            (draw-rectangle
+             (+ (car *board-begin*) (* px +piece-size+))
+             (+ (cdr *board-begin*) (* py +piece-size+))
+             +piece-size+ +piece-size+ +color-redish+)))))))
 
 (deftype place ()
   '(integer -15 15))
@@ -455,7 +456,6 @@
           (funcall br (+ bx (* 2 ut/upgrade-size) ut/pad-size)       (+ by ut/upgrade-size) cleanup)
           (funcall bn (+ bx (* 3 ut/upgrade-size) (* 2 ut/pad-size)) (+ by ut/upgrade-size) cleanup)
           (funcall bb (+ bx (* 4 ut/upgrade-size) (* 3 ut/pad-size)) (+ by ut/upgrade-size) cleanup)
-          (set-mouse-cursor! +cursor-normal+)
           (end-drawing))
         (begin-drawing)
         (unload-texture! bg)
@@ -980,7 +980,16 @@
 
 (declaim (sb-ext:maybe-inline point-checked-p))
 
-(defun game-do-move (game piece mx my &key no-recache no-check-mates no-funcall upgrade-type no-send (no-display-check-mates nil))
+(defun game-do-move (game piece mx my &key
+                                        no-recache
+                                        no-check-mates
+                                        no-funcall
+                                        upgrade-type
+                                        no-send
+                                        (no-display-check-mates nil)
+                                        no-history
+                                        no-update-timers
+                                        )
   (declare (type game game)
            (type piece piece))
   ;; (warn "game-do-move move ~a to ~a" piece (list mx my))
@@ -1034,7 +1043,12 @@
       (setf (game-en-passant-target-square game) nil)
 
       (let ((np (make-instance 'point :x mx :y my)))
-        (push (list (piece-point piece) np) (game-move-history game))
+        (unless no-history
+          (push
+           (list (copy-piece piece)
+                 (list (point-x (piece-point piece)) (point-y (piece-point piece)))
+                 (list (point-x np) (point-y np)))
+           (game-move-history game)))
 
         ;; move the damn thing to np (new point)
         (setf (piece-point piece) np))
@@ -1071,6 +1085,17 @@
       ;; piece type manually
       (when (and upgrade-p upgrade-type)
         (setf (piece-type piece) upgrade-type))
+
+      (unless no-update-timers
+        (let ((now (local-time:timestamp-to-unix (local-time:now))))
+          (if (game-turn-white-p game)
+              (setf
+               (game-time-white game)
+               (- (game-time-white game) (- now (game-time-begin-turn game))))
+              (setf
+               (game-time-black game)
+               (- (game-time-black game) (- now (game-time-begin-turn game)))))
+          (setf (game-time-begin-turn game) now)))
 
       (when (and (game-connection game) (eq (game-side game) (game-turn game)) (not no-send))
         (net:write-packets
@@ -1204,13 +1229,83 @@
            (type game g))
   (when-let ((m (car (game-move-history g))))
     (draw-rectangle
-     (+ (car *board-begin*) (* (point-x (car m)) +piece-size+))
-     (+ (cdr *board-begin*) (* (point-y (car m)) +piece-size+))
+     (+ (car *board-begin*) (* (car (cadr m)) +piece-size+))
+     (+ (cdr *board-begin*) (* (cadr (cadr m)) +piece-size+))
      +piece-size+ +piece-size+ +hlm/last-from+)
     (draw-rectangle
-     (+ (car *board-begin*) (* (point-x (cadr m)) +piece-size+))
-     (+ (cdr *board-begin*) (* (point-y (cadr m)) +piece-size+))
+     (+ (car *board-begin*) (* (car (caddr m)) +piece-size+))
+     (+ (cdr *board-begin*) (* (cadr (caddr m)) +piece-size+))
      +piece-size+ +piece-size+ +hlm/last-to+)))
+
+;; TODO: taking (incorporate data into move history)
+;; TODO: castling
+;; TODO: ambiguous moves
+(defun move->algebraic (p from to)
+  (declare (type piece p)
+           (type list from to)
+           (values string))
+  (let ((c (piece->char p)))
+    (case (piece-type p)
+      (pawn (lst->pos `(,(car to) ,(cadr to))))
+      (king "TODO")
+      (t
+       (format nil "~a~a" c (lst->pos `(,(car to) ,(cadr to))))))))
+
+(defparameter dmh/height 128)
+(defparameter dmh/xpad 32)
+(defparameter dmh/font-size 16)
+(defparameter dmh/rect (list (+ (car *board-begin*) *board-size* dmh/xpad)
+                             (- (+ (cdr *board-begin*) (/ *board-size* 2)) (/ dmh/height 2))
+                             (- *window-width* (+ (car *board-begin*) *board-size* dmh/xpad) dmh/xpad)
+                             dmh/height))
+(defparameter dmh/show 7)
+
+(defun draw-move-history (g &rest _)
+  (declare (type game g)
+           (ignore _))
+  (apply #'draw-rectangle (append dmh/rect '((#x55 #x55 #x55 #xff))))
+
+  (loop for m in (last (reverse (game-move-history g)) (+ (* dmh/show 2)
+                                                          (mod (length (game-move-history g)) 2)))
+        for i from 0 do
+          (draw-text
+           (apply #'move->algebraic m)
+           (if (= (mod i 2) 0)
+               (+ (car dmh/rect) 8)
+               (+ (car dmh/rect) 8 (/ (nth 2 dmh/rect) 2)))
+           (+ (cadr dmh/rect) (* dmh/font-size (floor (/ i 2))))
+           dmh/font-size
+           '(#xde #xde #xde #xff))))
+
+(defparameter dt/font-size 32)
+
+(defun draw-time (g &rest _)
+  (declare (ignore _)
+           (type game g))
+  (let* ((wleft (if (game-turn-white-p g)
+                    (- (game-time-white g) (- (local-time:timestamp-to-unix (local-time:now)) (game-time-begin-turn g)))
+                    (game-time-white g)))
+         (bleft (if (game-turn-black-p g)
+                    (- (game-time-black g) (- (local-time:timestamp-to-unix (local-time:now)) (game-time-begin-turn g)))
+                    (game-time-black g)))
+         (wm (floor (/ wleft 60)))
+         (ws (- wleft (* wm 60)))
+         (bm (floor (/ bleft 60)))
+         (bs (- bleft (* bm 60))))
+    (draw-text
+     (apply #'format (append '(nil "~a:~2,'0d") (if (eq 'white (game-side g)) `(,bm ,bs) `(,wm ,ws))))
+     (car dmh/rect)
+     (- (cadr dmh/rect) dt/font-size)
+     dt/font-size
+     '(#xde #xde #xde #xff))
+    (draw-text
+     (apply #'format (append '(nil "~a:~2,'0d") (if (eq 'white (game-side g)) `(,wm ,ws) `(,bm ,bs))))
+     (car dmh/rect)
+     (+ (cadr dmh/rect) (cadddr dmh/rect))
+     dt/font-size
+     '(#xde #xde #xde #xff))
+    ))
+
 
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
@@ -1218,6 +1313,8 @@
 (add-draw-hook 'maybe-switch-sides)
 (add-draw-hook 'maybe-draw-eval)
 (add-draw-hook 'highlight-last-move)
+(add-draw-hook 'draw-move-history)
+(add-draw-hook 'draw-time)
 
 (add-draw-hook 'gui:toplevel-console-listener)
 
@@ -1291,9 +1388,10 @@
       (unload-image! i)
       (unload-render-texture! txt)))
 
+  (setf (game-time-begin-turn game) (local-time:timestamp-to-unix (local-time:now)))
+
   (loop :while (not (window-close-p)) :do
     (setf *current-screen* (screen->image)) ;; TODO: this sucks
-    (set-mouse-cursor! +cursor-normal+)
     ;; (when (key-pressed-p #\R)
     ;;   (setf game (fen->game +initial-fen+))
     ;;   (setf maybe-drag/piece nil)
@@ -1320,9 +1418,12 @@
        (game-main-loop (fen->game fen) side conn))))
 
 (defun connect-to-master (&key (server "localhost") (username (symbol-name (gensym "username"))))
-  (multiple-value-bind (fen side conn)
+  (multiple-value-bind (fen side conn time)
       (connect-to-server server username)
+    (format t "server declared ~a minutes per player~%" time)
     (let ((g (fen->game fen)))
+      (setf (game-time-white g) (* time 60))
+      (setf (game-time-black g) (* time 60))
       (setf (game-interactive-p g) t)
       (game-main-loop g side conn))))
 
@@ -1361,12 +1462,13 @@
 (defun %player-vs-bot ()
   (thread "bot thread (server)"
     (net:start-server
-     #'(lambda (fen side conn)
+     #'(lambda (fen side conn time)
          (let ((game (fen->game fen)))
            (initialize-game game side conn)
            (loop do
              (maybe-receive-something game)
              (maybe-move-bot game))))
+     :time 15
      ))
      ;; :fen "8/8/4k3/8/8/PP6/KRp5/QB6 b - - 0 1" ;; <- TODO: upgrade to knight mates fen test
      ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
@@ -1443,7 +1545,6 @@
     (let-values ((b1 w1 h1 (gui:make-button* "zagraj se na bota" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
       (loop until (or (window-close-p) continuation) do
         (setf *current-screen* (screen->image)) ;; TODO: this sucks
-        (set-mouse-cursor! +cursor-normal+)
         (begin-drawing)
 
         (clear-background +color-grayish+)

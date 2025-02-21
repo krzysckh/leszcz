@@ -154,8 +154,9 @@
   (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*)))
                (full-rect (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
                (at-point-p (point-in-rect-p (floatize (list (mouse-x) (mouse-y))) (floatize full-rect))))
-    (when at-point-p
-      (set-mouse-cursor! +cursor-pointer+))
+    (if at-point-p
+        (set-mouse-cursor! +cursor-pointer+)
+        (set-mouse-cursor! +cursor-normal+))
 
     (draw-rectangle (nth 0 full-rect)
                     (nth 1 full-rect)
@@ -178,8 +179,9 @@
   (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
                                                      (mouse-y)))
                                      (floatize (list x y w h)))))
-    (when at-point-p
-      (set-mouse-cursor! +cursor-pointer+))
+    (if at-point-p
+        (set-mouse-cursor! +cursor-pointer+)
+        (set-mouse-cursor! +cursor-normal+))
     (when background-color
       (draw-rectangle x y w h background-color))
     (draw-texture
@@ -189,20 +191,23 @@
      (floatize (list 0 0))
      (float 0)
      (if at-point-p
-         +color-golden+
+         tb/color-margin
          +color-white+))
     (when pad
       (draw-rectangle-lines-2
        (floatize (list (- x 8) (- y 8) (+ w 16) (+ h 16)))
-       (float 8)
-       +color-dark-brownish+))
+       (float 4)
+       tb/color-margin))
     (and at-point-p (mouse-pressed-p 0))))
 
 (defun make-button* (text-or-texture &key height width background-color identifier (font-data spleen-data) (font-hash raylib::*font*) (text-draw-fn #'draw-text))
   (multiple-value-bind (f a b)
-      (make-button text-or-texture :height height :width width :background-color background-color :text-draw-fn text-draw-fn)
+      (make-button text-or-texture :height height :width width :background-color background-color :text-draw-fn text-draw-fn :font-hash font-hash :font-data font-data)
     (values
-     #'(lambda (x y f*) (when (funcall (the function f) x y) (funcall (the function f*) identifier)))
+     #'(lambda (x y f*)
+         (when (funcall (the function f) x y)
+           (set-mouse-cursor! +cursor-normal+)
+           (funcall (the function f*) identifier)))
      a
      b)))
 

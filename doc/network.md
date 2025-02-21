@@ -93,7 +93,10 @@ i *nicklen* pakietami kontynuacyjnymi
   \begin{bytefield}[bitheight=\widthof{~biały?~},boxformatting={\centering\small}]{32}
     \bitheader{0-31} \\
     \bitbox{3}{typ} & \bitbox{29}{dane} \\
-    \bitboxes{1}{001} & \bitbox{1}{\rotatebox{90}{biały?}} & \bitbox{20}{zarezerwowane} & \bitbox{8}{ilość rdata kont.} \\
+    \bitboxes{1}{001} & \bitbox{1}{\rotatebox{90}{biały?}} &
+    \bitbox{4}{zar.} &
+    \bitbox{16}{czas początkowy w min.\\(uint16)} &
+    \bitbox{8}{ilość rdata kont.} \\
   \end{bytefield}
   \rmfamily
   \caption{Pakiet gdata z danymi o grze}

@@ -116,7 +116,13 @@
         (setf acc (append acc (list vec)))))
     acc))
 
-(defun make-server-packet (type &key (hii-p2p t) (gdata-color 'white) (gdata-fen leszcz-constants:+initial-fen+))
+(defun make-server-packet (type &key
+                                  (hii-p2p t)
+                                  (gdata-color 'white)
+                                  (gdata-fen leszcz-constants:+initial-fen+)
+                                  (gdata-time 10)
+                                  )
+  (declare (type (unsigned-byte 16) gdata-time))
   (case type
     (hii   (list (vector (logior +hii-type+ (if hii-p2p #b00010000 0)) 0 0 0)))
     (gdata (let ((fen-rdata (string->rdata gdata-fen)))
@@ -124,7 +130,8 @@
               (list
                (vector
                 (logior +gdata-type+ (if (eq gdata-color 'white) #b00010000 0))
-                0 0
+                (logand #xff00 gdata-time)
+                (logand #x00ff gdata-time)
                 (length fen-rdata)))
               fen-rdata)))
     (t
@@ -268,7 +275,8 @@
              nil)))
       (error "expected MOVE packet, got ~a instead" p)))
 
-(defun start-p2p-server (game-handler &key fen (opponent-side 'white))
+;; TODO: s/127.0.0.1/0.0.0.0/
+(defun start-p2p-server (game-handler &key fen (opponent-side 'white) (time 10))
   (format t "[SERVER] starting p2p server @ port ~a~%" +port+)
   (with-socket-listener
       (sock "127.0.0.1" +port+ :reuseaddress t :element-type '(unsigned-byte 8))
@@ -281,17 +289,22 @@
       (let* ((hii-back (receive-packet conn)))
         (assert (packet-of-type-p hii-back +hii-type+)))
 
-      (write-packets conn (make-server-packet 'gdata :gdata-color opponent-side :gdata-fen fen))
+      (write-packets conn (make-server-packet 'gdata :gdata-color opponent-side :gdata-fen fen :gdata-time time))
 
-      (funcall game-handler fen (if (eq 'white opponent-side) 'black 'white) conn)
+      (funcall game-handler fen (if (eq 'white opponent-side) 'black 'white) conn time)
       (format t "[SERVER] Closing p2p socket and connection~%"))))
       ;; (usocket:socket-close conn)
       ;; (usocket:socket-close sock))))
 
-(defun start-server (game-handler &key (mode 'p2p) (fork nil) (fen +initial-fen+) (opponent-side 'white))
+(defun start-server (game-handler &key
+                                    (mode 'p2p)
+                                    (fork nil)
+                                    (fen +initial-fen+)
+                                    (opponent-side 'white)
+                                    (time 10))
   (declare (ignore fork))
   (case mode
-    (p2p (start-p2p-server game-handler :fen fen :opponent-side opponent-side))
+    (p2p (start-p2p-server game-handler :fen fen :opponent-side opponent-side :time time))
     (t (error "Unknown server mode `~a'" mode))))
 
 (defmacro if* (f a b)
@@ -299,11 +312,13 @@
 
 (defun p2p-connect-and-return-fen-and-side-data (conn)
   (let* ((gdata (receive-packet conn))
-         (side (if* (logand #b00010000 (aref gdata 0)) 'white 'black)))
+         (side (if* (logand #b00010000 (aref gdata 0)) 'white 'black))
+         (time (logior (ash (aref gdata 1) 8) (aref gdata 2))))
     (values
      (rdata-packets->string (receive-packets conn (aref gdata 3)))
      side
-     conn)))
+     conn
+     time)))
 
 (defun connect-to-server (ip nickname)
   (let ((conn (socket-connect ip +port+ :element-type '(unsigned-byte 8))))

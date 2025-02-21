@@ -1,5 +1,5 @@
 (defpackage :leszcz-types
-  (:use :common-lisp :leszcz-constants)
+  (:use :common-lisp :leszcz-constants :local-time)
   (:export
    game
    point
@@ -37,7 +37,9 @@
    game-connection
    game-fb
    game-interactive-p
-
+   game-time-black
+   game-time-white
+   game-time-begin-turn
    ))
 
 (in-package :leszcz-types)
@@ -123,6 +125,18 @@
    (interactive-p
     :initarg :interactive-p
     :accessor game-interactive-p)
+   (time-begin-turn ; utc0 timestamp of beginning of turn next-time -= local-time:now - this
+    :initarg :time-begin-turn
+    :initform (local-time:timestamp-to-unix (local-time:now))
+    :accessor game-time-begin-turn)
+   (time-white ; time left (in seconds) for the game
+    :initarg :time-white
+    :initform 3600
+    :accessor game-time-white)
+   (time-black
+    :initarg :time-black
+    :initform 3600
+    :accessor game-time-black)
   ))
 
 (defmethod game-tick ((g game))

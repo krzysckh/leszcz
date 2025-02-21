@@ -238,7 +238,9 @@
                  p
                  (car m) (cadr m)
                  :no-send t
+                 :no-update-timers t
                  :no-display-check-mates t
+                 :no-history t
                  ;; :no-recache t ;; <- dupa 2
                  )
 

@@ -432,6 +432,7 @@
   (setf black-texture-alist nil)
   (setf leszcz-logos-alist nil)
   (setf raylib:*font* (make-hash-table :test #'equal)) ;; reset *font* every texture reload
+  (setf raylib:*alagard* (make-hash-table :test #'equal)) ;; reset *alagard* every texture reload
 
   ;; (setf raylib:*font* (make-font spleen-data ".otf" 18 1024))
   (raylib:load-font spleen-data 18)
