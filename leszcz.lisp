@@ -1441,7 +1441,7 @@
 
   (let ((continuation nil))
     (let-values ((b1 w1 h1 (gui:make-button* "zagraj se na bota" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
-      (loop while (and (not (window-close-p)) (not continuation)) do
+      (loop until (or (window-close-p) continuation) do
         (setf *current-screen* (screen->image)) ;; TODO: this sucks
         (set-mouse-cursor! +cursor-normal+)
         (begin-drawing)
@@ -1468,8 +1468,8 @@
         (end-drawing)
         (unless continuation
           (unload-image! *current-screen*))))
-    (shade-screen *current-screen* 10)
     (when continuation
+      (shade-screen *current-screen* 10)
       (funcall continuation))))
 
 (defun main ()
