@@ -70,7 +70,9 @@
   * [ ] import FEN
   * [ ] odtwarzanie gry
     * [ ] "Gra musi zapisywać historię ruchów w notacji algebraiczne"
-  * [ ] pokaż ostatni ruch zaznacz jakoś ładnie
+      * [x] > Gra musi zapisywać historię ruchów
+      * [ ] > w notacji algebraicznej
+  * [x] pokaż ostatni ruch zaznacz jakoś ładnie
   * [ ] efekty dźwiękowe
     * [ ] preferowalnie nie paszczowe
     * [ ] preferowalnie nie takie za które pójdę za kratki (CC0)
@@ -83,7 +85,8 @@
       * [x] to nie działa
     * [x] preferencja figur dla danych pozycji (`*bonus-table*`)
   * [x] a tak w ogóle to silnik miej w osobnym wątku żeby mniej się narobić a więcej zarobić
-  * [ ] bot nie może apgrejdować piona XDDD
+  * [x] bot nie może apgrejdować piona XDDD
+    * [ ] może ale nie może wybrać na co XDDDD
 * [ ] Gracz v Gracz na różnych komputerach w LAN (p2p)
   * [x] działa
   * [ ] jakiekolwiek menu do hostowania/łączenia

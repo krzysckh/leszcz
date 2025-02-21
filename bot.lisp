@@ -211,7 +211,9 @@
              :fb (game-fb g) ;; TODO: should i copy the thing here?
              :possible-moves-cache nil
              :points-cache nil
-             :connection (game-connection g))))
+             :connection (game-connection g)
+             :interactive-p (game-interactive-p g)
+       )))
 
 ;; https://www.chessprogramming.org/Negamax
 ;; https://www.chessprogramming.org/Alpha-Beta
@@ -239,6 +241,8 @@
                  :no-display-check-mates t
                  ;; :no-recache t ;; <- dupa 2
                  )
+
+                (format t "in game--search state is: ~a~%" (game-result g*))
 
                 (let ((score (* -1 (game--search g* (1- depth) (- beta) (- alpha)))))
                   (when (null best-move)

@@ -467,20 +467,34 @@
        (eq (piece-type p) 'pawn)
        (or (= 0 (the place (cadr next-pos)))
            (= 7 (the place (cadr next-pos)))))
-      (if (eq (game-side game) (piece-color p))
+      (let ((px (point-x (piece-point p)))
+            (py (point-y (piece-point p))))
+        (flet ((f (type)
+                 #'(lambda (g*)
+                     (if (game-interactive-p g*)
+                         (progn
+                           (format t "asking interactively for upgrade type!~%")
+                           (setf (piece-type p) (ask-for-upgrade-type g* p)))
+                         (let ((p (piece-at-point g* px py)))
+                           (setf (piece-type p) type))))))
           (list
-           (append next-pos (list #'(lambda (g*) ;; Ask interactively for upgrade type, also because asking interactively, just use p instead of looking for piece-at-point
-                                      (format t "asking interactively for upgrade type!~%")
-                                      (setf (piece-type p) (ask-for-upgrade-type g* p))))))
-          (let ((px (point-x (piece-point p)))
-                (py (point-y (piece-point p))))
-            (list ;; Generate all possible updgrade options and let "le computer" choose
-             (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'queen)))))
-             (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'rook)))))
-             (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'bishop)))))
-             (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'knight))))))))
+           (append next-pos `(,(f 'queen)))
+           (append next-pos `(,(f 'rook)))
+           (append next-pos `(,(f 'bishop)))
+           (append next-pos `(,(f 'knight))))))
+      `(,next-pos)))
 
-      (list next-pos)))
+;; (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'queen)))))
+;; (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'rook)))))
+;; (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'bishop)))))
+;; (append next-pos `(,#'(lambda (g*) (let ((p (piece-at-point g* px py))) (setf (piece-type p) 'knight))))))))
+
+      ;; (if (game-interactive-p game)
+      ;;     (list
+      ;;      (append next-pos (list #'(lambda (g*) ;; Ask interactively for upgrade type, also because asking interactively, just use p instead of looking for piece-at-point
+      ;;       (list ;; Generate all possible updgrade options and let "le computer" choose
+
+      ;; (list next-pos)))
 
 (defun pre--possible-moves-for/pawn (game p)
   (declare (type game game)
@@ -592,8 +606,8 @@
       collect (loop for pa in '(fb-pawn fb-rook fb-knight fb-bishop fb-queen fb-king)
                     collect                      ;          |
                     `(let ((,as (,pa (,ca ,n)))) ; <- tu o -+
-                       ,@b
-                       (setf (,pa (,ca ,n)) ,as)
+                       ,@b                       ;
+                       (setf (,pa (,ca ,n)) ,as) ; a tu to nawet pacanas!
                        ))))))
 
 ;;; not for king and pawn as they require additional funcalls
@@ -655,7 +669,6 @@
                (fb (game-fb game))
                (color (piece-color p)))
     (case (piece-type p)
-
       (knight (bb->move-lst
                (fb-filter-check-moves* fb color fb-knight x y (fb-generate-knight-moves fb x y color))))
       (bishop (bb->move-lst
@@ -665,12 +678,65 @@
       (rook   (bb->move-lst
                (fb-filter-check-moves* fb color fb-rook x y (fb-generate-rook-moves fb x y color))))
 
-      (pawn   (pre--possible-moves-for/pawn game p))
-      (king   (append
-               (bb->move-lst (fb-generate-king-moves   (game-fb game) x y (piece-color p)))
-               (maybe-castling-moves game p)))
+      (pawn   (slow-filter-check-moves game p (pre--possible-moves-for/pawn game p)))
+      (king   (slow-filter-check-moves game p (append
+                                               (bb->move-lst (fb-generate-king-moves (game-fb game) x y (piece-color p)))
+                                               (maybe-castling-moves game p))))
       (t
        (error "unknown piece-type: ~a" (piece-type p))))))
+
+(defun slow-filter-check-moves (game p lst)
+  (declare (type game game)
+           (type piece p)
+           (type list lst)
+           (values list))
+
+  (let ((point (piece-point p)))
+    (remove-if
+     #'(lambda (pos)
+         ;; TODO: this reimplements game-do-move (badly) -- make it so i can just call stripped game-do-move
+         (when (or (eq (piece-type p) 'king) (eq (piece-type p) 'pawn))
+           (let ((g* (copy-game game)))
+             ;; (setf (game-points-cache g*) nil) ;; <- dupa 2
+             (setf (game-interactive-p g*) nil)
+             (game-update-points-cache g*)
+
+             ;; (let ((p-was (piece-at-point game (car pos) (cadr pos))))
+             ;; (setf (piece-point p) (make-instance 'point :x (car pos) :y (cadr pos)))
+             (let* ((king (king-of g* (piece-color p)))
+                    (king-point (piece-point king))
+                    (pt (piece-at-point g* (point-x point) (point-y point))))
+               (when-let ((w (piece-at-point g* (car pos) (cadr pos))))
+                 (setf (game-pieces g*) (remove w (game-pieces g*))))
+               (setf (point-x (piece-point pt)) (car pos))
+               (setf (point-y (piece-point pt)) (cadr pos))
+               ;; this fucking sucks ↓
+               (when (functionp (caddr pos))
+                 (unless (and (eq (piece-type pt) 'pawn) (or (= (point-y point) 0) (= (point-y point) 7))) ; skip pawns so the user doesn't get FUCKING asked interactively during a move search...
+                   (funcall (caddr pos) g*)))
+
+               (game-update-points-cache g*) ;; TODO: only update the 2 things that might have changed
+               (setf (game-fb g*) (game->fast-board g*)) ;; update fb, maybe -||-
+               (point-checked-p
+                g*
+                (point-x king-point) (point-y king-point)
+                (if (whitep king) 'black 'white))))))
+     (remove-if
+      #'(lambda (pos)
+          (or
+           (< (car pos) 0)
+           (< (cadr pos) 0)
+           (> (car pos) 7)
+           (> (cadr pos) 7)))
+      lst))))
+
+(defun possible-moves-for (game p &key recache)
+  (declare (type piece p)
+           (type game game))
+  (if recache
+      (pre--possible-moves-for game p)
+      (let ((p (piece-point p)))
+        (cdr (assoc (list (point-x p) (point-y p)) (game-possible-moves-cache game) :test #'equal)))))
 
 ;; TODO: cache that
 (defun king-of (game color)
@@ -733,50 +799,6 @@
          (display-draw g "by 50 move rule")))
       (t
        (values)))))
-
-(defun possible-moves-for (game p &key recache)
-  (declare (type piece p)
-           (type game game))
-  (if recache
-      (let ((point (piece-point p)))
-        (remove-if
-         #'(lambda (pos)
-             ;; TODO: this reimplements game-do-move (badly) -- make it so i can just call stripped game-do-move
-             (when (or (eq (piece-type p) 'king) (eq (piece-type p) 'pawn))
-               (let ((g* (copy-game game)))
-                 ;; (setf (game-points-cache g*) nil) ;; <- dupa 2
-                 (game-update-points-cache g*)
-
-                 ;; (let ((p-was (piece-at-point game (car pos) (cadr pos))))
-                 ;; (setf (piece-point p) (make-instance 'point :x (car pos) :y (cadr pos)))
-                 (let* ((king (king-of g* (piece-color p)))
-                        (king-point (piece-point king))
-                        (pt (piece-at-point g* (point-x point) (point-y point))))
-                   (when-let ((w (piece-at-point g* (car pos) (cadr pos))))
-                     (setf (game-pieces g*) (remove w (game-pieces g*))))
-                   (setf (point-x (piece-point pt)) (car pos))
-                   (setf (point-y (piece-point pt)) (cadr pos))
-                   ;; this fucking sucks ↓
-                   (when (functionp (caddr pos))
-                     (unless (and (eq (piece-type pt) 'pawn) (or (= (point-y point) 0) (= (point-y point) 7))) ; skip pawns so the user doesn't get FUCKING asked interactively during a move search...
-                       (funcall (caddr pos) g*)))
-
-                   (game-update-points-cache g*) ;; TODO: only update the 2 things that might have changed
-                   (setf (game-fb g*) (game->fast-board g*)) ;; update fb, maybe -||-
-                   (point-checked-p
-                    g*
-                    (point-x king-point) (point-y king-point)
-                    (if (whitep king) 'black 'white))))))
-         (remove-if
-          #'(lambda (pos)
-              (or
-               (< (car pos) 0)
-               (< (cadr pos) 0)
-               (> (car pos) 7)
-               (> (cadr pos) 7)))
-          (pre--possible-moves-for game p))))
-      (let ((p (piece-point p)))
-        (cdr (assoc (list (point-x p) (point-y p)) (game-possible-moves-cache game) :test #'equal)))))
 
 (defun move-possible-p (p px py game)
   (block b
@@ -1221,10 +1243,12 @@
              (setf *current-board-evaluation* (if (eq (game-side game) 'white) (- eval-data) eval-data)))))
         (t (warn "Unhandled packet in maybe-receive-something ~a with type ~a" p (packet->name p)))))))
 
-(defun initialize-game (game side conn)
+(defun initialize-game (game side conn &key no-overwrite-interactive)
   (setf (game-connection game) conn)
   (setf (game-side game) side)
   (setf (game-fb game) (game->fast-board game))
+  (unless no-overwrite-interactive
+    (setf (game-interactive-p game) nil))
   (game-update-points-cache game)
   (game-update-possible-moves-cache game))
 
@@ -1246,7 +1270,7 @@
   (when (not (window-ready-p))
     (initialize-window!))
 
-  (initialize-game game side conn)
+  (initialize-game game side conn :no-overwrite-interactive t)
 
   (setf gui::toplevel-console/log nil)
   (setf gui::toplevel-console/state "")
@@ -1285,7 +1309,9 @@
 (defun connect-to-master (&key (server "localhost") (username (symbol-name (gensym "username"))))
   (multiple-value-bind (fen side conn)
       (connect-to-server server username)
-    (main-loop (fen->game fen) side conn)))
+    (let ((g (fen->game fen)))
+      (setf (game-interactive-p g) t)
+      (main-loop g side conn))))
 
 (defun maybe-move-bot (game &rest r)
   (declare (type game game)
@@ -1328,6 +1354,7 @@
            (loop do
              (maybe-receive-something game)
              (maybe-move-bot game))))
+     :fen "8/8/4k3/8/8/PP6/KRp5/QB6 b - - 0 1"
      ))
      ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
 
@@ -1337,8 +1364,9 @@
 
 (defun %test-main ()
   ;; (let ((g (fen->game "r1b1k1nr/ppp2ppp/5q2/3Pp3/2B5/2N2N2/PPPPn1PP/R1BQ1RK1 w kq - 3 9")))
-  (let ((g (fen->game +initial-fen+)))
+  (let ((g (fen->game "N7/8/4k3/8/8/PP6/KRp5/QB6 w - - 0 1")))
     (initialize-game g 'white nil)
+    (setf (game-interactive-p g) t)
     (main-loop g 'white nil)))
 
 (defun main ()

@@ -36,6 +36,7 @@
    game-result
    game-connection
    game-fb
+   game-interactive-p
 
    ))
 
@@ -119,6 +120,9 @@
    (fb
     :initarg :fb
     :accessor game-fb)
+   (interactive-p
+    :initarg :interactive-p
+    :accessor game-interactive-p)
   ))
 
 (defmethod game-tick ((g game))
