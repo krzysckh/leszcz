@@ -78,14 +78,14 @@
 
 (in-package :raylib)
 
-(declaim (sb-ext:muffle-conditions sb-ext:compiler-note))
+(declaim #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
 
 (define-foreign-library raylib
   (:unix    "./raylib5.5.so")
   (:windows "raylib5.5.dll"))
 
 (defun floatize (l)
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (mapcar #'float l))
 
 (use-foreign-library raylib)
@@ -441,7 +441,6 @@
   ;; (set-texture-filter! texture +TEXTURE-FILTER-POINT+)
   (macrolet ((load* (data-list alist)
                `(dolist (e ,data-list)
-                  (format t "will load ~a~%" (car e))
                   (if (listp (cdr e))
                       (let ((textures (mapcar #'(lambda (data) (make-texture data ".png")) (cdr e))))
                         (push (cons (car e) (coerce textures 'vector)) ,alist))

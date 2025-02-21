@@ -1,5 +1,13 @@
 (defsystem "leszcz"
-  :depends-on (:leszcz-types :leszcz-constants :raylib :gui :alexandria :cl-ppcre :cl-mop :net :local-time)
+  :depends-on (:alexandria
+               :cl-ppcre
+               :local-time
+               :bordeaux-threads
+               :leszcz-types
+               :leszcz-constants
+               :raylib
+               :gui
+               :net)
   :components ((:file "leszcz") (:file "bot"))
   :license "BSD 2-Clause"
   :author "Krzysztof Michałczyk <kpm@krzysckh.org>"

@@ -31,6 +31,8 @@
    *board-begin*
    *board-size*
    *debug*
+   +inf
+   -inf
 
    ;; symbols
    pawn
@@ -223,6 +225,13 @@
 ;; do not use this
 (defparameter *current-game* nil)
 (defparameter *current-screen* nil)
+
+(defconstant +inf
+  #+sbcl sb-ext:short-float-positive-infinity
+  #+ecl ext:short-float-positive-infinity)
+(defconstant -inf
+  #+sbcl sb-ext:short-float-negative-infinity
+  #+ecl ext:short-float-negative-infinity)
 
 (defmacro let-values (bindings &body b)
   (let ((l b)

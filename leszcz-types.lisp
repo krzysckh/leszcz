@@ -148,7 +148,7 @@
 ;;; Printers
 
 (defmethod print-object ((p piece) s)
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (let ((type (if (slot-boundp p 'type)
                   (piece-type p)
                   'type-unknown))
@@ -161,11 +161,11 @@
     (format s "piece(~a[~a])@~a" type color point)))
 
 (defmethod print-object ((p point) s)
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (format s "point(~a ~a)" (point-x p) (point-y p)))
 
 (defmethod print-object ((g game) s)
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (format s "#<game instance with ~a pieces, turn=~a,tickers=(~a,~a,~a)>"
           (length (the list (game-pieces g)))
           (game-turn g)

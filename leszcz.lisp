@@ -1,7 +1,7 @@
 ;;; Leszcz entrypoint
 
 (defpackage :leszcz
-  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net :fast :cl-mop :local-time)
+  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net :fast :local-time :bordeaux-threads)
   (:export
    main))
 
@@ -51,7 +51,7 @@
 (defun draw-piece (g p)
   (declare (type piece p)
            (type game g))
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note)) ;; meh this is not that important
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note)) ;; meh this is not that important
 
   (let* ((point (piece-point p))
          (x (* +piece-size+ (maybe-reverse g (point-x point))))
@@ -91,6 +91,7 @@
          +color-white+)))))
 
 ;; can be <1..8> * vec ("sliding")
+;; TODO: delete this
 (define-constant +rook-offsets+ '((1 0) (-1 0) (0 1) (0 -1)) :test #'equal)
 (define-constant +bishop-offsets+ '((1 1) (1 -1) (-1 1) (-1 -1)) :test #'equal)
 (define-constant +queen-offsets+ (append +rook-offsets+ +bishop-offsets+) :test #'equal)
@@ -138,7 +139,7 @@
 
 (defun game->fen (g)
   (declare (type game g))
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
 
   (let ((result "")
         (acc 0))
@@ -178,7 +179,7 @@
 
 (defun fen->game (fen)
   (declare (type string fen))
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
 
   (let* ((l (split "\\s" fen))
          (fens (nth 0 l))
@@ -230,7 +231,7 @@
 
 (defun draw-game (g)
   (declare (type game g))
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (let ((i (if (eq (game-side g) 'white) 0 1))
         (bx (car *board-begin*))
         (by (cdr *board-begin*)))
@@ -248,7 +249,7 @@
       (draw-piece g p))))
 
 (defun coords->point (x y)
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (let ((x* (- x (car *board-begin*)))
         (y* (- y (cdr *board-begin*))))
     (values
@@ -263,7 +264,7 @@
 
 (defun show-point-at-cursor (g &rest r)
   (declare (ignore r))
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (multiple-value-bind (px py)
       (coords->point (mouse-x) (mouse-y))
     (when (and (>= px 0) (< px 8) (>= py 0) (< py 8))
@@ -594,21 +595,6 @@
         (when (fast:bit-set-p bb (+ x (* y 8)) :type-size 64)
           (push `(,x ,y) l))))
     l))
-
-(defmacro for-every-bb (as n &body b)
-  ;; n to tak naprawdę fb tylko dużo zabawniejszy jest let pacan
-  (append                                        ;          |
-   '(progn)                                      ;          |
-   (apply                                        ;          |
-    #'append                                     ;          |
-    (loop                                        ;          |
-      for ca in '(fb-white fb-black)             ;          |
-      collect (loop for pa in '(fb-pawn fb-rook fb-knight fb-bishop fb-queen fb-king)
-                    collect                      ;          |
-                    `(let ((,as (,pa (,ca ,n)))) ; <- tu o -+
-                       ,@b                       ;
-                       (setf (,pa (,ca ,n)) ,as) ; a tu to nawet pacanas!
-                       ))))))
 
 ;;; not for king and pawn as they require additional funcalls
 ;; bb: a bitboard of moves to check
@@ -978,7 +964,7 @@
 (defun point-checked-p (game px py by)
   (old--point-checked-p game px py by))
 
-(declaim (sb-ext:maybe-inline point-checked-p))
+(declaim #+sbcl(sb-ext:maybe-inline point-checked-p))
 
 (defun game-do-move (game piece mx my &key
                                         no-recache
@@ -1367,7 +1353,9 @@
   (when (not (window-ready-p))
     (initialize-window!))
 
+  (format t "before initialize~%")
   (initialize-game game side conn :no-overwrite-interactive t)
+  (format t "after initialize~%")
 
   (setf gui::toplevel-console/log nil)
   (setf gui::toplevel-console/state "")
@@ -1383,6 +1371,7 @@
     (end-texture-mode)
     (end-drawing)
 
+    (format t "txt: ~a~%" txt)
     (let ((i (texture->image (nth 3 txt))))
       (unshade-screen i 60 :flip t)
       (unload-image! i)
@@ -1452,11 +1441,11 @@
 (defun cleanup-threads! ()
   (loop for thr in *threads* do
     (ignore-errors
-     (sb-thread:terminate-thread thr)))
+     (terminate-thread thr)))
   (setf *threads* nil))
 
 (defmacro thread (name &body b)
-  `(let ((thr (sb-thread:make-thread
+  `(let ((thr (make-thread
                #'(lambda ()
                    ,@b)
                :name ,name)))
@@ -1577,11 +1566,15 @@
       (shade-screen *current-screen* 10)
       (funcall continuation))))
 
+(defmacro maybe-trap-floats (&body b)
+  #+sbcl`(sb-int:with-float-traps-masked ;; TODO: weird untraceable problems on ms windows
+             (:invalid :overflow :underflow :divide-by-zero :inexact)
+           ,@b)
+  #+ecl`(progn ,@b))
+
 (defun main ()
   (unwind-protect
-       (sb-int:with-float-traps-masked ;; TODO: weird untraceable problems on ms windows
-           (:invalid :overflow :underflow :divide-by-zero :inexact)
-         (%main))
+       (maybe-trap-floats (%main))
     (cleanup-threads!)
     (when (window-ready-p)
       (close-window))))

@@ -40,7 +40,7 @@
 
 ;; womp womp runtime vector dispatches
 ;; TODO: i could actually store packets in a simple-array of (unsigned-byte 8) but eh
-(declaim (sb-ext:muffle-conditions sb-ext:compiler-note))
+(declaim #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
 
 (defconstant +port+ 3317)
 
@@ -142,8 +142,8 @@
 
 (defun to-s16 (n)
   (cond
-    ((= n sb-ext:short-float-negative-infinity) '(#xff #xff))
-    ((= n sb-ext:short-float-positive-infinity) '(#x7f #xff))
+    ((= n -inf) '(#xff #xff))
+    ((= n +inf) '(#x7f #xff))
     (t (handler-case
            (let ((x (coerce (floor n) '(signed-byte 16))))
              (list (ash (logand #xff00 x) -8)
@@ -212,10 +212,11 @@
     seq))
 
 (defun maybe-receive-packet (conn)
-  (when (listen (usocket:socket-stream conn))
-    (let ((seq (make-sequence 'vector 4)))
-      (read-sequence seq (usocket:socket-stream conn))
-      seq)))
+  (ignore-errors
+   (when (listen (usocket:socket-stream conn))
+     (let ((seq (make-sequence 'vector 4)))
+       (read-sequence seq (usocket:socket-stream conn))
+       seq))))
 
 (defun write-packets (conn packets)
   (format t "will write packets: ~a to ~a~%" packets conn)

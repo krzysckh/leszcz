@@ -60,3 +60,16 @@ dist: all docs
 	cp -v libffi-8.dll dist/
 	cp -v raylib5.5.dll dist/
 	cp -v doc/*.pdf dist/
+run-ecl:
+	CL_SOURCE_REGISTRY=$(PWD) ecl \
+		--eval "(ql:quickload :leszcz)" \
+		--eval "(leszcz:main)" \
+		--eval "(quit)"
+build-ecl:
+	CL_SOURCE_REGISTRY=$(PWD) ecl \
+		--eval "(ext:install-c-compiler)" \
+		--eval "(push #P\"$(PWD)/\" asdf:*central-registry*)" \
+		--eval "(asdf:load-asd \"leszcz.asd\")" \
+		--eval "(asdf:load-system :leszcz)" \
+		--eval "(asdf:make-build :leszcz :type :program :monolithic t :move-here #P\"./\" :prologue-code '(progn (require 'asdf) (require 'sb-bsd-sockets)) :epilogue-code '(progn (leszcz:main) (ext:quit)))" \
+		--eval "(quit)"

@@ -10,6 +10,7 @@
    game->fast-board
    fast-board->game
    lognot64
+   for-every-bb
 
    fb-pawn
    fb-rook
@@ -39,7 +40,7 @@
 
 
 (locally
-    (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+    (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (defstruct (fast-board-1 (:conc-name fb-))
     (pawn   0 :type (unsigned-byte 64))
     (rook   0 :type (unsigned-byte 64))
@@ -71,25 +72,52 @@
     (setf (fb-white  fb*) (copy-fast-board-1 (fb-white fb)))
     fb*))
 
-
 (defmacro logbitpr (n bit &key (type-size 64))
   `(logbitp (- ,type-size 1 ,bit) ,n))
+
+(defmacro set-bit! (thing bit to &key (type-size 64))
+  (assert (= type-size 64))
+  #+sbcl `(setf (logbitpr ,thing ,bit :type-size ,type-size) ,to)
+  #+ecl`(if ,to
+            (setf ,thing (logior ,thing (ash 1 (- ,type-size 1 ,bit))))
+            (setf ,thing (logand ,thing (lognot64 (ash 1 (- ,type-size 1 ,bit))))))
+  )
+
+(defmacro for-every-bb (as n &body b)
+  ;; n to tak naprawdę fb tylko dużo zabawniejszy jest let pacan
+  (append                                        ;          |
+   '(progn)                                      ;          |
+   (apply                                        ;          |
+    #'append                                     ;          |
+    (loop                                        ;          |
+      for ca in '(fb-white fb-black)             ;          |
+      collect (loop for pa in '(fb-pawn fb-rook fb-knight fb-bishop fb-queen fb-king)
+                    collect                      ;          |
+                    `(let ((,as (,pa (,ca ,n)))) ; <- tu o -+
+                       ,@b                       ;
+                       (setf (,pa (,ca ,n)) ,as) ; a tu to nawet pacanas!
+                       ))))))
 
 (defun game->fast-board (g)
   (declare (type game g))
   (let ((fb (make-instance 'fast-board)))
+    #+ecl(progn
+           (setf (fb-white fb) (make-instance 'fast-board-1))
+           (setf (fb-black fb) (make-instance 'fast-board-1))
+           (for-every-bb bitb fb
+             (setf bitb 0)))
     (loop for p in (game-pieces g) do
       (let* ((b (if (whitep p) (fb-white fb) (fb-black fb)))
              (pt (piece-point p))
              (bit (the (unsigned-byte 64)
                        (+ (* (the (integer 0 8) (point-y pt)) 8) (the (integer 0 8) (point-x pt))))))
         (case (piece-type p)
-          (pawn   (setf (logbitpr (fb-pawn b)   bit) t))
-          (rook   (setf (logbitpr (fb-rook b)   bit) t))
-          (bishop (setf (logbitpr (fb-bishop b) bit) t))
-          (knight (setf (logbitpr (fb-knight b) bit) t))
-          (queen  (setf (logbitpr (fb-queen b)  bit) t))
-          (king   (setf (logbitpr (fb-king b)   bit) t))
+          (pawn   (set-bit! (fb-pawn b)   bit t))
+          (rook   (set-bit! (fb-rook b)   bit t))
+          (bishop (set-bit! (fb-bishop b) bit t))
+          (knight (set-bit! (fb-knight b) bit t))
+          (queen  (set-bit! (fb-queen b)  bit t))
+          (king   (set-bit! (fb-king b)   bit t))
           (t
            (error "Unknown piece-type ~a." (piece-type p))))))
     fb))
@@ -142,7 +170,7 @@
 (defun fb--make-color-board (fb1)
   (declare (type fast-board-1 fb1)
            (values (unsigned-byte 64))
-           (sb-ext:muffle-conditions sb-ext:compiler-note))
+           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (logior
    (fb-pawn   fb1)
    (fb-rook   fb1)
@@ -154,19 +182,19 @@
 (defun fb-make-white-board (fb)
   (declare (type fast-board fb)
            (values (unsigned-byte 64))
-           (sb-ext:muffle-conditions sb-ext:compiler-note))
+           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (fb--make-color-board (fb-white fb)))
 
 (defun fb-make-black-board (fb)
   (declare (type fast-board fb)
            (values (unsigned-byte 64))
-           (sb-ext:muffle-conditions sb-ext:compiler-note))
+           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (fb--make-color-board (fb-black fb)))
 
 (defun fb-make-piece-board (fb)
   (declare (type fast-board fb)
            (values (unsigned-byte 64))
-           (sb-ext:muffle-conditions sb-ext:compiler-note))
+           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (logior (fb-make-black-board fb) (fb-make-white-board fb)))
 
 (defun fb-display (n)
@@ -209,7 +237,7 @@
   (declare (type symbol color)
            (type fast-board fb))
   ;; fuck, i'd like to get rid of this ↓
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
 
   (let* ((whitep (eq color 'white))
          (f1 (if whitep (fb-white fb) (fb-black fb)))
@@ -239,7 +267,7 @@
   (let ((z 0)
         (ob (if (eq 'white color) (fb-make-white-board fb) (fb-make-black-board fb)))  ;; "own board"
         (eb (if (eq 'white color) (fb-make-black-board fb) (fb-make-white-board fb)))) ;; "enemy board"
-    (setf (logbitpr z (+ px (* py 8))) t)
+    (set-bit! z (+ px (* py 8)) t)
     (let ((cb (fb--knight-check-board z)))
       (logior
        (logand cb (lognot ob))
@@ -258,28 +286,28 @@
       (loop for x from (1- px) downto 0 do
         (when (fb1-set-p ob x py)
           (return-from b))
-        (setf (logbitpr res (+ x (* py 8))) t)
+        (set-bit! res (+ x (* py 8)) t)
         (when (fb1-set-p eb x py)
           (return-from b))))
     (block b
       (loop for x from (1+ px) to 7 do
         (when (fb1-set-p ob x py)
           (return-from b))
-        (setf (logbitpr res (+ x (* py 8))) t)
+        (set-bit! res (+ x (* py 8)) t)
         (when (fb1-set-p eb x py)
           (return-from b))))
     (block b
       (loop for y from (1- py) downto 0 do
         (when (fb1-set-p ob px y)
           (return-from b))
-        (setf (logbitpr res (+ px (* y 8))) t)
+        (set-bit! res (+ px (* y 8)) t)
         (when (fb1-set-p eb px y)
           (return-from b))))
     (block b
       (loop for y from (1+ py) to 7 do
         (when (fb1-set-p ob px y)
           (return-from b))
-        (setf (logbitpr res (+ px (* y 8))) t)
+        (set-bit! res (+ px (* y 8)) t)
         (when (fb1-set-p eb px y)
           (return-from b))))
     res))
@@ -298,7 +326,7 @@
             do
                (when (fb1-set-p ob x y)
                  (return-from b))
-               (setf (logbitpr res (+ x (* y 8))) t)
+               (set-bit! res (+ x (* y 8)) t)
                (when (fb1-set-p eb x y)
                  (return-from b))))
     (block b
@@ -307,7 +335,7 @@
             do
                (when (fb1-set-p ob x y)
                  (return-from b))
-               (setf (logbitpr res (+ x (* y 8))) t)
+               (set-bit! res (+ x (* y 8)) t)
                (when (fb1-set-p eb x y)
                  (return-from b))))
     (block b
@@ -316,7 +344,7 @@
             do
                (when (fb1-set-p ob x y)
                  (return-from b))
-               (setf (logbitpr res (+ x (* y 8))) t)
+               (set-bit! res (+ x (* y 8)) t)
                (when (fb1-set-p eb x y)
                  (return-from b))))
     (block b
@@ -325,7 +353,7 @@
             do
                (when (fb1-set-p ob x y)
                  (return-from b))
-               (setf (logbitpr res (+ x (* y 8))) t)
+               (set-bit! res (+ x (* y 8)) t)
                (when (fb1-set-p eb x y)
                  (return-from b))))
     res))
@@ -357,7 +385,7 @@
                     (y (+ py (cdr m)))
                     (p (+ x (* y 8))))
                (when (and (>= x 0) (< x 8) (>= y 0) (< y 8))
-                 (setf (logbitpr z p) t))))
+                 (set-bit! z p t))))
     z))
 
 (defun fb-generate-king-moves (fb px py color)
@@ -373,9 +401,9 @@
        (logand ka eb)))))
 
 (defun bit-at (n bit &key (type-size 64))
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (logand 1 (ash n (- (- type-size 1 bit)))))
 
 (defun bit-set-p (n bit &key (type-size 64))
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (logbitp (- type-size 1 bit) n))

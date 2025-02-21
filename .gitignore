@@ -25,3 +25,6 @@ _p.png
 dist
 *.tgz
 *.txt
+*.fas
+*.a
+leszcz

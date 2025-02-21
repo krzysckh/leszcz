@@ -82,7 +82,7 @@
 
 (defun toplevel-console (g)
   (declare (ignore g)
-           (sb-ext:muffle-conditions sb-ext:compiler-note))
+           #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
 
   ;; the listener should check for capturer rights, but let's check and report bugs if something is wrong
   (when (not (keys-can-be-captured-p toplevel-console/capturer))
@@ -150,7 +150,7 @@
 
 (defun text-button (x* y* w* h* text text-width &key (font-size (round (- h* 2))) (text-draw-fn #'raylib:draw-text))
   (declare (type function text-draw-fn))
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*)))
                (full-rect (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
                (at-point-p (point-in-rect-p (floatize (list (mouse-x) (mouse-y))) (floatize full-rect))))
@@ -175,7 +175,7 @@
     (and at-point-p (mouse-pressed-p 0))))
 
 (defun texture-button (x y w h texture &key (pad t) (background-color nil))
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (let ((at-point-p (point-in-rect-p (floatize (list (mouse-x)
                                                      (mouse-y)))
                                      (floatize (list x y w h)))))
@@ -212,7 +212,7 @@
      b)))
 
 (defun make-button (text-or-texture &key height width background-color (font-data spleen-data) (font-hash raylib::*font*) (text-draw-fn #'draw-text))
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
 
   (when (null height)
     (error "Make-button: height required"))
@@ -241,7 +241,7 @@
          height))))
 
 (defun unload-textures! (alist)
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (loop for c in alist do
     (if (vectorp (cdr c))
         (loop for x across (cdr c) do (unload-texture! x))
@@ -267,7 +267,7 @@
 ;;       make it impossible to fuck up some clicks and clacks u know
 ;;       i will fix it later to use the cool ass capturer mechanism
 (defun configure-menu ()
-  (declare (sb-ext:muffle-conditions sb-ext:compiler-note warning))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note warning))
   (let-values ((b1 w1 h1 (make-button* "sleek" :height 24 :identifier 'sleek))
                (b2 w2 h2 (make-button* "pixel" :height 24 :identifier 'pixel))
                (font (load-font spleen-data 24))

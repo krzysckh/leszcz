@@ -162,8 +162,8 @@
             (point-x (piece-point king))
             (point-y (piece-point king))
             'white)
-           sb-ext:short-float-positive-infinity
-           sb-ext:short-float-negative-infinity)))
+           +inf
+           -inf)))
     ((eq (game-result game) 'stalemate)
      0)
     (t
@@ -222,7 +222,7 @@
   (if (= depth 0)
       (evaluate-position g)
       (let ((best-move nil)
-            (best sb-ext:short-float-negative-infinity))
+            (best -inf))
         (block brk
           (loop for ms in (game-possible-moves-cache g) do
             (loop for m in (cdr ms) do
@@ -267,4 +267,4 @@
   (leszcz::game-update-points-cache g)
   (leszcz::game-update-possible-moves-cache g)
 
-  (game--search g depth sb-ext:short-float-negative-infinity sb-ext:short-float-positive-infinity))
+  (game--search g depth -inf +inf))
