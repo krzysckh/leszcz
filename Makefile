@@ -51,8 +51,11 @@ docs:
 	makeinfo --no-split --pdf leszcz.texi -o doc/leszcz-reference-manual.pdf
 	makeinfo --no-split --html --css-include=doc/doc.css leszcz.texi -o doc/leszcz-reference-manual.html
 pubcpy: docs dist
+	rm -f leszcz-win64-dist.tgz leszcz-win64-dist.zip
 	tar cvzf leszcz-win64-dist.tgz dist
+	zip -r leszcz-win64-dist.zip dist
 	yes | pubcpy leszcz-win64-dist.tgz
+	yes | pubcpy leszcz-win64-dist.zip
 	cd doc ; for f in leszcz-reference-manual.pdf leszcz-reference-manual.html leszcz.pdf ; do yes | pubcpy $$f ; done
 dist: all docs
 	mkdir -p dist/

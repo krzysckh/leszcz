@@ -44,7 +44,7 @@
       * [x] meow meow meow meow 2
       * [x] meow meow meow meow 3
       * [x] meow meow meow meow 4
-      * [ ] meow meow meow meow 5
+      * [x] meow meow meow meow 5
       * [ ] meow meow meow meow 6
       * [ ] meow meow meow meow 7
     * [x] roszada

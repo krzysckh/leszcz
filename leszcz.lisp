@@ -1214,14 +1214,20 @@
   (declare (ignore _)
            (type game g))
   (when-let ((m (car (game-move-history g))))
-    (draw-rectangle
-     (+ (car *board-begin*) (* (car (cadr m)) +piece-size+))
-     (+ (cdr *board-begin*) (* (cadr (cadr m)) +piece-size+))
-     +piece-size+ +piece-size+ +hlm/last-from+)
-    (draw-rectangle
-     (+ (car *board-begin*) (* (car (caddr m)) +piece-size+))
-     (+ (cdr *board-begin*) (* (cadr (caddr m)) +piece-size+))
-     +piece-size+ +piece-size+ +hlm/last-to+)))
+    (let* ((a (cadr m))
+           (b (caddr m))
+           (x1 (maybe-reverse g (car a)))
+           (y1 (maybe-reverse g (cadr a)))
+           (x2 (maybe-reverse g (car b)))
+           (y2 (maybe-reverse g (cadr b))))
+      (draw-rectangle
+       (+ (car *board-begin*) (* x1 +piece-size+))
+       (+ (cdr *board-begin*) (* y1 +piece-size+))
+       +piece-size+ +piece-size+ +hlm/last-from+)
+      (draw-rectangle
+       (+ (car *board-begin*) (* x2 +piece-size+))
+       (+ (cdr *board-begin*) (* y2 +piece-size+))
+       +piece-size+ +piece-size+ +hlm/last-to+))))
 
 ;; TODO: taking (incorporate data into move history)
 ;; TODO: castling
@@ -1292,6 +1298,14 @@
      '(#xde #xde #xde #xff))
     ))
 
+(defun maybe-set-cursor (g &rest _)
+  (declare (type game g)
+           (ignore _))
+  (let-values ((px py (coords->point (mouse-x) (mouse-y))))
+    (when-let* ((_ (and (>= px 0) (< px 8) (>= py 0) (< py 8)))
+                (piece (piece-at-point g px py))
+                (moves (possible-moves-for g piece)))
+      (set-mouse-cursor! +cursor-pointer+))))
 
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
@@ -1301,6 +1315,7 @@
 (add-draw-hook 'highlight-last-move)
 (add-draw-hook 'draw-move-history)
 (add-draw-hook 'draw-time)
+(add-draw-hook 'maybe-set-cursor)
 
 (add-draw-hook 'gui:toplevel-console-listener)
 
@@ -1471,6 +1486,16 @@
   ;; (sb-thread:join-thread
   ;;  (thread "user thread (client)" (connect-to-master))))
 
+(defun %local-player-vs-player ()
+  (let ((game (fen->game +initial-fen+)))
+    (initialize-game game 'white nil)
+    (setf (game-interactive-p game) t)
+    (flet ((update-side (g)
+             (setf (game-side g) (game-turn g))))
+      (add-draw-hook #'update-side)
+      (game-main-loop game 'white nil)
+      (remove-draw-hook #'update-side))))
+
 (defun %test-main ()
   ;; (let ((g (fen->game "r1b1k1nr/ppp2ppp/5q2/3Pp3/2B5/2N2N2/PPPPn1PP/R1BQ1RK1 w kq - 3 9")))
   (let ((g (fen->game "N7/8/4k3/8/8/PP6/KRp5/QB6 w - - 0 1")))
@@ -1535,7 +1560,8 @@
     (initialize-window!))
 
   (let ((continuation nil))
-    (let-values ((b1 w1 h1 (gui:make-button* "zagraj se na bota" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+    (let-values ((b1 w1 h1 (gui:make-button* "zagraj se na bota" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
+                 (b2 w2 h2 (gui:make-button* "dawaj 1v1 na zioma lokalnie" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
       (loop until (or (window-close-p) continuation) do
         (setf *current-screen* (screen->image)) ;; TODO: this sucks
         (begin-drawing)
@@ -1556,6 +1582,12 @@
         (funcall b1
                  (- (/ *window-width* 2) (/ w1 2))
                  (/ *window-height* 2)
+                 #'(lambda (_)
+                     (declare (ignore _))
+                     (setf continuation #'%player-vs-bot)))
+        (funcall b2
+                 (- (/ *window-width* 2) (/ w2 2))
+                 (+ (/ *window-height* 2) 64 h1)
                  #'(lambda (_)
                      (declare (ignore _))
                      (setf continuation #'%player-vs-bot)))

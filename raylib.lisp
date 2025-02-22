@@ -90,6 +90,16 @@
 
 (use-foreign-library raylib)
 
+(defconstant +TEXTURE-FILTER-POINT+ 0)
+(defconstant +TEXTURE-FILTER-BILINEAR+ 1)
+(defconstant +TEXTURE-FILTER-TRILINEAR+ 2)
+(defconstant +TEXTURE-FILTER-ANISOTROPIC-4X+ 3)
+(defconstant +TEXTURE-FILTER-ANISOTROPIC-8X+ 4)
+(defconstant +TEXTURE-FILTER-ANISOTROPIC-16X+ 5)
+
+(defconstant +cursor-pointer+ 4)
+(defconstant +cursor-normal+ 0)
+
 (defcstruct (color :class type-color)
   (r :uint8)
   (g :uint8)
@@ -207,9 +217,17 @@
   (rotation :float)
   (tint (:struct color)))
 
-(defcfun ("BeginDrawing" begin-drawing) :void)
-(defcfun ("EndDrawing" end-drawing) :void)
+(defcfun ("BeginDrawing" begin-drawing-1) :void)
+(defcfun ("EndDrawing" end-drawing-1) :void)
 (defcfun ("SetTargetFPS" set-target-fps!) :void (fps :int))
+
+(defun begin-drawing ()
+  (begin-drawing-1)
+  (set-mouse-cursor! +cursor-normal+ :begin t))
+
+(defun end-drawing ()
+  (set-mouse-cursor! +cursor-normal+ :finalize t)
+  (end-drawing-1))
 
 (defcfun ("InitWindow" init-window) :void
   (width :int)
@@ -369,8 +387,17 @@
   (point (:struct vec2))
   (rec (:struct rectangle)))
 
-(defcfun ("SetMouseCursor" set-mouse-cursor!) :void
+(defcfun ("SetMouseCursor" set-mouse-cursor-1!) :void
   (cursor :int))
+
+(defparameter smc/current +cursor-normal+)
+(defun set-mouse-cursor! (cursor &key begin finalize)
+  (cond
+    (begin    (setf smc/current +cursor-normal+))
+    (finalize (set-mouse-cursor-1! smc/current))
+    (t
+     (when (and (eq smc/current +cursor-normal+) (not (eq cursor +cursor-normal+)))
+       (setf smc/current cursor)))))
 
 (defcfun ("LoadImageFromScreen" screen->image) (:struct image))
 
@@ -386,16 +413,6 @@
 (defcfun ("EndTextureMode" end-texture-mode) :void)
 
 (defcfun ("IsWindowReady" window-ready-p) :bool)
-
-(defconstant +TEXTURE-FILTER-POINT+ 0)
-(defconstant +TEXTURE-FILTER-BILINEAR+ 1)
-(defconstant +TEXTURE-FILTER-TRILINEAR+ 2)
-(defconstant +TEXTURE-FILTER-ANISOTROPIC-4X+ 3)
-(defconstant +TEXTURE-FILTER-ANISOTROPIC-8X+ 4)
-(defconstant +TEXTURE-FILTER-ANISOTROPIC-16X+ 5)
-
-(defconstant +cursor-pointer+ 4)
-(defconstant +cursor-normal+ 0)
 
 ;; MOUSE_CURSOR_DEFAULT       = 0
 ;; MOUSE_CURSOR_ARROW         = 1
