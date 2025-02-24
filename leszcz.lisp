@@ -1590,7 +1590,7 @@
                  (+ (/ *window-height* 2) 64 h1)
                  #'(lambda (_)
                      (declare (ignore _))
-                     (setf continuation #'%player-vs-bot)))
+                     (setf continuation #'%local-player-vs-player)))
         (end-drawing)
         (unless continuation
           (unload-image! *current-screen*))))
