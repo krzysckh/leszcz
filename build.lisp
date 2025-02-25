@@ -27,4 +27,7 @@
        '(
          ))))
 
+(setf leszcz-constants:*prod* t)
+(setf leszcz-constants:*debug* nil)
+
 (apply #'sb-ext:save-lisp-and-die (append (list *bin-path*) *build-options*))

@@ -31,6 +31,7 @@
    *board-begin*
    *board-size*
    *debug*
+   *prod*
    +inf
    -inf
 
@@ -61,6 +62,7 @@
 (in-package :leszcz-constants)
 
 (defparameter *debug* nil)
+(defparameter *prod* nil)
 
 (defun file->vec (fname)
   (let* ((f (open fname :element-type '(unsigned-byte 8)))

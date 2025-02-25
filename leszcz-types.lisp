@@ -40,6 +40,10 @@
    game-time-black
    game-time-white
    game-time-begin-turn
+
+   ;; copiers
+   copy-piece
+   copy-game
    ))
 
 (in-package :leszcz-types)
@@ -145,6 +149,15 @@
 (defmethod game-in-progress-p ((g game))
   (eq (game-result g) 'in-progress))
 
+(defmethod game-turn ((g game))
+  (if (= (mod (the fixnum (game-ticker g)) 2) 0) 'white 'black))
+
+(defmethod game-turn-white-p ((g game))
+  (eq (game-turn g) 'white))
+
+(defmethod game-turn-black-p ((g game))
+  (eq (game-turn g) 'black))
+
 ;;; Printers
 
 (defmethod print-object ((p piece) s)
@@ -175,3 +188,36 @@
 
 (defun whitep (p) (eq (piece-color p) 'white))
 (defun blackp (p) (eq (piece-color p) 'black))
+
+(defun copy-piece (p)
+  (declare (type piece p))
+  (the piece (make-instance
+              'piece
+              :type (piece-type p)
+              :color (piece-color p)
+              :point (make-instance 'point
+                                    :x (point-x (piece-point p))
+                                    :y (point-y (piece-point p))))))
+
+(defun copy-game (g)
+  (declare (type game g))
+  (the game (make-instance
+             'game
+             :pieces (mapcar #'copy-piece (game-pieces g))
+             :move-history (game-move-history g)
+             :bcq-p (game-black-can-castle-queenside-p g)
+             :bck-p (game-black-can-castle-kingside-p g)
+             :wcq-p (game-white-can-castle-queenside-p g)
+             :wck-p (game-white-can-castle-kingside-p g)
+             :en-passant-target-square (game-en-passant-target-square g)
+             :ticker (game-ticker g)
+             :side (game-side g)
+             :halfmove-clock (game-halfmove-clock g)
+             :fullmove-clock (game-fullmove-clock g)
+             :result (game-result g)
+             :fb (game-fb g) ;; TODO: should i copy the thing here?
+             :possible-moves-cache nil
+             :points-cache nil
+             :connection (game-connection g)
+             :interactive-p (game-interactive-p g)
+       )))

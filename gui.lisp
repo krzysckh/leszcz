@@ -17,8 +17,10 @@
 
    text-button
    texture-button
+   input-box
    make-button
    make-button*
+   make-input-box
 
    switch-textures-to
    configure-menu
@@ -147,6 +149,37 @@
 (defparameter tb/color-text     '(#xde #xde #xde #xff))
 
 (defparameter tb/padx 32)
+
+(defparameter input-box/content-ht nil)
+
+(defun make-input-box (&rest _)
+  (values (lambda (&rest _) nil) nil nil))
+;; (defun input-box (id x* y* w* h* width height &key (font-size (round (- h* 2))) (text-draw-fn #'raylib:draw-text))
+;;   (declare (type function text-draw-fn))
+;;   (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
+;;   (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*)))
+;;                (full-rect (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
+;;                (at-point-p (point-in-rect-p (floatize (list (mouse-x) (mouse-y))) (floatize full-rect)))
+;;                (text
+;;     (if at-point-p
+;;         (set-mouse-cursor! +cursor-pointer+)
+;;         (set-mouse-cursor! +cursor-normal+))
+
+;;     (draw-rectangle (nth 0 full-rect)
+;;                     (nth 1 full-rect)
+;;                     (nth 2 full-rect)
+;;                     (nth 3 full-rect)
+;;                     (if at-point-p
+;;                         tb/color-bg-hover
+;;                         tb/color-bg))
+
+;;     (draw-rectangle-lines-2
+;;      (floatize (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
+;;      (float 2)
+;;      tb/color-margin)
+
+;;     (funcall text-draw-fn text (+ (nth 0 full-rect) (/ (- (nth 2 full-rect) text-width) 2)) y font-size tb/color-text)
+;;     (and at-point-p (mouse-pressed-p 0))))
 
 (defun text-button (x* y* w* h* text text-width &key (font-size (round (- h* 2))) (text-draw-fn #'raylib:draw-text))
   (declare (type function text-draw-fn))

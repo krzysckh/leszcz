@@ -18,15 +18,6 @@
 (defun hasp (el l)
   (member el l :test #'equal))
 
-(defmethod game-turn ((g game))
-  (if (= (mod (the fixnum (game-ticker g)) 2) 0) 'white 'black))
-
-(defmethod game-turn-white-p ((g game))
-  (eq (game-turn g) 'white))
-
-(defmethod game-turn-black-p ((g game))
-  (eq (game-turn g) 'black))
-
 ;; assuming a "vector" or "vector2" is a (list a b)
 (defun v2+ (a b)
   (list
@@ -1361,12 +1352,15 @@
   (format t "white-texture-alist: ~a~%" white-texture-alist)
   (format t "black-texture-alist: ~a~%" black-texture-alist))
 
+(defun maybe-initialize-window! ()
+  (when (not (window-ready-p))
+    (initialize-window!)))
+
 (defun game-main-loop (game side conn)
   (declare (type game game)
            (type symbol side))
 
-  (when (not (window-ready-p))
-    (initialize-window!))
+  (maybe-initialize-window!)
 
   (format t "before initialize~%")
   (initialize-game game side conn :no-overwrite-interactive t)
@@ -1555,13 +1549,21 @@
 (defun unshade-screen (screen n-frames &key flip)
   (shade--screen screen n-frames #'(lambda (x) x) :flip flip))
 
+(defun %host-game-menu ()
+  (error "TODO"))
+
+(defun %join-game-menu ()
+  (error "TODO"))
+
 (defun %main ()
-  (when (not (window-ready-p))
-    (initialize-window!))
+  (maybe-initialize-window!)
 
   (let ((continuation nil))
-    (let-values ((b1 w1 h1 (gui:make-button* "zagraj se na bota" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
-                 (b2 w2 h2 (gui:make-button* "dawaj 1v1 na zioma lokalnie" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+    (let-values ((b1 w1 h1 (gui:make-button* "zagraj se na bota"               :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
+                 (b2 w2 h2 (gui:make-button* "dawaj 1v1 na zioma lokalnie"     :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
+                 (b3 w3 h3 (gui:make-button* "zahostuj giere w sieci LAN"      :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
+                 (b4 w4 h4 (gui:make-button* "dolacz do gry w sieci LAN (p2p)" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
+                 (i1 (gui:make-input-box 'ip :width 128 :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
       (loop until (or (window-close-p) continuation) do
         (setf *current-screen* (screen->image)) ;; TODO: this sucks
         (begin-drawing)
@@ -1587,10 +1589,27 @@
                      (setf continuation #'%player-vs-bot)))
         (funcall b2
                  (- (/ *window-width* 2) (/ w2 2))
-                 (+ (/ *window-height* 2) 64 h1)
+                 (+ (/ *window-height* 2) 32 h1)
                  #'(lambda (_)
                      (declare (ignore _))
                      (setf continuation #'%local-player-vs-player)))
+        (funcall b3
+                 (- (/ *window-width* 2) (/ w3 2))
+                 (+ (/ *window-height* 2) 32 h1 32 h2)
+                 #'(lambda (_)
+                     (declare (ignore _))
+                     (setf continuation #'%host-game-menu)))
+        (funcall b4
+                 (- (/ *window-width* 2) (/ w4 2))
+                 (+ (/ *window-height* 2) 32 h1 32 h2 32 h3)
+                 #'(lambda (_)
+                     (declare (ignore _))
+                     (setf continuation #'%join-game-menu)))
+
+        (funcall i1
+                 (- (/ *window-width* 2) (/ w4 2))
+                 (+ (/ *window-height* 2) 32 h1 32 h2 32 h3))
+
         (end-drawing)
         (unless continuation
           (unload-image! *current-screen*))))
@@ -1604,9 +1623,36 @@
            ,@b)
   #+ecl`(progn ,@b))
 
+(defun show-exception-interactively-and-continue (e)
+  (let ((mesg (format nil "An unexcpected error has occurred: ~a~%" e))
+        (exit nil))
+    (maybe-initialize-window!)
+    (let-values ((b1 w1 h1 (gui:make-button* "Ok" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+      (loop while (not exit) do
+        (when (window-close-p)
+          (setf exit t))
+        (begin-drawing)
+        (clear-background +color-grayish+)
+        (draw-text mesg 10 10 24 +color-white+)
+        (funcall b1
+                 (/ *window-width* 2)
+                 (/ *window-height* 2)
+                 #'(lambda (_)
+                     (declare (ignore _))
+                     (setf exit t)))
+        (end-drawing)))
+    (cleanup-threads!)
+    (main)))
+
+(defmacro maybe-catch-all-exceptions (&body b)
+  `(if *prod*
+       (handler-case (progn ,@b)
+         (t (e)
+           (show-exception-interactively-and-continue e)))
+       (progn ,@b)))
+
 (defun main ()
-  (unwind-protect
-       (maybe-trap-floats (%main))
+  (unwind-protect (maybe-catch-all-exceptions (maybe-trap-floats (%main)))
     (cleanup-threads!)
     (when (window-ready-p)
       (close-window))))
