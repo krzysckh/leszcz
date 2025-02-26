@@ -24,6 +24,7 @@
 
    switch-textures-to
    configure-menu
+   input-box/content-ht
    ))
 
 (in-package :gui)
@@ -143,43 +144,61 @@
           (when (set-current-capturer! toplevel-console/capturer)
             (add-draw-hook 'toplevel-console))))))
 
-(defparameter tb/color-bg       '(#x11 #x11 #x11 #xff))
-(defparameter tb/color-bg-hover '(#x22 #x22 #x22 #xff))
-(defparameter tb/color-margin   '(#xe4 #xf6 #x14 #xff))
-(defparameter tb/color-text     '(#xde #xde #xde #xff))
+(defparameter tb/color-bg                '(#x11 #x11 #x11 #xff))
+(defparameter tb/color-bg-hover          '(#x22 #x22 #x22 #xff))
+(defparameter tb/color-margin            '(#xe4 #xf6 #x14 #xff))
+(defparameter tb/color-margin-unselected '(#xa4 #x51 #xee #xff))
+(defparameter tb/color-text              '(#xde #xde #xde #xff))
 
 (defparameter tb/padx 32)
 
-(defparameter input-box/content-ht nil)
+(defparameter input-box/content-ht (make-hash-table))
 
-(defun make-input-box (&rest _)
-  (values (lambda (&rest _) nil) nil nil))
-;; (defun input-box (id x* y* w* h* width height &key (font-size (round (- h* 2))) (text-draw-fn #'raylib:draw-text))
-;;   (declare (type function text-draw-fn))
-;;   (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
-;;   (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*)))
-;;                (full-rect (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
-;;                (at-point-p (point-in-rect-p (floatize (list (mouse-x) (mouse-y))) (floatize full-rect)))
-;;                (text
-;;     (if at-point-p
-;;         (set-mouse-cursor! +cursor-pointer+)
-;;         (set-mouse-cursor! +cursor-normal+))
+(defun make-input-box (id &key height width (font-data spleen-data) (font-hash raylib::*font*) (text-draw-fn #'draw-text))
+  (values
+   #'(lambda (x y &rest _)
+       (declare (ignore _))
+       (input-box id x y width height :text-draw-fn text-draw-fn))
+   width
+   height))
 
-;;     (draw-rectangle (nth 0 full-rect)
-;;                     (nth 1 full-rect)
-;;                     (nth 2 full-rect)
-;;                     (nth 3 full-rect)
-;;                     (if at-point-p
-;;                         tb/color-bg-hover
-;;                         tb/color-bg))
+(defun input-box (id x* y* w* h* &key (font-size (round (- h* 2))) (text-draw-fn #'raylib:draw-text))
+  (declare (type function text-draw-fn))
+  (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
+  (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*)))
+               (full-rect (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
+               (at-point-p (point-in-rect-p (floatize (list (mouse-x) (mouse-y))) (floatize full-rect))))
+    (draw-rectangle (nth 0 full-rect)
+                    (nth 1 full-rect)
+                    (nth 2 full-rect)
+                    (nth 3 full-rect)
+                    (if at-point-p
+                        tb/color-bg-hover
+                        tb/color-bg))
 
-;;     (draw-rectangle-lines-2
-;;      (floatize (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
-;;      (float 2)
-;;      tb/color-margin)
+    (draw-rectangle-lines-2
+     (floatize (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
+     (float 2)
+     (if at-point-p
+         tb/color-margin
+         tb/color-margin-unselected))
 
-;;     (funcall text-draw-fn text (+ (nth 0 full-rect) (/ (- (nth 2 full-rect) text-width) 2)) y font-size tb/color-text)
-;;     (and at-point-p (mouse-pressed-p 0))))
+    (when at-point-p
+      (set-mouse-cursor! +cursor-pointer+)
+      (when (key-pressed-p-1 259)
+        (setf (gethash id input-box/content-ht) (butlast (gethash id input-box/content-ht))))
+      (setf (gethash id input-box/content-ht) (append (gethash id input-box/content-ht)
+                                                      (remove-if
+                                                       #'(lambda (c) (> (char-int c) 255))
+                                                       (get-chars-pressed-1)))))
+
+    (funcall
+     text-draw-fn
+     (coerce (gethash id input-box/content-ht) 'string)
+     (+ (nth 0 full-rect) 2)
+     y
+     font-size
+     tb/color-text)))
 
 (defun text-button (x* y* w* h* text text-width &key (font-size (round (- h* 2))) (text-draw-fn #'raylib:draw-text))
   (declare (type function text-draw-fn))
@@ -202,7 +221,9 @@
     (draw-rectangle-lines-2
      (floatize (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
      (float 2)
-     tb/color-margin)
+     (if at-point-p
+         tb/color-margin
+         tb/color-margin-unselected))
 
     (funcall text-draw-fn text (+ (nth 0 full-rect) (/ (- (nth 2 full-rect) text-width) 2)) y font-size tb/color-text)
     (and at-point-p (mouse-pressed-p 0))))

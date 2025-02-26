@@ -40,6 +40,7 @@
    floatize
    get-char-pressed
    get-chars-pressed
+   get-chars-pressed-1
    key-pressed-p
    key-pressed-p-1
    key-down-p
@@ -312,7 +313,8 @@
   (key-down-p-1 (char-code ch)))
 
 ;; TODO: to można napisać ładniej
-(defun get-chars-pressed ()
+(defun get-chars-pressed-1 ()
+  (declare (values list))
   (let ((acc nil))
     (block break
       (loop do
@@ -320,7 +322,11 @@
           (if (= c 0)
               (return-from break)
               (setf acc (append acc (list (code-char c))))))))
-    (coerce acc '(vector character))))
+    acc))
+
+(defun get-chars-pressed ()
+  (declare (values (vector character)))
+  (coerce (get-chars-pressed-1) '(vector character)))
 
 (defparameter *font* (make-hash-table :test #'equal))
 (defparameter *alagard* (make-hash-table :test #'equal))

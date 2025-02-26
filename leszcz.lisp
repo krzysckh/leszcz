@@ -724,14 +724,16 @@
         (return-from b p)))
     (error "couldn't find a king of ~a in game ~a!" color game (game-move-history game))))
 
-(defun display-mate (game)
+(defun display-win (game)
   (declare (type game game))
-  (format t "Mate! ~a won!~%" (if (eq (game-turn game) 'white) 'black 'white)))
+  (format t "Koniec Gry! ~a~%" (if (eq (game-result game) (game-side game))
+                                   "Wygrana!"
+                                   "Przegrana... :(")))
 
 (defun display-draw (game &optional why)
   (declare (type game game)
            (ignore game))
-  (format t "Draw! (~a)~%" why))
+  (format t "Remis! (~a)~%" why))
 
 ;; game-possible-moves-cache: ((x y ((x' y') ...)))
 (defmethod game-update-possible-moves-cache ((g game))
@@ -762,18 +764,18 @@
       ((and (null c) (point-checked-p g (point-x (piece-point k)) (point-y (piece-point k))
                                       (if (whitep k) 'black 'white)))
        ;; mate
-       (setf (game-result g) 'checkmate)
+       (setf (game-result g) (if (eq (game-turn g) 'white) 'black 'white))
        (when call-display
-         (display-mate g)))
+         (display-win g)))
       ((null c)
        ;; stalemate
        (setf (game-result g) 'draw)
        (when call-display
-         (display-draw g "stalemate")))
+         (display-draw g "pat")))
       ((>= (game-halfmove-clock g) 50)
        (setf (game-result g) 'draw)
        (when call-display
-         (display-draw g "by 50 move rule")))
+         (display-draw g "zasada 50 ruchów")))
       (t
        (values)))))
 
@@ -1195,8 +1197,9 @@
 
 (defun maybe-draw-eval (&rest _)
   (declare (ignore _))
-  (when-let ((e *current-board-evaluation*))
-    (draw-text (format nil "opponent sees eval as: ~a" (float (/ e 100))) 10 10 21 +color-white+)))
+  (when *debug*
+    (when-let ((e *current-board-evaluation*))
+      (draw-text (format nil "opponent sees eval as: ~a" (float (/ e 100))) 10 10 21 +color-white+))))
 
 (defparameter +hlm/last-from+ '(120 120 20 100))
 (defparameter +hlm/last-to+   '(120 80  20 100))
@@ -1318,7 +1321,11 @@
 
 (defun game-surrender (g)
   (declare (type game g))
-  (error "TODO: game-surrender is not implemented yet."))
+  (setf (game-result g) (if (eq 'white (game-side g)) 'black 'white))
+  (when-let ((c (game-connection g)))
+    (net:write-packets c (net:make-client-packet 'gdata :gdata-surrender t)))
+  (when (game-interactive-p g)
+    (display-win g)))
 
 (defun game-propose-or-accept-draw (g)
   (declare (type game g))
@@ -1375,7 +1382,12 @@
          (when (fast::bit-set-p (aref p 0) 7 :type-size 8)
            (let ((eval-data (net:from-s16 (aref p 2) (aref p 3))))
              (format t "got EVAL data from opponent: ~a~%" eval-data)
-             (setf *current-board-evaluation* (if (eq (game-side game) 'white) (- eval-data) eval-data)))))
+             (setf *current-board-evaluation* (if (eq (game-side game) 'white) (- eval-data) eval-data))))
+         (when (fast::bit-set-p (aref p 0) 6 :type-size 8)
+           (format t "received SURRENDER~%")
+           (setf (game-result game) (game-side game))
+           (when (game-interactive-p game)
+             (display-win game))))
         (t (warn "Unhandled packet in maybe-receive-something ~a with type ~a" p (packet->name p)))))))
 
 (defun initialize-game (game side conn &key no-overwrite-interactive)
@@ -1408,9 +1420,7 @@
 
   (maybe-initialize-window!)
 
-  (format t "before initialize~%")
   (initialize-game game side conn :no-overwrite-interactive t)
-  (format t "after initialize~%")
 
   (setf gui::toplevel-console/log nil)
   (setf gui::toplevel-console/state "")
@@ -1455,20 +1465,23 @@
     (unload-image! *current-screen*)))
 
 ;; Become a p2p "Master" server, accept a connection and begin game
-(defun start-master-server ()
+(defun start-master-server (&key (port net:+port+))
   (net:start-server
    #'(lambda (fen side conn time)
        (let ((g (fen->game fen)))
          (initialize-game g side conn)
+         (setf (game-interactive-p g) t)
          (setf (game-time-white g) (* 60 time))
          (setf (game-time-black g) (* 60 time))
-         (game-main-loop g side conn)))))
+         (game-main-loop g side conn)))
+   :port port))
 
 (defun connect-to-master (&key (server "localhost") (username (symbol-name (gensym "username"))))
   (multiple-value-bind (fen side conn time)
       (connect-to-server server username)
     (format t "server declared ~a minutes per player~%" time)
     (let ((g (fen->game fen)))
+      (setf (game-interactive-p g) t)
       (setf (game-time-white g) (* time 60))
       (setf (game-time-black g) (* time 60))
       (setf (game-interactive-p g) t)
@@ -1512,7 +1525,7 @@
      #'(lambda (fen side conn time)
          (let ((game (fen->game fen)))
            (initialize-game game side conn)
-           (loop do
+           (loop while (eq (game-result game) 'in-progress) do
              (maybe-receive-something game)
              (maybe-move-bot game))))
      :time 15
@@ -1597,30 +1610,54 @@
 (defun unshade-screen (screen n-frames &key flip)
   (shade--screen screen n-frames #'(lambda (x) x) :flip flip))
 
+(defmacro with-continued-mainloop (cont &body b)
+  `(progn
+     (maybe-initialize-window!)
+     (let ((,cont nil))
+       (loop until (or (window-close-p) ,cont) do
+         (setf *current-screen* (screen->image)) ;; TODO: this sucks
+         (begin-drawing)
+
+         (clear-background +color-grayish+)
+         (animate-menu-bg)
+
+         (when (key-pressed-p-1 256)
+           (setf ,cont #'%main))
+
+         (progn
+           ,@b)
+
+         (end-drawing)
+         (unless ,cont 
+           (unload-image! *current-screen*)))
+       (when ,cont 
+         (shade-screen *current-screen* 10)
+         (funcall ,cont)))))
+
 (defun %host-game-menu ()
-  (error "TODO"))
+  (let-values ((portsym (gensym "hostport"))
+               (port pw ph (gui:make-input-box portsym :width 128 :height 24 :text-draw-fn #'draw-text-alagard))
+               (ok ow oh   (gui:make-button* "Ok" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+  (with-continued-mainloop cont
+    (draw-text-alagard-centered "Hostuj gre lokalnie" (/ *window-width* 2) (cdr *board-begin*) 80 '(#x33 #xda #xf5 #xff))
+    (draw-text-alagard "port: " 128 (+ (cdr *board-begin*) 150) 24 +color-white+)
+    (funcall port 256 (+ (cdr *board-begin*) 150) 24 +color-white+)
+    (funcall ok (/ *window-width* 2) (/ *window-height* 2) #'(lambda (&rest _)
+                                                               (declare (ignore _))
+                                                               (setf cont
+                                                                     #'(lambda ()
+                                                                         (start-master-server :port (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))))))))))
+
 
 (defun %join-game-menu ()
   (error "TODO"))
 
 ;; buttons = ((text . fn) ...)
 (defun %bmenu (title buttons)
-  (maybe-initialize-window!)
-
-  (let ((continuation nil)
-        (btns (loop for b in buttons
+  (let ((btns (loop for b in buttons
                     collect (let-values ((f w h (gui:make-button* (car b) :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
                               (list f w h (cdr b))))))
-    (loop until (or (window-close-p) continuation) do
-      (setf *current-screen* (screen->image)) ;; TODO: this sucks
-      (begin-drawing)
-
-      (clear-background +color-grayish+)
-      (animate-menu-bg)
-
-      (when (key-pressed-p-1 256)
-        (setf continuation #'%main))
-
+    (with-continued-mainloop continuation
       (draw-text-alagard-centered title (/ *window-width* 2) (cdr *board-begin*) 110 '(#x33 #xda #xf5 #xff))
       (let ((y (/ *window-height* 2)))
         (loop for b in btns do
@@ -1631,84 +1668,43 @@
            (lambda (&rest _)
              (declare (ignore _))
              (setf continuation (cadddr b))))
-          (incf y (+ (caddr b) 32))))
-
-      (end-drawing)
-      (unless continuation
-        (unload-image! *current-screen*)))
-    (when continuation
-      (shade-screen *current-screen* 10)
-      (funcall continuation))))
+          (incf y (+ (caddr b) 32)))))))
 
 (defun %main ()
-  (maybe-initialize-window!)
+  (let-values ((b1 w1 h1 (gui:make-button* "online"  :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
+               (b2 w2 h2 (gui:make-button* "offline" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+    (with-continued-mainloop continuation
+      (let ((r `(,(float (car *board-begin*)) ,(float (cdr *board-begin*)) 512.0 256.0))
+            (r2 `(,(+ (float (car *board-begin*)) 128) ,(+ (float (cdr *board-begin*)) 64) 256.0 128.0)))
+        (draw-texture
+         (cdr (assoc (if (point-in-rect-p (floatize (mouse-pos-1)) r2) 'leszcz2 'leszcz1) leszcz-logos-alist))
+         '(0.0 0.0 512.0 256.0)
+         r
+         (floatize (list 0 0))
+         (float 0)
+         +color-white+))
 
-  (let ((continuation nil))
-    (let-values ((b1 w1 h1 (gui:make-button* "online"  :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
-                 (b2 w2 h2 (gui:make-button* "offline" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
-                 (i1 (gui:make-input-box 'ip :width 128 :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
-      (loop until (or (window-close-p) continuation) do
-        (setf *current-screen* (screen->image)) ;; TODO: this sucks
-        (begin-drawing)
+      (funcall b1
+               (- (/ *window-width* 2) (/ w1 2))
+               (/ *window-height* 2)
+               #'(lambda (_)
+                   (declare (ignore _))
+                   (setf continuation #'(lambda ()
+                                          (%bmenu
+                                           "Online"
+                                           `(("zahostuj gre w LAN" . ,#'%host-game-menu)
+                                             ("dolacz do gry w LAN" . ,#'%join-game-menu)))))))
 
-        (clear-background +color-grayish+)
-        (animate-menu-bg)
-
-        (let ((r `(,(float (car *board-begin*)) ,(float (cdr *board-begin*)) 512.0 256.0))
-              (r2 `(,(+ (float (car *board-begin*)) 128) ,(+ (float (cdr *board-begin*)) 64) 256.0 128.0)))
-          (draw-texture
-           (cdr (assoc (if (point-in-rect-p (floatize (mouse-pos-1)) r2) 'leszcz2 'leszcz1) leszcz-logos-alist))
-           '(0.0 0.0 512.0 256.0)
-           r
-           (floatize (list 0 0))
-           (float 0)
-           +color-white+))
-
-        (funcall b1
-                 (- (/ *window-width* 2) (/ w1 2))
-                 (/ *window-height* 2)
-                 #'(lambda (_)
-                     (declare (ignore _))
-                     (setf continuation #'(lambda ()
-                                            (%bmenu
-                                             "Online"
-                                             `(("zahostuj gre w LAN" . ,#'%host-game-menu)
-                                               ("dolacz do gry w LAN" . ,#'%join-game-menu)))))))
-
-        (funcall b2
-                 (- (/ *window-width* 2) (/ w2 2))
-                 (+ (/ *window-height* 2) 32 h1)
-                 #'(lambda (_)
-                     (declare (ignore _))
-                     (setf continuation #'(lambda ()
-                                            (%bmenu
-                                             "Offline"
-                                             `(("zagraj se na bota" . ,#'%player-vs-bot)
-                                               ("lokalnie na zioma" . ,#'%local-player-vs-player)))))))
-
-        ;; (funcall b3
-        ;;          (- (/ *window-width* 2) (/ w3 2))
-        ;;          (+ (/ *window-height* 2) 32 h1 32 h2)
-        ;;          #'(lambda (_)
-        ;;              (declare (ignore _))
-        ;;              (setf continuation #'%host-game-menu)))
-        ;; (funcall b4
-        ;;          (- (/ *window-width* 2) (/ w4 2))
-        ;;          (+ (/ *window-height* 2) 32 h1 32 h2 32 h3)
-        ;;          #'(lambda (_)
-        ;;              (declare (ignore _))
-        ;;              (setf continuation #'%join-game-menu)))
-
-        ;; (funcall i1
-        ;;          (- (/ *window-width* 2) (/ w4 2))
-        ;;          (+ (/ *window-height* 2) 32 h1 32 h2 32 h3))
-
-        (end-drawing)
-        (unless continuation
-          (unload-image! *current-screen*))))
-    (when continuation
-      (shade-screen *current-screen* 10)
-      (funcall continuation))))
+      (funcall b2
+               (- (/ *window-width* 2) (/ w2 2))
+               (+ (/ *window-height* 2) 32 h1)
+               #'(lambda (_)
+                   (declare (ignore _))
+                   (setf continuation #'(lambda ()
+                                          (%bmenu
+                                           "Offline"
+                                           `(("zagraj se na bota" . ,#'%player-vs-bot)
+                                             ("lokalnie na zioma" . ,#'%local-player-vs-player))))))))))
 
 (defmacro maybe-trap-floats (&body b)
   #+sbcl`(sb-int:with-float-traps-masked ;; TODO: weird untraceable problems on ms windows
@@ -1717,25 +1713,19 @@
   #+ecl`(progn ,@b))
 
 (defun show-exception-interactively-and-continue (e)
-  (let ((mesg (format nil "An unexcpected error has occurred: ~a~%" e))
-        (exit nil))
-    (maybe-initialize-window!)
-    (let-values ((b1 w1 h1 (gui:make-button* "Ok" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
-      (loop while (not exit) do
-        (when (window-close-p)
-          (setf exit t))
-        (begin-drawing)
-        (clear-background +color-grayish+)
+    (let-values ((mesg (format nil "An unexcpected error has occurred: ~a~%" e))
+                 (exit nil)
+                 (b1 w1 h1 (gui:make-button* "Ok" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+      (with-continued-mainloop continuation
         (draw-text mesg 10 10 24 +color-white+)
         (funcall b1
                  (/ *window-width* 2)
                  (/ *window-height* 2)
                  #'(lambda (_)
                      (declare (ignore _))
-                     (setf exit t)))
-        (end-drawing)))
-    (cleanup-threads!)
-    (main)))
+                     (setf continuation #'(lambda ()
+                                            (cleanup-threads!)
+                                            (main))))))))
 
 (defmacro maybe-catch-all-exceptions (&body b)
   `(if *prod*

@@ -155,9 +155,9 @@
 (defun evaluate-position (game)
   (declare (type game game))
   (cond
-    ((eq (game-result game) 'checkmate)
+    ((or (eq (game-result game) 'white) (eq (game-result game) 'black))
      ;; (format t "pos evaluator found checkmate~%")
-     (let ((king (king-of game 'black)))
+     (let ((king (king-of game (game-side game))))
        (if (point-checked-p
             game
             (point-x (piece-point king))

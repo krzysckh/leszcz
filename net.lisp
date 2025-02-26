@@ -277,10 +277,10 @@
       (error "expected MOVE packet, got ~a instead" p)))
 
 ;; TODO: s/127.0.0.1/0.0.0.0/
-(defun start-p2p-server (game-handler &key fen (opponent-side 'white) (time 10))
-  (format t "[SERVER] starting p2p server @ port ~a~%" +port+)
+(defun start-p2p-server (game-handler &key fen (opponent-side 'white) (time 10) port)
+  (format t "[SERVER] starting p2p server @ port ~a~%" port)
   (with-socket-listener
-      (sock "127.0.0.1" +port+ :reuseaddress t :element-type '(unsigned-byte 8))
+      (sock "0.0.0.0" port :reuseaddress t :element-type '(unsigned-byte 8))
     ;; We're p2ping so accept 1 connection only
     (with-server-socket
         (conn (usocket:socket-accept sock))
@@ -302,10 +302,11 @@
                                     (fork nil)
                                     (fen +initial-fen+)
                                     (opponent-side 'white)
+                                    (port +port+)
                                     (time 10))
   (declare (ignore fork))
   (case mode
-    (p2p (start-p2p-server game-handler :fen fen :opponent-side opponent-side :time time))
+    (p2p (start-p2p-server game-handler :fen fen :opponent-side opponent-side :time time :port port))
     (t (error "Unknown server mode `~a'" mode))))
 
 (defmacro if* (f a b)
@@ -321,8 +322,8 @@
      conn
      time)))
 
-(defun connect-to-server (ip nickname)
-  (let ((conn (socket-connect ip +port+ :element-type '(unsigned-byte 8))))
+(defun connect-to-server (ip nickname &key (port +port+))
+  (let ((conn (socket-connect ip port :element-type '(unsigned-byte 8))))
     (let ((hii (receive-packet conn)))
       (format t "[CLIENT] got hii: ~a (~a)~%" hii (packet->name hii))
       (if* (logand (aref hii 0) #b00010000)
