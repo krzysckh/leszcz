@@ -7,6 +7,8 @@
    black-texture-alist
    leszcz-logos-alist
    logo-data-alist
+   icon-data-alist
+   icon-texture-alist
    spleen-data
    alagard-data
    +texture-size+
@@ -56,6 +58,9 @@
 
    leszcz1
    leszcz2
+
+   flag
+   draw
    ))
 
 
@@ -176,6 +181,12 @@
    (cons 'leszcz1 (file->vec "res/png/logo/leszcz1.png"))
    (cons 'leszcz2 (file->vec "res/png/logo/leszcz2.png"))))
 
+(defparameter icon-data-alist
+  (list
+   (cons 'flag (file->vec "res/png/flag.png"))
+   (cons 'draw (file->vec "res/png/draw.png"))
+   ))
+
 (defparameter white-texture-data-list white-texture-data-list-pixel)
 (defparameter black-texture-data-list black-texture-data-list-pixel)
 
@@ -223,6 +234,7 @@
 (defparameter white-texture-alist nil)
 (defparameter black-texture-alist nil)
 (defparameter leszcz-logos-alist  nil)
+(defparameter icon-texture-alist  nil)
 
 ;; do not use this
 (defparameter *current-game* nil)

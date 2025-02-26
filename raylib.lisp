@@ -18,6 +18,7 @@
    draw-rectangle-lines
    draw-rectangle-lines-2
    draw-rectangle
+   draw-rectangle-rounded
    clear-background
    draw-text
    draw-text-alagard
@@ -254,6 +255,12 @@
   (h :int)
   (c (:struct color)))
 
+(defcfun ("DrawRectangleRounded" draw-rectangle-rounded) :void
+  (rec (:struct rectangle))
+  (roundness :float)
+  (segments :int)
+  (color (:struct color)))
+
 (defcfun ("DrawRectangleLinesEx" draw-rectangle-lines-2) :void
   (rec (:struct rectangle))
   (thick :float)
@@ -448,6 +455,7 @@
   (setf white-texture-alist nil)
   (setf black-texture-alist nil)
   (setf leszcz-logos-alist nil)
+  (setf icon-texture-alist nil)
   (setf raylib:*font* (make-hash-table :test #'equal)) ;; reset *font* every texture reload
   (setf raylib:*alagard* (make-hash-table :test #'equal)) ;; reset *alagard* every texture reload
 
@@ -466,5 +474,6 @@
     (load* white-texture-data-list white-texture-alist)
     (load* black-texture-data-list black-texture-alist)
     (load* logo-data-alist leszcz-logos-alist)
+    (load* icon-data-alist icon-texture-alist)
 
     (format t "loaded textures~%")))

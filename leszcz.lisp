@@ -1289,6 +1289,51 @@
      '(#xde #xde #xde #xff))
     ))
 
+(defun draw-icon (iname x y w h)
+  (declare (type symbol iname)
+           (type number x y w h))
+
+  (let-values ((px py (mouse-pos))
+               (txt (cdr (assoc iname icon-texture-alist)))
+               (rec1 (floatize (list x y w h)))
+               (rec2 (floatize (list (- x 1) (- y 1) (+ w 2) (+ h 2))))
+               (mousep (point-in-rect-p (floatize (list px py)) rec2)))
+    (when mousep
+      (set-mouse-cursor! +cursor-pointer+))
+    (draw-rectangle-rounded
+     rec2
+     0.2
+     5
+     (if mousep
+         '(#x33 #x33 #x33 #xff)
+         '(#x1e #x1e #x1e #xff)))
+    (draw-texture
+     txt
+     '(0.0 0.0 32.0 32.0)
+     rec1
+     '(0.0 0.0) 0.0
+     +color-white+)
+
+    (and mousep (mouse-pressed-p 0))))
+
+(defun game-surrender (g)
+  (declare (type game g))
+  (error "TODO: game-surrender is not implemented yet."))
+
+(defun game-propose-or-accept-draw (g)
+  (declare (type game g))
+  (error "TODO: game-propose-or-accept-draw is not implemented yet."))
+
+(defun draw-game-control-buttons (g &rest _)
+  (declare (type game g)
+           (ignore _))
+  (let ((rec (list (car dmh/rect) (+ (cadr dmh/rect) (cadddr dmh/rect) dt/font-size) (caddr dmh/rect) 32)))
+    (when (draw-icon 'flag (car rec) (cadr rec) 32 32)
+      (game-surrender g))
+    (when (draw-icon 'draw (+ (car rec) 32 8) (cadr rec) 32 32)
+      (game-propose-or-accept-draw g))
+    ))
+
 (defun maybe-set-cursor (g &rest _)
   (declare (type game g)
            (ignore _))
@@ -1306,6 +1351,7 @@
 (add-draw-hook 'highlight-last-move)
 (add-draw-hook 'draw-move-history)
 (add-draw-hook 'draw-time)
+(add-draw-hook 'draw-game-control-buttons)
 (add-draw-hook 'maybe-set-cursor)
 
 (add-draw-hook 'gui:toplevel-console-listener)
@@ -1406,8 +1452,7 @@
       (funcall h game))
 
     (end-drawing)
-    (unload-image! *current-screen*))
-  (close-window))
+    (unload-image! *current-screen*)))
 
 ;; Become a p2p "Master" server, accept a connection and begin game
 (defun start-master-server ()
@@ -1495,7 +1540,10 @@
   (let ((g (fen->game "N7/8/4k3/8/8/PP6/KRp5/QB6 w - - 0 1")))
     (initialize-game g 'white nil)
     (setf (game-interactive-p g) t)
-    (game-main-loop g 'white nil)))
+    (setf *debug* t)
+    (game-main-loop g 'white nil)
+    (setf *debug* nil)
+    (close-window)))
 
 (defparameter menu/bg-light '(#x2e #x2e #x2e #xff))
 (defparameter menu/bg-dark  '(#x22 #x22 #x22 #xff))
@@ -1555,14 +1603,49 @@
 (defun %join-game-menu ()
   (error "TODO"))
 
+;; buttons = ((text . fn) ...)
+(defun %bmenu (title buttons)
+  (maybe-initialize-window!)
+
+  (let ((continuation nil)
+        (btns (loop for b in buttons
+                    collect (let-values ((f w h (gui:make-button* (car b) :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+                              (list f w h (cdr b))))))
+    (loop until (or (window-close-p) continuation) do
+      (setf *current-screen* (screen->image)) ;; TODO: this sucks
+      (begin-drawing)
+
+      (clear-background +color-grayish+)
+      (animate-menu-bg)
+
+      (when (key-pressed-p-1 256)
+        (setf continuation #'%main))
+
+      (draw-text-alagard-centered title (/ *window-width* 2) (cdr *board-begin*) 110 '(#x33 #xda #xf5 #xff))
+      (let ((y (/ *window-height* 2)))
+        (loop for b in btns do
+          (funcall
+           (the function (car b))
+           (- (/ *window-width* 2) (/ (cadr b) 2))
+           y
+           (lambda (&rest _)
+             (declare (ignore _))
+             (setf continuation (cadddr b))))
+          (incf y (+ (caddr b) 32))))
+
+      (end-drawing)
+      (unless continuation
+        (unload-image! *current-screen*)))
+    (when continuation
+      (shade-screen *current-screen* 10)
+      (funcall continuation))))
+
 (defun %main ()
   (maybe-initialize-window!)
 
   (let ((continuation nil))
-    (let-values ((b1 w1 h1 (gui:make-button* "zagraj se na bota"               :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
-                 (b2 w2 h2 (gui:make-button* "dawaj 1v1 na zioma lokalnie"     :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
-                 (b3 w3 h3 (gui:make-button* "zahostuj giere w sieci LAN"      :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
-                 (b4 w4 h4 (gui:make-button* "dolacz do gry w sieci LAN (p2p)" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
+    (let-values ((b1 w1 h1 (gui:make-button* "online"  :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
+                 (b2 w2 h2 (gui:make-button* "offline" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
                  (i1 (gui:make-input-box 'ip :width 128 :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
       (loop until (or (window-close-p) continuation) do
         (setf *current-screen* (screen->image)) ;; TODO: this sucks
@@ -1586,29 +1669,39 @@
                  (/ *window-height* 2)
                  #'(lambda (_)
                      (declare (ignore _))
-                     (setf continuation #'%player-vs-bot)))
+                     (setf continuation #'(lambda ()
+                                            (%bmenu
+                                             "Online"
+                                             `(("zahostuj gre w LAN" . ,#'%host-game-menu)
+                                               ("dolacz do gry w LAN" . ,#'%join-game-menu)))))))
+
         (funcall b2
                  (- (/ *window-width* 2) (/ w2 2))
                  (+ (/ *window-height* 2) 32 h1)
                  #'(lambda (_)
                      (declare (ignore _))
-                     (setf continuation #'%local-player-vs-player)))
-        (funcall b3
-                 (- (/ *window-width* 2) (/ w3 2))
-                 (+ (/ *window-height* 2) 32 h1 32 h2)
-                 #'(lambda (_)
-                     (declare (ignore _))
-                     (setf continuation #'%host-game-menu)))
-        (funcall b4
-                 (- (/ *window-width* 2) (/ w4 2))
-                 (+ (/ *window-height* 2) 32 h1 32 h2 32 h3)
-                 #'(lambda (_)
-                     (declare (ignore _))
-                     (setf continuation #'%join-game-menu)))
+                     (setf continuation #'(lambda ()
+                                            (%bmenu
+                                             "Offline"
+                                             `(("zagraj se na bota" . ,#'%player-vs-bot)
+                                               ("lokalnie na zioma" . ,#'%local-player-vs-player)))))))
 
-        (funcall i1
-                 (- (/ *window-width* 2) (/ w4 2))
-                 (+ (/ *window-height* 2) 32 h1 32 h2 32 h3))
+        ;; (funcall b3
+        ;;          (- (/ *window-width* 2) (/ w3 2))
+        ;;          (+ (/ *window-height* 2) 32 h1 32 h2)
+        ;;          #'(lambda (_)
+        ;;              (declare (ignore _))
+        ;;              (setf continuation #'%host-game-menu)))
+        ;; (funcall b4
+        ;;          (- (/ *window-width* 2) (/ w4 2))
+        ;;          (+ (/ *window-height* 2) 32 h1 32 h2 32 h3)
+        ;;          #'(lambda (_)
+        ;;              (declare (ignore _))
+        ;;              (setf continuation #'%join-game-menu)))
+
+        ;; (funcall i1
+        ;;          (- (/ *window-width* 2) (/ w4 2))
+        ;;          (+ (/ *window-height* 2) 32 h1 32 h2 32 h3))
 
         (end-drawing)
         (unless continuation
