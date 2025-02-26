@@ -1,8 +1,5 @@
 # Sieć
 
-
-(to jest pomysł, jeszcze nie napisałem ani linijki kodu :3)
-
 ## p2p
 
 1v1 po lokalnej sieci LUB sieci internet przy otwartych portach
@@ -14,6 +11,8 @@
 - profit
 
 ## przez sieć internet
+
+tego zupełnie nie napisałem
 
 - Komputer 1 łączy się z jakimśtam (pewnie moim) serwerem po adresie IP w sieci internet
 - Komputer 2 łączy się z tym samym serwerem

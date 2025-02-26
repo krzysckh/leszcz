@@ -57,40 +57,50 @@
     * [x] przyspiesz generacje ruchów
       * [x] może jest okej ale cache trzeba trzymać jako bitboard + eval + ???
     * [x] dodaj jakiś eval
+    * [ ] "zobrist hashing"
   * [ ] jeśli ci się będzie nudzić
     * [ ] [asdf:test-system](https://github.com/fukamachi/prove?tab=readme-ov-file#asdf-integration) zamiast make test
     * [ ] grep -R TODO
-* [ ] Gracz v Gracz na jednym komputerze
+* [x] Gracz v Gracz na jednym komputerze
   * [x] ej bo to juz w sumie jest
     * [x] kłamałem
       * [x] ja pierdole
-  * [ ] wybór w menu (parz preludija → menu)
+      * [x] już już jest
+  * [x] wybór w menu (parz preludija → menu)
   * [ ] timer
+    * [x] jest
+    * [ ] działa
   * [ ] edytor pozycji
   * [ ] import FEN
   * [ ] odtwarzanie gry
     * [ ] "Gra musi zapisywać historię ruchów w notacji algebraiczne"
       * [x] > Gra musi zapisywać historię ruchów
       * [ ] > w notacji algebraicznej
+        * [x] no większość ruchów
+        * [ ] no mniejszość ruchów
+      * [ ] i jeszcze zapisywać to potem może jakoś
   * [x] pokaż ostatni ruch zaznacz jakoś ładnie
   * [ ] efekty dźwiękowe
     * [ ] preferowalnie nie paszczowe
     * [ ] preferowalnie nie takie za które pójdę za kratki (CC0)
 * [ ] Gracz kontra komputer
   * [x] obejrzyj filmik sebusia i zerżnij pomysły (wszystkie)
-  * [x] nazwij algorytmy tak żeby brzmiało mądrze
-    * [x] "odcinanie chujowych ruchów" → minmax
-    * [x] "mądre obcinanie chujowych ruchów" = "jak ruch slabszy niz wczescniej widziany to juz nie licz dalej" → redukcja alpha-beta
-    * [x] "wybieranie ruchów z listy możliwych losowo zamiast liniowi" → wyszukiwanie w drzewie sposobem monte carlo
-      * [x] to nie działa
+    * [x] minmax
+    * [x] "jak ruch slabszy niz wczescniej widziany to juz nie licz dalej" = redukcja alpha-beta
+    * [x] wyszukiwanie w drzewie sposobem monte carlo
+      * [x] to nie działa pozdr
     * [x] preferencja figur dla danych pozycji (`*bonus-table*`)
   * [x] a tak w ogóle to silnik miej w osobnym wątku żeby mniej się narobić a więcej zarobić
-  * [x] bot nie może apgrejdować piona XDDD
-    * [ ] może ale nie może wybrać na co XDDDD
+  * [ ] bot nie może apgrejdować piona XDDD
+    * [x] może ale nie może wybrać na co XDDDD
 * [ ] Gracz v Gracz na różnych komputerach w LAN (p2p)
   * [x] działa
   * [ ] jakiekolwiek menu do hostowania/łączenia
+    * [x] do hostowania
+    * [ ] do łączenia
   * [ ] ładne menu do hostowania/łączenia
+    * [ ] do hostowania
+    * [ ] do łączenia
 * [ ] protokół
   * [ ] napisane docsy w całości
   * [ ] impl.
@@ -106,3 +116,4 @@
 * [ ] napisz resztę todo
   * [x] pozdro
   * [x] pozdro 2
+  * [x] pozdro 3

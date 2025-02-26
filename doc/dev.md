@@ -27,13 +27,51 @@ Jeśli repl nie jest czymś co Ci się podoba, można wykonać `make run` by aut
 
 :3
 
-## bitboardy [@bitb]
+## bitboardy 
+
+Na początku zimplementowałem szachy w sposób *mega* obiektowy, t.j. każdy `piece` ma swój `point`; gra ma *n* `pieces` i sprawiło to,
+że kod działał ale był wybitnie wolny. Dlatego jako łatkę na ten spory problem użyłem bitboardów [@bitb] (tak jakby).
+plansza w grze (`game`) jest odwzorowywana jako `fast-board` (2 x `fast-board-1`) - bitboardowa reprezentacja tego samego.
+Sporo generacji ruchów opiera się właśnie na bitboardach przez co udało się *koda* lekko przyspieszyć.
+
+Piony i króle cały czas generowane są przez wolniejszy ``algorytm" ale reszta figur sporo na tym zyskała.
+
+## bot
+
+Przy grze z botem (`bot.lisp`, `leszcz.lisp`) odpalany jest w nowym wątku serwer (domyślnie na porcie `net:+port+` = 3317) który przez
+[protokół](#protokół) dogaduje się z głównym (interaktywnym) wątkiem symulując grę p2p.
+
+## grafika
+
+Funkcje które przejmują mainloop (np. żeby pokazać jakieś menu wyboru / menu główne) często korzystają z makra `with-continued-mainloop [cont-sym &body b]`
+z funkcjami rysującymi i callbackami w &body. `cont-sym` to symbol ze zmienną która (np. po kliknięciu jakiegoś przycisku) będzie zawierać *kontynuację*, czyli funkcję,
+która będzie kontynuować wykonywanie programu (nie wiem jak dobrze CL radzi sobie z usuwaniem tail calli, ale jeśli zacznie to przeszkadzać to po prostu powiększę maksymalny rozmiar call stacku :3).
+
+np. funkcja która pokazuje interaktywnie błąd złapany przez najwyższy `handler-case` (gdy `*prod* != nil`) (na dzień 26/02/2025) wygląda następująco:
 
 ```lisp
-(setf (game-fb ...) (game->fast-board ...))
+(defun show-exception-interactively-and-continue (e)
+  (let-values ((mesg (format nil "An unexcpected error has occurred: ~a~%" e))
+               (btn w1 h1 (gui:make-button*
+                           "Ok"
+                           :height 24
+                           :font-data alagard-data
+                           :font-hash raylib::*alagard*
+                           :text-draw-fn #'draw-text-alagard)))
+    (with-continued-mainloop continuation
+      (draw-text mesg 10 10 24 +color-white+)
+      (funcall
+       btn
+       (/ *window-width* 2)
+       (/ *window-height* 2)
+       #'(lambda (_)
+           (declare (ignore _))
+           (setf continuation #'(lambda ()
+                                  (cleanup-threads!)
+                                  (main))))))))
 ```
 
-Generacja ruchów niektórych figur opiera się na bitplanszach `fast-board`, `fast-board-1` w pliku `fast.lisp`.
+jest to (moim zdaniem) dość konkretny i zwięzły sposób na napisanie funkcji z menu.
 
 ## cytaty
 

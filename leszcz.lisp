@@ -1713,19 +1713,24 @@
   #+ecl`(progn ,@b))
 
 (defun show-exception-interactively-and-continue (e)
-    (let-values ((mesg (format nil "An unexcpected error has occurred: ~a~%" e))
-                 (exit nil)
-                 (b1 w1 h1 (gui:make-button* "Ok" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
-      (with-continued-mainloop continuation
-        (draw-text mesg 10 10 24 +color-white+)
-        (funcall b1
-                 (/ *window-width* 2)
-                 (/ *window-height* 2)
-                 #'(lambda (_)
-                     (declare (ignore _))
-                     (setf continuation #'(lambda ()
-                                            (cleanup-threads!)
-                                            (main))))))))
+  (let-values ((mesg (format nil "An unexcpected error has occurred: ~a~%" e))
+               (btn w1 h1 (gui:make-button*
+                           "Ok"
+                           :height 24
+                           :font-data alagard-data
+                           :font-hash raylib::*alagard*
+                           :text-draw-fn #'draw-text-alagard)))
+    (with-continued-mainloop continuation
+      (draw-text mesg 10 10 24 +color-white+)
+      (funcall
+       btn
+       (/ *window-width* 2)
+       (/ *window-height* 2)
+       #'(lambda (_)
+           (declare (ignore _))
+           (setf continuation #'(lambda ()
+                                  (cleanup-threads!)
+                                  (main))))))))
 
 (defmacro maybe-catch-all-exceptions (&body b)
   `(if *prod*
