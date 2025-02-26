@@ -44,7 +44,7 @@
   (leszcz::initialize-game g 'white nil)
   (leszcz::game-check-for-mates g :call-display nil)
   (is (leszcz::possible-moves-for g (leszcz::king-of g 'white)) nil)
-  (is (game-result g) 'checkmate))
+  (is (game-result g) 'leszcz-constants:black))
 
 ;; (defun copy-game (g)
 ;;   (leszcz::fen->game (leszcz::game->fen g)))
