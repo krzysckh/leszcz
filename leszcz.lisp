@@ -755,6 +755,7 @@
 
 ;; by: checked by ('white or 'black)
 ;; TODO: macro-ize? manually unroll? look at disassembly?
+;; TODO: is this used anywhere?
 (defun old--point-checked-p (game px py by)
   (or
    (fast::bit-set-p
@@ -908,21 +909,8 @@
            'king
            ))))))
 
-(defun new--point-checked-p (game px py by)
-  (fb-point-checked-p (game-fb game) px py by))
-
-;;; new--
-;; real	0m7,302s
-;; user	0m7,078s
-;; sys	0m0,215s
-;;; old--
-;; real	0m6,407s
-;; user	0m6,182s
-;; sys	0m0,205s
-;;
-;; i'm keeping the new one bc of the bitboard usage
 (defun point-checked-p (game px py by)
-  (old--point-checked-p game px py by))
+  (fb-point-checked-p (game-fb game) px py by))
 
 (declaim #+sbcl(sb-ext:maybe-inline point-checked-p))
 
@@ -1525,6 +1513,22 @@
       (setf (game-interactive-p g) t)
       (game-main-loop g side conn))))
 
+;; (setf *trace-p* t)
+;; (eval-when (:compile-toplevel :load-toplevel :execute)
+;;   (push #P"/home/kpm/common-lisp/tracer/" asdf:*central-registry*)
+;;   (push (uiop:getcwd) asdf:*central-registry*)
+;;   (asdf:load-system :tracer))
+
+(defmacro maybe-trace (&body b)
+  `(progn ,@b))
+
+;; (defmacro maybe-trace (&body b)
+;;   (append
+;;    `(progn
+;;       (tracer:with-tracing ("LESZCZ" "NET" "GUI" "LESZCZ-CONSTANTS")
+;;         ,@b)
+;;       (tracer:save-report "leszcz-trace.json"))))
+
 (defun maybe-move-bot (game &rest r)
   (declare (type game game)
            (ignore r))
@@ -1534,7 +1538,9 @@
         (format t "bot chose position with eval ~a~%" eval)
         (when-let ((c (game-connection game)))
           (net:write-packets c (net:make-client-packet 'gdata :gdata-eval t :gdata-eval-data eval)))
-        (game-do-move game (piece-at-point game (car pp) (cadr pp)) mx my)))))
+        (maybe-trace ;; debugging
+          (game-do-move game (piece-at-point game (car pp) (cadr pp)) mx my))))))
+
       ;; (let* ((pre-ps (remove-if #'(lambda (p) (not (eq (piece-color p) (game-side game)))) (game-pieces game)))
       ;;        (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
       ;;   (when (> (length ps) 0)
@@ -1568,7 +1574,7 @@
                (maybe-receive-something game)
                (maybe-move-bot game))))
        :time time
-       :fen fen
+       :fen "r1b1k1nr/ppppbppp/2n1q3/8/1P1P4/6p1/PKPN3P/R1BQ1BNR w kq - 0 1"
        :port port
        :opponent-side color
        )))
