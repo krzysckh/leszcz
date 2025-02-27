@@ -154,7 +154,10 @@
 
 (defparameter input-box/content-ht (make-hash-table))
 
-(defun make-input-box (id &key height width (font-data spleen-data) (font-hash raylib::*font*) (text-draw-fn #'draw-text))
+(defun make-input-box (id &key height width (font-data spleen-data) (font-hash raylib::*font*) (text-draw-fn #'draw-text) (default-value nil))
+  (when default-value
+    (setf (gethash id input-box/content-ht) (coerce default-value 'list)))
+
   (values
    #'(lambda (x y &rest _)
        (declare (ignore _))
@@ -195,7 +198,7 @@
     (funcall
      text-draw-fn
      (coerce (gethash id input-box/content-ht) 'string)
-     (+ (nth 0 full-rect) 2)
+     (+ (nth 0 full-rect) 8)
      y
      font-size
      tb/color-text)))

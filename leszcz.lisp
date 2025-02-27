@@ -81,16 +81,6 @@
          (float 0)
          +color-white+)))))
 
-;; can be <1..8> * vec ("sliding")
-;; TODO: delete this
-(define-constant +rook-offsets+ '((1 0) (-1 0) (0 1) (0 -1)) :test #'equal)
-(define-constant +bishop-offsets+ '((1 1) (1 -1) (-1 1) (-1 -1)) :test #'equal)
-(define-constant +queen-offsets+ (append +rook-offsets+ +bishop-offsets+) :test #'equal)
-
-(define-constant +king-moves+ '((1 0) (-1 0) (0 1) (0 -1) (-1 -1) (1 -1) (-1 1) (1 1)) :test #'equal)
-(define-constant +knight-moves+ '((1 2) (1 -2) (-1 2) (-1 -2) (2 1) (-2 1) (2 -1) (-2 -1)) :test #'equal)
-;; not defining pawn moves because they "depend" :3
-
 (defun print-castle-rules (g)
   (declare (type game g))
   (format t "white: (Q: ~a, K: ~a), black: (Q: ~a, K: ~a)~%"
@@ -553,29 +543,6 @@
               (maybe-pushmove (- x 1) (+ y 1))
               (maybe-pushmove (+ x 1) (+ y 1)))))
       m)))
-
-;; (defun old--pre--possible-moves-for (game p)
-;;   (multiple-value-bind (x y)
-;;       (position-of p)
-;;     (case (piece-type p)
-;;       ;; TODO: ale swietny kod
-;;       ;; TODO: no troche spaghetti
-;;       ;; TODO: ja pierdole
-;;       ;; TODO: zastrzele sie
-;;       (pawn   (pre--possible-moves-for/pawn game p))
-;;       (knight (filter-own-pieces game p (enposition-moveset (list x y) +knight-moves+)))
-;;       (king   (append
-;;                (remove-if
-;;                 #'(lambda (pos)
-;;                     (point-checked-p game (car pos) (cadr pos) (if (whitep p) 'black 'white)))
-;;                 (filter-own-pieces game p (enposition-moveset (list x y) +king-moves+)))
-;;                ;; TODO: check for checks in maybe-castling-moves
-;;                (maybe-castling-moves game p)))
-;;       (rook   (generate-sliding-moves game p +rook-offsets+))
-;;       (bishop (generate-sliding-moves game p +bishop-offsets+))
-;;       (queen  (generate-sliding-moves game p +queen-offsets+))
-;;       (t
-;;        (warn "unreachable reached D:")))))
 
 (defun bb->move-lst (bb)
   (declare (type (unsigned-byte 64) bb)
@@ -1476,9 +1443,9 @@
          (game-main-loop g side conn)))
    :port port))
 
-(defun connect-to-master (&key (server "localhost") (username (symbol-name (gensym "username"))))
+(defun connect-to-master (&key (server "localhost") (port net:+port+) (username (symbol-name (gensym "username"))))
   (multiple-value-bind (fen side conn time)
-      (connect-to-server server username)
+      (connect-to-server server username :port port)
     (format t "server declared ~a minutes per player~%" time)
     (let ((g (fen->game fen)))
       (setf (game-interactive-p g) t)
@@ -1639,7 +1606,7 @@
                (port pw ph (gui:make-input-box portsym :width 128 :height 24 :text-draw-fn #'draw-text-alagard))
                (ok ow oh   (gui:make-button* "Ok" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
   (with-continued-mainloop cont
-    (draw-text-alagard-centered "Hostuj gre lokalnie" (/ *window-width* 2) (cdr *board-begin*) 80 '(#x33 #xda #xf5 #xff))
+    (draw-text-alagard-centered "Hostuj gre w sieci lokalnej" (/ *window-width* 2) (cdr *board-begin*) 80 '(#x33 #xda #xf5 #xff))
     (draw-text-alagard "port: " 128 (+ (cdr *board-begin*) 150) 24 +color-white+)
     (funcall port 256 (+ (cdr *board-begin*) 150) 24 +color-white+)
     (funcall ok (/ *window-width* 2) (/ *window-height* 2) #'(lambda (&rest _)
@@ -1648,9 +1615,28 @@
                                                                      #'(lambda ()
                                                                          (start-master-server :port (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))))))))))
 
-
 (defun %join-game-menu ()
-  (error "TODO"))
+  (let-values ((portsym (gensym "joinport"))
+               (ipsym (gensym "joinip"))
+               (port pw ph (gui:make-input-box portsym :width 128 :height 24 :text-draw-fn #'draw-text-alagard :default-value (format nil "~a" net:+port+)))
+               (ip   iw ih (gui:make-input-box ipsym   :width 128 :height 24 :text-draw-fn #'draw-text-alagard :default-value "localhost"))
+               (ok   ow oh (gui:make-button* "Ok" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+  (with-continued-mainloop cont
+    (draw-text-alagard-centered "Dolacz do gry w LAN" (/ *window-width* 2) (cdr *board-begin*) 80 '(#x33 #xda #xf5 #xff))
+    (draw-text-alagard "port: " 128 (+ (cdr *board-begin*) 150) 24 +color-white+)
+    (funcall port 256 (+ (cdr *board-begin*) 150) 24 +color-white+)
+    (draw-text-alagard "ip: " 128 (+ (cdr *board-begin*) 200) 24 +color-white+)
+    (funcall ip 256 (+ (cdr *board-begin*) 200) 24 +color-white+)
+    (funcall ok (/ *window-width* 2) (/ *window-height* 2) #'(lambda (&rest _)
+                                                               (declare (ignore _))
+                                                               (setf cont
+                                                                     #'(lambda ()
+                                                                         (connect-to-master
+                                                                          :server (coerce (gethash ipsym input-box/content-ht) 'string)
+                                                                          :port (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))))))))))
+
+
+
 
 ;; buttons = ((text . fn) ...)
 (defun %bmenu (title buttons)
@@ -1713,7 +1699,7 @@
   #+ecl`(progn ,@b))
 
 (defun show-exception-interactively-and-continue (e)
-  (let-values ((mesg (format nil "An unexcpected error has occurred: ~a~%" e))
+  (let-values ((mesg (format nil "An unexcpected error has occurred: ~%~a~%" e))
                (btn w1 h1 (gui:make-button*
                            "Ok"
                            :height 24

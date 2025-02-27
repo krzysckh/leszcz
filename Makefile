@@ -15,6 +15,7 @@ PANDOC_COMMON_FLAGS=--toc --toc-depth=2 --metadata title="leszcz" -f markdown+ra
 run:
 	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) \
 		--eval "(ql:quickload :leszcz)" \
+		--eval "(setf leszcz-constants:*prod* t)" \
 		--eval "(leszcz:main)" \
 		--quit
 build: all
