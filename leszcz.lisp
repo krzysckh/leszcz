@@ -1235,29 +1235,30 @@
 (defun draw-time (g &rest _)
   (declare (ignore _)
            (type game g))
-  (let* ((wleft (if (game-turn-white-p g)
-                    (- (game-time-white g) (- (local-time:timestamp-to-unix (local-time:now)) (game-time-begin-turn g)))
-                    (game-time-white g)))
-         (bleft (if (game-turn-black-p g)
-                    (- (game-time-black g) (- (local-time:timestamp-to-unix (local-time:now)) (game-time-begin-turn g)))
-                    (game-time-black g)))
-         (wm (floor (/ wleft 60)))
-         (ws (- wleft (* wm 60)))
-         (bm (floor (/ bleft 60)))
-         (bs (- bleft (* bm 60))))
-    (draw-text
-     (apply #'format (append '(nil "~a:~2,'0d") (if (eq 'white (game-side g)) `(,bm ,bs) `(,wm ,ws))))
-     (car dmh/rect)
-     (- (cadr dmh/rect) dt/font-size)
-     dt/font-size
-     '(#xde #xde #xde #xff))
-    (draw-text
-     (apply #'format (append '(nil "~a:~2,'0d") (if (eq 'white (game-side g)) `(,wm ,ws) `(,bm ,bs))))
-     (car dmh/rect)
-     (+ (cadr dmh/rect) (cadddr dmh/rect))
-     dt/font-size
-     '(#xde #xde #xde #xff))
-    ))
+  (when (eq (game-result g) 'in-progress)
+    (let* ((wleft (if (game-turn-white-p g)
+                      (- (game-time-white g) (- (local-time:timestamp-to-unix (local-time:now)) (game-time-begin-turn g)))
+                      (game-time-white g)))
+           (bleft (if (game-turn-black-p g)
+                      (- (game-time-black g) (- (local-time:timestamp-to-unix (local-time:now)) (game-time-begin-turn g)))
+                      (game-time-black g)))
+           (wm (floor (/ wleft 60)))
+           (ws (- wleft (* wm 60)))
+           (bm (floor (/ bleft 60)))
+           (bs (- bleft (* bm 60))))
+      (draw-text
+       (apply #'format (append '(nil "~a:~2,'0d") (if (eq 'white (game-side g)) `(,bm ,bs) `(,wm ,ws))))
+       (car dmh/rect)
+       (- (cadr dmh/rect) dt/font-size)
+       dt/font-size
+       '(#xde #xde #xde #xff))
+      (draw-text
+       (apply #'format (append '(nil "~a:~2,'0d") (if (eq 'white (game-side g)) `(,wm ,ws) `(,bm ,bs))))
+       (car dmh/rect)
+       (+ (cadr dmh/rect) (cadddr dmh/rect))
+       dt/font-size
+       '(#xde #xde #xde #xff))
+      )))
 
 (defun draw-icon (iname x y w h)
   (declare (type symbol iname)
@@ -1317,6 +1318,20 @@
                 (moves (possible-moves-for g piece)))
       (set-mouse-cursor! +cursor-pointer+))))
 
+(defun send-ping-to (g)
+  (declare (type game g))
+  (when-let ((c (game-connection g))
+             (payl (random #xffff)))
+    (setf (gethash payl *last-ping-ht*) (local-time:now))
+    (net:write-packets c (net:make-client-packet 'ping :ping-payload payl))))
+
+(defun maybe-send-ping (g &rest _)
+  (declare (type game g)
+           (ignore _))
+
+  (when (key-pressed-p #\P)
+    (send-ping-to g)))
+
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
@@ -1328,14 +1343,19 @@
 (add-draw-hook 'draw-game-control-buttons)
 (add-draw-hook 'maybe-set-cursor)
 
+(add-draw-hook 'maybe-send-ping)
+
 (add-draw-hook 'gui:toplevel-console-listener)
 
 ;; (defparameter test-fen "5qk1/1q6/8/8/8/8/8/R3K2R w KQ-- - 0 1")
 
+(defparameter *last-ping-ht* (make-hash-table)) ;; table of payl -> (local-time:now) of ping sent
+
 (defun maybe-receive-something (game)
   (declare (type game game))
 
-  (when (and (not (eq (game-side game) (game-turn game))) (game-connection game))
+  ;; (when (and (not (eq (game-side game) (game-turn game))) (game-connection game))
+  (when (game-connection game)
     (when-let ((p (maybe-receive-packet (game-connection game))))
       (format t "got packet with type ~a~%" (packet->name p))
       (packet-case p
@@ -1346,15 +1366,26 @@
                               :no-funcall upgrade-p
                               :upgrade-type upgrade-t)))
         (gdata
-         (when (fast::bit-set-p (aref p 0) 7 :type-size 8)
+         (when (fast:bit-set-p (aref p 0) 7 :type-size 8)
            (let ((eval-data (net:from-s16 (aref p 2) (aref p 3))))
              (format t "got EVAL data from opponent: ~a~%" eval-data)
              (setf *current-board-evaluation* (if (eq (game-side game) 'white) (- eval-data) eval-data))))
-         (when (fast::bit-set-p (aref p 0) 6 :type-size 8)
+         (when (fast:bit-set-p (aref p 0) 6 :type-size 8)
            (format t "received SURRENDER~%")
            (setf (game-result game) (game-side game))
            (when (game-interactive-p game)
              (display-win game))))
+        (ping
+         (let ((res-p (fast:bit-set-p (aref p 0) 3 :type-size 8))
+               (payl (logior (ash (aref p 2) 8) (aref p 3))))
+           (if res-p
+               (when-let ((stamp (gethash payl *last-ping-ht*)))
+                 (format t "Ping: ~,2f ms~%" (* (timestamp-difference (local-time:now) stamp) 1000)))
+               (net:write-packets
+                (game-connection game)
+                (net:make-client-packet 'ping
+                                        :ping-response-p t
+                                        :ping-payload payl)))))
         (t (warn "Unhandled packet in maybe-receive-something ~a with type ~a" p (packet->name p)))))))
 
 (defun initialize-game (game side conn &key no-overwrite-interactive)

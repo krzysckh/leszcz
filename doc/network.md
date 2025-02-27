@@ -163,6 +163,24 @@ i *nicklen* pakietami kontynuacyjnymi
   \caption{Pakiety rdata z danymi (nazwami) gier}
 \end{figure}
 
+* *ping*
+
+w każdym momencie komputer może przesłać pakiet `ping` z prośbą o odpowiedź.
+Odpowiedź ma ustawiony bit `odp` na 1 i powinna odesłać ten sam payload.
+
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{bytefield}[bitheight=\widthof{~odp~},boxformatting={\centering\small}]{32}
+    \bitheader{0-31} \\
+    \bitbox{3}{typ} & \bitbox{1}{} & \bitbox{12}{} & \bitbox{16}{payload} \\
+    \bitboxes{1}{100} & \bitbox{1}{\rotatebox{90}{odp}} \bitbox{12}{nieu.} & \bitbox{16}{payload} \\
+  \end{bytefield}
+  \rmfamily
+  \caption{Pakiet ping}
+\end{figure}
+
+
 * *move*
 
 \begin{figure}[H]

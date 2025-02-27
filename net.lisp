@@ -160,6 +160,7 @@
                                   (hii-nickname "")
                                   move-x1 move-y1 move-x2 move-y2 move-upgrade-type move-upgrade-p
                                   gdata-drawp gdata-draw-ok gdata-surrender gdata-eval (gdata-eval-data 0)
+                                  (ping-payload (random #xffff)) ping-response-p
                                   )
   (case type
     (hii (let ((nl-packets (string->rdata hii-nickname)))
@@ -194,6 +195,10 @@
                  0
                  (car eval)
                  (cadr eval)))))
+    (ping `(,(vector (logior +ping-type+ (ifz ping-response-p #b00010000))
+                     0
+                     (ash (logand #xff00 ping-payload) -8)
+                     (logand #xff ping-payload))))
     (t
      (error "unsupported type for make-client-packet ~a" type))))
 
