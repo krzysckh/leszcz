@@ -172,9 +172,9 @@
             (white-material (count-material-of (fb-white ff)))
             (black-material (count-material-of (fb-black ff)))
             (bonus (count-bonuses game)))
-       (+ (- white-material black-material)
-          bonus
-          )))))
+       (if (eq (game-side game) 'white)
+           (- black-material white-material bonus)
+           (+ (- white-material black-material) bonus))))))
 
 ;; TODO: unmake move !!!!!!!!!!!!
 ;; (defun fuck-copy-game (g)

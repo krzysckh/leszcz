@@ -122,20 +122,20 @@
                                   (gdata-fen leszcz-constants:+initial-fen+)
                                   (gdata-time 10)
                                   )
-  (declare (type (unsigned-byte 16) gdata-time))
-  (case type
-    (hii   (list (vector (logior +hii-type+ (if hii-p2p #b00010000 0)) 0 0 0)))
-    (gdata (let ((fen-rdata (string->rdata gdata-fen)))
-             (append
-              (list
-               (vector
-                (logior +gdata-type+ (if (eq gdata-color 'white) #b00010000 0))
-                (logand #xff00 gdata-time)
-                (logand #x00ff gdata-time)
-                (length fen-rdata)))
-              fen-rdata)))
-    (t
-     (error "unsupported type for make-server-packet ~a" type))))
+  (let ((gdata-time* (min 32767 gdata-time)))
+    (case type
+      (hii   (list (vector (logior +hii-type+ (if hii-p2p #b00010000 0)) 0 0 0)))
+      (gdata (let ((fen-rdata (string->rdata gdata-fen)))
+               (append
+                (list
+                 (vector
+                  (logior +gdata-type+ (if (eq gdata-color 'white) #b00010000 0))
+                  (ash (logand #xff00 gdata-time*) -8)
+                  (logand #x00ff gdata-time*)
+                  (length fen-rdata)))
+                fen-rdata)))
+      (t
+       (error "unsupported type for make-server-packet ~a" type)))))
 
 (defmacro ifz (a b)
   `(if ,a ,b 0))

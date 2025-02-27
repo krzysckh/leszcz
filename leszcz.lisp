@@ -1463,7 +1463,7 @@
     (unload-image! *current-screen*)))
 
 ;; Become a p2p "Master" server, accept a connection and begin game
-(defun start-master-server (&key (port net:+port+))
+(defun start-master-server (&key (port net:+port+) (side 'white) (time 10) (fen +initial-fen+))
   (net:start-server
    #'(lambda (fen side conn time)
        (let ((g (fen->game fen)))
@@ -1472,6 +1472,9 @@
          (setf (game-time-white g) (* 60 time))
          (setf (game-time-black g) (* 60 time))
          (game-main-loop g side conn)))
+   :fen fen
+   :opponent-side (if (eq side 'white) 'black 'white)
+   :time time
    :port port))
 
 (defun connect-to-master (&key (server "localhost") (port net:+port+) (username (symbol-name (gensym "username"))))
@@ -1518,16 +1521,20 @@
        (push thr *threads*))))
 
 (defun %player-vs-bot ()
-  (thread "bot thread (server)"
-    (net:start-server
-     #'(lambda (fen side conn time)
-         (let ((game (fen->game fen)))
-           (initialize-game game side conn)
-           (loop while (eq (game-result game) 'in-progress) do
-             (maybe-receive-something game)
-             (maybe-move-bot game))))
-     :time 15
-     ))
+  (let-values ((color port time fen (%game-options-menu "Zagraj na bota")))
+    (thread "bot thread (server)"
+      (net:start-server
+       #'(lambda (fen side conn time)
+           (let ((game (fen->game fen)))
+             (initialize-game game side conn)
+             (loop while (eq (game-result game) 'in-progress) do
+               (maybe-receive-something game)
+               (maybe-move-bot game))))
+       :time time
+       :fen fen
+       :port port
+       :opponent-side color
+       )))
      ;; :fen "8/8/4k3/8/8/PP6/KRp5/QB6 b - - 0 1" ;; <- TODO: upgrade to knight mates fen test
      ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
 
@@ -1632,19 +1639,62 @@
          (shade-screen *current-screen* 10)
          (funcall ,cont)))))
 
+(defmacro abtn (&rest r)
+  `(gui:make-button* ,@r :font-data alagard-data :font-hash raylib:*alagard* :text-draw-fn #'draw-text-alagard))
+
 (defun %host-game-menu ()
-  (let-values ((portsym (gensym "hostport"))
-               (port pw ph (gui:make-input-box portsym :width 128 :height 24 :text-draw-fn #'draw-text-alagard))
-               (ok ow oh   (gui:make-button* "Ok" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
-  (with-continued-mainloop cont
-    (draw-text-alagard-centered "Hostuj gre w sieci lokalnej" (/ *window-width* 2) (cdr *board-begin*) 80 '(#x33 #xda #xf5 #xff))
-    (draw-text-alagard "port: " 128 (+ (cdr *board-begin*) 150) 24 +color-white+)
-    (funcall port 256 (+ (cdr *board-begin*) 150) 24 +color-white+)
-    (funcall ok (/ *window-width* 2) (/ *window-height* 2) #'(lambda (&rest _)
-                                                               (declare (ignore _))
-                                                               (setf cont
-                                                                     #'(lambda ()
-                                                                         (start-master-server :port (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))))))))))
+  (let-values ((color port time fen (%game-options-menu "Hostuj w LAN")))
+    (start-master-server
+     :side color
+     :port port
+     :time time
+     :fen fen)))
+
+(defmacro upy (y-sym height pad &body b)
+  `(progn
+     ,@b
+     (incf ,y-sym (+ ,height ,pad))))
+
+;; options = ((text type val) ...)
+;;   where type is one of (input-box (choice-of exp ...))
+;; (defun %game-options-menu (title options)
+
+(defun %game-options-menu (title)
+  (declare (type string title))
+  (let ((current-color 'white))
+    (let-values ((portsym    (gensym "port"))
+                 (timesym    (gensym "time"))
+                 (port pw ph (gui:make-input-box portsym :width 128 :height 24 :text-draw-fn #'draw-text-alagard :default-value "3317"))
+                 (time tw th (gui:make-input-box timesym :width 128 :height 24 :text-draw-fn #'draw-text-alagard :default-value "15"))
+                 (ok ow oh   (abtn "Ok" :height 24))
+                 (bw w1 h1   (abtn "jasne" :height 24))
+                 (bb w2 h2   (abtn "ciemne" :height 24))
+                 )
+      (with-continued-mainloop cont
+        (let ((y (cdr *board-begin*)))
+          (upy y 150 0 (draw-text-alagard-centered title (/ *window-width* 2) y 80 '(#x33 #xda #xf5 #xff)))
+          (upy y 0 0   (draw-text-alagard "port " 128 y 24 +color-white+))
+          (upy y ph 30 (funcall port 230 y 150))
+
+          (upy y 0 0   (draw-text-alagard "kolor " 128 y 24 +color-white+))
+          (upy y h1 30 (funcall (if (eq current-color 'white) bw bb)
+                                230 y
+                                #'(lambda (&rest _)
+                                    (setf current-color (if (eq current-color 'white) 'black 'white)))))
+
+          (upy y 0 0   (draw-text-alagard "czas" 128 y 24 +color-white+))
+          (upy y th 30 (funcall time 230 y))
+
+          (funcall
+           ok (/ *window-width* 2) y
+           #'(lambda (&rest _) ;; can i cont like this? lmao
+               (return-from %game-options-menu
+                 (values
+                  current-color
+                  (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))
+                  (parse-integer (coerce (gethash timesym input-box/content-ht) 'string))
+                  +initial-fen+           ; TODO
+                  )))))))))
 
 (defun %join-game-menu ()
   (let-values ((portsym (gensym "joinport"))

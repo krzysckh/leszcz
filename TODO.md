@@ -1,5 +1,6 @@
 * [ ] ПРЕЛЮДИЯ
   * [ ] grafika
+    * [ ] nie pozwól ciągowi kontynuacji się zawalić, jeśli window-close-p po prostu zamknij program jakimś (exit) idk
     * [x] plansza typu dwukolorowa
     * [ ] ładniejsze figury
       * [x] ładniejsze figury I
