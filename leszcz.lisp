@@ -1688,13 +1688,15 @@
           (funcall
            ok (/ *window-width* 2) y
            #'(lambda (&rest _) ;; can i cont like this? lmao
-               (return-from %game-options-menu
-                 (values
-                  current-color
-                  (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))
-                  (parse-integer (coerce (gethash timesym input-box/content-ht) 'string))
-                  +initial-fen+           ; TODO
-                  )))))))))
+               (setf cont
+                     #'(lambda ()
+                         (return-from %game-options-menu
+                           (values
+                            current-color
+                            (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))
+                            (parse-integer (coerce (gethash timesym input-box/content-ht) 'string))
+                            +initial-fen+           ; TODO
+                            )))))))))))
 
 (defun %join-game-menu ()
   (let-values ((portsym (gensym "joinport"))
@@ -1737,41 +1739,69 @@
              (setf continuation (cadddr b))))
           (incf y (+ (caddr b) 32)))))))
 
-(defun %main ()
-  (let-values ((b1 w1 h1 (gui:make-button* "online"  :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard))
-               (b2 w2 h2 (gui:make-button* "offline" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+(defun %info-menu ()
+  (let-values ((scroll 0)
+               (w1 h1 (measure-text-1 (load-font spleen-data 18) license-text-1 18.0 0.0))
+               (w2 h2 (measure-text-1 (load-font spleen-data 18) license-text-2 18.0 0.0)))
     (with-continued-mainloop continuation
-      (let ((r `(,(float (car *board-begin*)) ,(float (cdr *board-begin*)) 512.0 256.0))
-            (r2 `(,(+ (float (car *board-begin*)) 128) ,(+ (float (cdr *board-begin*)) 64) 256.0 128.0)))
+      (let ((y (- (cdr *board-begin*) scroll)))
+        ;; (upy y 80 20 (draw-text-alagard-centered "Info" (/ *window-width* 2) y 80 '(#x33 #xda #xf5 #xff)))
+        (upy y 50 20 (draw-text-alagard-centered "Licencja" (/ *window-width* 2) y 50 '(#x33 #xda #xf5 #xff)))
+        (upy y h1 20 (draw-text license-text-1 (- (/ *window-width* 2) (/ w1 2)) y 18 +color-white+))
+        (upy y 50 20 (draw-text-alagard-centered "Licencje zewnetrzne" (/ *window-width* 2) y 50 '(#x33 #xda #xf5 #xff)))
+        (upy y 20 10 (draw-text-centered "(kompatybilne z powyższą)" (/ *window-width* 2) y 20 '(#x33 #xda #xf5 #xff)))
+        (upy y h2 20 (draw-text license-text-2 (- (/ *window-width* 2) (/ w2 2)) y 18 +color-white+))
+        (setf scroll (max 0 (+ scroll (* 20 (* -1 (scroll-delta))))))
+        ))))
+
+(defun %main ()
+  (let-values ((b1 w1 h1 (abtn "online"  :height 24))
+               (b2 w2 h2 (abtn "offline" :height 24))
+               (b3 w3 h3 (abtn "info"    :height 24)))
+    (let ((r `(,(float (car *board-begin*)) ,(float (cdr *board-begin*)) 512.0 256.0))
+          (r2 `(,(+ (float (car *board-begin*)) 128) ,(+ (float (cdr *board-begin*)) 64) 256.0 128.0)))
+    (with-continued-mainloop continuation
+      (let ((y (/ *window-height* 2)))
         (draw-texture
          (cdr (assoc (if (point-in-rect-p (floatize (mouse-pos-1)) r2) 'leszcz2 'leszcz1) leszcz-logos-alist))
          '(0.0 0.0 512.0 256.0)
          r
          (floatize (list 0 0))
          (float 0)
-         +color-white+))
+         +color-white+)
 
-      (funcall b1
-               (- (/ *window-width* 2) (/ w1 2))
-               (/ *window-height* 2)
-               #'(lambda (_)
-                   (declare (ignore _))
-                   (setf continuation #'(lambda ()
-                                          (%bmenu
-                                           "Online"
-                                           `(("zahostuj gre w LAN" . ,#'%host-game-menu)
-                                             ("dolacz do gry w LAN" . ,#'%join-game-menu)))))))
+      (upy y h1 32
+        (funcall
+         b1
+         (- (/ *window-width* 2) (/ w1 2)) y
+         #'(lambda (_)
+             (declare (ignore _))
+             (setf continuation #'(lambda ()
+                                    (%bmenu
+                                     "Online"
+                                     `(("zahostuj gre w LAN" . ,#'%host-game-menu)
+                                       ("dolacz do gry w LAN" . ,#'%join-game-menu))))))))
 
-      (funcall b2
-               (- (/ *window-width* 2) (/ w2 2))
-               (+ (/ *window-height* 2) 32 h1)
-               #'(lambda (_)
-                   (declare (ignore _))
-                   (setf continuation #'(lambda ()
-                                          (%bmenu
-                                           "Offline"
-                                           `(("zagraj se na bota" . ,#'%player-vs-bot)
-                                             ("lokalnie na zioma" . ,#'%local-player-vs-player))))))))))
+      (upy y h2 32
+        (funcall
+         b2
+         (- (/ *window-width* 2) (/ w2 2)) y
+         #'(lambda (_)
+             (declare (ignore _))
+             (setf continuation #'(lambda ()
+                                    (%bmenu
+                                     "Offline"
+                                     `(("zagraj se na bota" . ,#'%player-vs-bot)
+                                       ("lokalnie na zioma" . ,#'%local-player-vs-player))))))))
+
+      (upy y h3 32
+        (funcall
+         b3
+         (- (/ *window-width* 2) (/ w3 2)) y
+         #'(lambda (_)
+             (declare (ignore _))
+             (setf continuation #'%info-menu))))
+        )))))
 
 (defmacro maybe-trap-floats (&body b)
   #+sbcl`(sb-int:with-float-traps-masked ;; TODO: weird untraceable problems on ms windows

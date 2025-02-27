@@ -37,6 +37,9 @@
    +inf
    -inf
 
+   license-text-1
+   license-text-2
+
    ;; symbols
    pawn
    rook
@@ -76,6 +79,12 @@
     (read-sequence vec f)
     (close f)
     vec))
+
+(defparameter license-text-1
+  (map 'string #'code-char (file->vec "LICENSE")))
+
+(defparameter license-text-2
+  (map 'string #'code-char (file->vec "LICENSE.third-party")))
 
 (defparameter white-texture-data-list-sleek
   (list

@@ -23,6 +23,7 @@
    draw-text
    draw-text-alagard
    draw-text-alagard-centered
+   draw-text-centered
    draw-text-1
    draw-text-2
    draw-line
@@ -61,6 +62,8 @@
    end-texture-mode
    make-render-texture
    unload-render-texture!
+   scroll-delta
+   open-url!
 
    ;; Constants
    +TEXTURE-FILTER-POINT+
@@ -353,6 +356,11 @@
                (w h (measure-text-1 font text (float font-size) 0.0)))
     (draw-text-2 font text (floatize (list (- center-x (/ w 2)) y)) (float font-size) 0.0 color)))
 
+(defun draw-text-centered (text center-x y font-size color)
+  (let-values ((font (load-font spleen-data font-size))
+               (w h (measure-text-1 font text (float font-size) 0.0)))
+    (draw-text-2 font text (floatize (list (- center-x (/ w 2)) y)) (float font-size) 0.0 color)))
+
 (defcfun ("IsMouseButtonPressed" mouse-pressed-p) :bool
   (b :int))
 
@@ -361,6 +369,9 @@
 
 (defcfun ("SetExitKey" set-exit-key!) :void
   (k :int))
+
+(defcfun ("OpenURL" open-url!) :void
+  (s :string))
 
 (defcfun ("SetTextureFilter" set-texture-filter!) :void
   (texture (:struct texture))
@@ -385,6 +396,8 @@
   (h :int))
 
 (defcfun ("EndScissorMode" end-scissor-mode) :void)
+
+(defcfun ("GetMouseWheelMove" scroll-delta) :float)
 
 (defcfun ("MeasureTextEx" measure-text) (:struct vec2)
   (font (:struct font))
