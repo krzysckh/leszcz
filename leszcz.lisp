@@ -1332,6 +1332,42 @@
   (when (key-pressed-p #\P)
     (send-ping-to g)))
 
+(defparameter *arrow-color* '(#x50 #xd9 #x80 #xaa))
+
+(defmacro all* (as pred &rest values)
+  `(block _b
+     (loop for ,as in (list ,@values) do
+       (when (not ,pred)
+         (return-from _b nil)))
+     t))
+
+;; TODO: v- to
+(defun draw-arrow (x1 y1 x2 y2 &key (color *arrow-color*))
+  (let-values ((px1 py1 (coords->point x1 y1))
+               (px2 py2 (coords->point x2 y2)))
+    (when (all* v (and (>= v 0) (< v 8)) px1 py1 px2 py2)
+      (draw-line-1 (floatize (list (+ (car *board-begin*) (/ +piece-size+ 2) (* px1 +piece-size+))
+                                   (+ (cdr *board-begin*) (/ +piece-size+ 2) (* py1 +piece-size+))))
+                   (floatize (list (+ (car *board-begin*) (/ +piece-size+ 2) (* px2 +piece-size+))
+                                   (+ (cdr *board-begin*) (/ +piece-size+ 2) (* py2 +piece-size+))))
+                   10.0
+                   color)
+  )))
+
+(defparameter *arrow-last-point* nil)
+
+(defun maybe-draw-arrow (g &rest _)
+  (declare (type game g)
+           (ignore _))
+
+  (cond
+    ((mouse-pressed-p 1)
+     (setf *arrow-last-point* (cons (mouse-x) (mouse-y))))
+    ((mouse-down-p 1)
+     (draw-arrow (car *arrow-last-point*) (cdr *arrow-last-point*) (mouse-x) (mouse-y)))
+    (t
+     (setf *arrow-last-point* nil))))
+
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
@@ -1344,6 +1380,7 @@
 (add-draw-hook 'maybe-set-cursor)
 
 (add-draw-hook 'maybe-send-ping)
+;; (add-draw-hook 'maybe-draw-arrow)
 
 (add-draw-hook 'gui:toplevel-console-listener)
 

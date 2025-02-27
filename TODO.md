@@ -94,6 +94,13 @@
   * [x] a tak w ogóle to silnik miej w osobnym wątku żeby mniej się narobić a więcej zarobić
   * [ ] bot nie może apgrejdować piona XDDD
     * [x] może ale nie może wybrać na co XDDDD
+  * [ ] książka
+    * [x] impl formatu polyglot
+    * [ ] napisz na krz org artykuł o implementowaniu tego w cl bo to ciekawe
+          i źródło to http://hgm.nubati.net/book_format.html
+    * [x] jakakolwiek książka
+    * [ ] lepsza książka
+    * [ ] kilka książek z debiutami różnych GMów i możliwość wyboru
 * [ ] Gracz v Gracz na różnych komputerach w LAN (p2p)
   * [x] działa
   * [ ] jakiekolwiek menu do hostowania/łączenia

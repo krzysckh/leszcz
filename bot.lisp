@@ -53,74 +53,6 @@
     ;; TODO: king
               ))
 
-(defparameter *bot-random-state* (make-random-state))
-
-(defmacro enumerate (start &body elements)
-  (append
-   '(progn)
-   (loop for i from start
-         for e in elements
-         collect `(define-constant ,e ,i))))
-
-(defun rand64 ()
-  (the (unsigned-byte 64) (random (- (ash 1 64) 1) *bot-random-state*)))
-
-(defparameter *zobrist-table* nil)
-(defparameter *zobrist-black-to-move* nil)
-
-(defun initialize-zobrist ()
-  (setf *zobrist-table* (make-array '(64 13) :element-type '(unsigned-byte 64)))
-  (loop for i from 0 below 64 do
-    (loop for j from 0 below 12 do
-      (setf (the (unsigned-byte 64) (aref *zobrist-table* i j)) (rand64))))
-  (setf (the (unsigned-byte 64) *zobrist-black-to-move*) (rand64)))
-
-(defun hash-zobrist (game)
-  (declare (type game game)
-           (values (unsigned-byte 64)))
-  (let ((h (the (unsigned-byte 64) 0)))
-    (when (game-turn-black-p game)
-      (setf h (logxor h *zobrist-black-to-move*)))
-    (loop for p in (game-pieces game) do
-      (let ((i (+ (point-x (piece-point p)) (* 8 (point-y (piece-point p))))))
-        (setf h (logxor h (aref *zobrist-table* i (piece->zobrist-hash-enum p))))))
-    h))
-
-(defparameter *transposition-table* (make-hash-table :hash-function #'hash-zobrist))
-
-(enumerate 0
-  z-white-pawn
-  z-white-rook
-  z-white-bishop
-  z-white-knight
-  z-white-queen
-  z-white-king
-
-  z-black-pawn
-  z-black-rook
-  z-black-bishop
-  z-black-knight
-  z-black-queen
-  z-black-king)
-
-(defun piece->zobrist-hash-enum (p)
-  (declare (type piece p))
-  (if (whitep p)
-      (case (piece-type p)
-        (pawn   z-white-pawn)
-        (rook   z-white-rook)
-        (bishop z-white-bishop)
-        (knight z-white-knight)
-        (queen  z-white-queen)
-        (king   z-white-king))
-      (case (piece-type p)
-        (pawn   z-black-pawn)
-        (rook   z-black-rook)
-        (bishop z-black-bishop)
-        (knight z-black-knight)
-        (queen  z-black-queen)
-        (king   z-black-king))))
-
 (defparameter *rev-bonus-table*
   (mapcar #'(lambda (c) `(,(car c) . ,(reverse (cdr c)))) *bonus-table*))
 
@@ -233,5 +165,17 @@
 
   (leszcz::game-update-points-cache g)
   (leszcz::game-update-possible-moves-cache g)
+
+  (when-let* ((z (hash-zobrist g))
+              (move (gethash z *book*))
+              (p1 (car move))
+              (p2 (cadr move))
+              (p (piece-at-point g (car p1) (cadr p1)))
+              (f (move-possible-p p (car p2) (cadr p2) g)))
+
+    (format t "found move to ~a in *book*~%" (lst->pos p2))
+
+    (return-from game-search
+      (values 0 p1 (car p2) (cadr p2))))
 
   (game--search g depth -inf +inf))

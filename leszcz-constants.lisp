@@ -1,6 +1,7 @@
 (defpackage :leszcz-constants
   (:use :common-lisp :alexandria)
   (:export
+   file->vec
    white-texture-data-list
    black-texture-data-list
    white-texture-alist

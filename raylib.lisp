@@ -27,7 +27,10 @@
    draw-text-1
    draw-text-2
    draw-line
+   draw-line-1
+   draw-circle
    mouse-pressed-p
+   mouse-down-p
    mouse-released-p
    load-image-from-memory
    load-font-from-memory
@@ -284,6 +287,18 @@
   (y2 :int)
   (c (:struct color)))
 
+(defcfun ("DrawLineEx" draw-line-1) :void
+  (start (:struct vec2))
+  (end (:struct vec2))
+  (thick :float)
+  (color (:struct color)))
+
+(defcfun ("DrawCircle" draw-circle) :void
+  (x :int)
+  (y :int)
+  (rad :float)
+  (color (:struct color)))
+
 (defcfun ("ClearBackground" clear-background) :bool
   (color (:struct color)))
 
@@ -362,6 +377,9 @@
     (draw-text-2 font text (floatize (list (- center-x (/ w 2)) y)) (float font-size) 0.0 color)))
 
 (defcfun ("IsMouseButtonPressed" mouse-pressed-p) :bool
+  (b :int))
+
+(defcfun ("IsMouseButtonDown" mouse-down-p) :bool
   (b :int))
 
 (defcfun ("IsMouseButtonReleased" mouse-released-p) :bool

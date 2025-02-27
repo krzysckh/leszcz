@@ -15,6 +15,7 @@
    packet-case
    to-s16
    from-s16
+   ifz
 
    +hii-type+
    +gdata-type+
