@@ -1574,7 +1574,7 @@
                (maybe-receive-something game)
                (maybe-move-bot game))))
        :time time
-       :fen "r1b1k1nr/ppppbppp/2n1q3/8/1P1P4/6p1/PKPN3P/R1BQ1BNR w kq - 0 1"
+       :fen fen
        :port port
        :opponent-side color
        )))
