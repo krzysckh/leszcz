@@ -63,6 +63,8 @@
                +rook-value+
                +queen-value+))
 
+;; (defparameter *transposition-table* (make-hash-table :rehash-size 2 :size (ash 1 10)))
+
 (defun count-material-of (ff)
   (declare (type fast-board-1 ff))
 
@@ -117,7 +119,16 @@
 ;; https://www.chessprogramming.org/Negamax
 ;; https://www.chessprogramming.org/Alpha-Beta
 (defun game--search (g depth alpha beta)
-  ;; (format t "game--search w/ depth ~a (~a, ~a) of ticker ~a~%" depth alpha beta (game-ticker g))
+  ;; Add this hashing back when the engine is fast enough to be able to look further
+  ; (when-let* ((v (gethash (hash-zobrist g) *transposition-table*)))
+  ;   (format t "hit cache~%")
+  ;   (return-from game--search
+  ;     (values
+  ;      (cadr v)
+  ;      (car (caddr v))
+  ;      (cadr (caddr v))
+  ;      (caddr (caddr v)))))
+
   (if (= depth 0)
       (evaluate-position g)
       (let ((best-move nil)
@@ -153,11 +164,13 @@
                       (setf alpha score)))
                   (when (>= score beta)
                     (return-from brk)))))))
-        (values
-         best
-         (car best-move)
-         (cadr best-move)
-         (caddr best-move)))))
+        (progn
+          ;; (setf (gethash (hash-zobrist g) *transposition-table*) (list depth best best-move))
+          (values
+           best
+           (car best-move)
+           (cadr best-move)
+           (caddr best-move))))))
 
 (defun game-search (g depth)
   (declare (type game g)
