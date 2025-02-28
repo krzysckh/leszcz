@@ -1545,12 +1545,11 @@
 ;;         ,@b)
 ;;       (tracer:save-report "leszcz-trace.json"))))
 
-(defun maybe-move-bot (game &rest r)
-  (declare (type game game)
-           (ignore r))
+(defun maybe-move-bot (game &key (book *book*))
+  (declare (type game game))
   (when (game-in-progress-p game)
     (when (eq (game-turn game) (game-side game))
-      (let-values ((eval pp mx my (game-search game 3)))
+      (let-values ((eval pp mx my (game-search game 3 :book book)))
         (format t "bot chose position with eval ~a~%" eval)
         (when-let ((c (game-connection game)))
           (net:write-packets c (net:make-client-packet 'gdata :gdata-eval t :gdata-eval-data eval)))
@@ -1579,28 +1578,29 @@
      (prog1 thr
        (push thr *threads*))))
 
-(defun %player-vs-bot ()
-  (let-values ((color port time fen (%game-options-menu "Zagraj na bota")))
-    (thread "bot thread (server)"
-      (net:start-server
-       #'(lambda (fen side conn time)
-           (let ((game (fen->game fen)))
-             (initialize-game game side conn)
-             (loop while (eq (game-result game) 'in-progress) do
-               (maybe-receive-something game)
-               (maybe-move-bot game))))
-       :time time
-       :fen fen
-       :port port
-       :opponent-side color
-       )))
-     ;; :fen "8/8/4k3/8/8/PP6/KRp5/QB6 b - - 0 1" ;; <- TODO: upgrade to knight mates fen test
-     ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
+(defun make-player-vs-bot (book)
+  #'(lambda ()
+      (let-values ((color port time fen (%game-options-menu "Zagraj na bota")))
+        (thread "bot thread (server)"
+          (net:start-server
+           #'(lambda (fen side conn time)
+               (let ((game (fen->game fen)))
+                 (initialize-game game side conn)
+                 (loop while (eq (game-result game) 'in-progress) do
+                   (maybe-receive-something game)
+                   (maybe-move-bot game :book book))))
+           :time time
+           :fen fen
+           :port port
+           :opponent-side color
+           )))
+      ;; :fen "8/8/4k3/8/8/PP6/KRp5/QB6 b - - 0 1" ;; <- TODO: upgrade to knight mates fen test
+      ;; :fen "6k1/8/6b1/5q2/8/4n3/PP4PP/K6R w - - 0 1"))
 
-  (sleep 1)
-  (connect-to-master))
-  ;; (sb-thread:join-thread
-  ;;  (thread "user thread (client)" (connect-to-master))))
+      (sleep 1)
+      (connect-to-master)))
+;; (sb-thread:join-thread
+;;  (thread "user thread (client)" (connect-to-master))))
 
 (defun %local-player-vs-player ()
   (let ((game (fen->game +initial-fen+)))
@@ -1781,41 +1781,45 @@
                                                                           :server (coerce (gethash ipsym input-box/content-ht) 'string)
                                                                           :port (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))))))))))
 
-
-
+(defmacro with-scrolling (sym &body b)
+  `(progn
+     ,@b
+     (setf ,sym (max 0 (+ ,sym (* 20 (* -1 (scroll-delta))))))))
 
 ;; buttons = ((text . fn) ...)
 (defun %bmenu (title buttons)
   (let ((btns (loop for b in buttons
                     collect (let-values ((f w h (gui:make-button* (car b) :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
-                              (list f w h (cdr b))))))
+                              (list f w h (cdr b)))))
+        (scroll 0))
     (with-continued-mainloop continuation
-      (draw-text-alagard-centered title (/ *window-width* 2) (cdr *board-begin*) 110 '(#x33 #xda #xf5 #xff))
-      (let ((y (/ *window-height* 2)))
-        (loop for b in btns do
-          (funcall
-           (the function (car b))
-           (- (/ *window-width* 2) (/ (cadr b) 2))
-           y
-           (lambda (&rest _)
-             (declare (ignore _))
-             (setf continuation (cadddr b))))
-          (incf y (+ (caddr b) 32)))))))
+      (with-scrolling scroll
+        (let ((y (- (cdr *board-begin*) scroll)))
+          (upy y 110 20 (draw-text-alagard-centered title (/ *window-width* 2) y 110 '(#x33 #xda #xf5 #xff)))
+          (loop for b in btns do
+            (upy y (caddr b) 32
+              (funcall
+               (the function (car b))
+               (- (/ *window-width* 2) (/ (cadr b) 2))
+               y
+               (lambda (&rest _)
+                 (declare (ignore _))
+                 (setf continuation (cadddr b)))))))))))
 
 (defun %info-menu ()
   (let-values ((scroll 0)
                (w1 h1 (measure-text-1 (load-font spleen-data 18) license-text-1 18.0 0.0))
                (w2 h2 (measure-text-1 (load-font spleen-data 18) license-text-2 18.0 0.0)))
     (with-continued-mainloop continuation
-      (let ((y (- (cdr *board-begin*) scroll)))
-        ;; (upy y 80 20 (draw-text-alagard-centered "Info" (/ *window-width* 2) y 80 '(#x33 #xda #xf5 #xff)))
-        (upy y 50 20 (draw-text-alagard-centered "Licencja" (/ *window-width* 2) y 50 '(#x33 #xda #xf5 #xff)))
-        (upy y h1 20 (draw-text license-text-1 (- (/ *window-width* 2) (/ w1 2)) y 18 +color-white+))
-        (upy y 50 20 (draw-text-alagard-centered "Licencje zewnetrzne" (/ *window-width* 2) y 50 '(#x33 #xda #xf5 #xff)))
-        (upy y 20 10 (draw-text-centered "(kompatybilne z powyższą)" (/ *window-width* 2) y 20 '(#x33 #xda #xf5 #xff)))
-        (upy y h2 20 (draw-text license-text-2 (- (/ *window-width* 2) (/ w2 2)) y 18 +color-white+))
-        (setf scroll (max 0 (+ scroll (* 20 (* -1 (scroll-delta))))))
-        ))))
+      (with-scrolling scroll
+        (let ((y (- (cdr *board-begin*) scroll)))
+          ;; (upy y 80 20 (draw-text-alagard-centered "Info" (/ *window-width* 2) y 80 '(#x33 #xda #xf5 #xff)))
+          (upy y 50 20 (draw-text-alagard-centered "Licencja" (/ *window-width* 2) y 50 '(#x33 #xda #xf5 #xff)))
+          (upy y h1 20 (draw-text license-text-1 (- (/ *window-width* 2) (/ w1 2)) y 18 +color-white+))
+          (upy y 50 20 (draw-text-alagard-centered "Licencje zewnetrzne" (/ *window-width* 2) y 50 '(#x33 #xda #xf5 #xff)))
+          (upy y 20 10 (draw-text-centered "(kompatybilne z powyższą)" (/ *window-width* 2) y 20 '(#x33 #xda #xf5 #xff)))
+          (upy y h2 20 (draw-text license-text-2 (- (/ *window-width* 2) (/ w2 2)) y 18 +color-white+))
+          )))))
 
 (defun %main ()
   (let-values ((b1 w1 h1 (abtn "online"  :height 24))
@@ -1854,7 +1858,22 @@
              (setf continuation #'(lambda ()
                                     (%bmenu
                                      "Offline"
-                                     `(("zagraj se na bota" . ,#'%player-vs-bot)
+                                     `(("zagraj se na bota" . ,%player-vs-bot)
+                                       ("zagraj na arcymistra" . ,#'(lambda ()
+                                                                      (%bmenu
+                                                                       "Na arcymistrza"
+                                                                       `(("Garry Kasparov"       . ,%player-vs-kasparov)
+                                                                         ("Bobby Fischer"        . ,%player-vs-fischer)
+                                                                         ("Magnus Carlsen"       . ,%player-vs-carlsen)
+                                                                         ("Jose Raul Capablanca" . ,%player-vs-capablanca)
+                                                                         ("Hikaru Nakamura"      . ,%player-vs-nakamura)
+                                                                         ("Paul Morphy"          . ,%player-vs-morphy)
+                                                                         ("Viswanathan Anand"    . ,%player-vs-anand)
+                                                                         ("Mikhail Tal"          . ,%player-vs-tal)
+                                                                         ("Fabiano Caruana"      . ,%player-vs-caruana)
+                                                                         ("Mikhail Botvinnik"    . ,%player-vs-botvinnik)
+                                                                         ("Judit Polgar"         . ,%player-vs-polgarj)
+                                                                         ("Alexander Alekhine"   . ,%player-vs-alekhine)))))
                                        ("lokalnie na zioma" . ,#'%local-player-vs-player))))))))
 
       (upy y h3 32

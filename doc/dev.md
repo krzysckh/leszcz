@@ -46,6 +46,32 @@ Przy grze z botem (`bot.lisp`, `leszcz.lisp`) odpalany jest w nowym wątku serwe
 Zaimplementowałem reader dla plików w formacie [polyglot](http://hgm.nubati.net/book_format.html) (`polyglot.lisp`), przez co leszcz może korzystać
 ze sporej ilości standardowych książek. Domyślnie używam 11-letniej [książki](https://github.com/michaeldv/donna_opening_books/) silnika komodo używanej też w silniku donna.
 
+## książka debiutów arcymistrzów
+
+Żadnych polyglotowych książek debiutów arcymistrzów nie znalazłem, więc musiałem zrobić swoje.
+Nie trzymam ich w formacie polyglot, tylko tym co wypluwa `cl-store`, żeby móc trzymać więcej informacji niż tylko najlepszy ruch.
+Pozwala to na trzymanie m.in danych o grze z której pochodzi ruch, czy **N** ruchów zamiast jednego, co wprowadza wariację w tym jak grają boty arcymistrzów.
+
+Raz przez to, że nie ustawiłem ziarna generatora losowych liczb wpadłem na buga przez którego na `1.d4` bot Hikaru zawsze odpowiadał `h6` i po kontynuacji `2.c4` odpowiadał `g6`.
+Po przeglądnięciu bazy danych dokopałem się, że była to gra z arcymistrzem Danielem Naroditskym (!), którą zremisował (!!).
+
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \newchessgame
+  \hidemoves{1.d4 h6 2.c4 g6}
+  \chessboard[showmover=false]
+  \rmfamily
+\end{figure}
+
+Wracając do info technicznego, troche faux pas z trzymaniem dużych plików w gicie no ale generowanie tych plików .dat jest
+trochę powolne. Mógłbym zoptymalizować mój reader pgnów, ale to wymagałoby czasu, a cache-owanie plików binarnych jest darmowe :P.
+
+Nie wiem też czemu tak wybitnie powiększyło to rozmiar budowanego .exe dla windowsa...?
+Sumaryczny rozmiar tych baz `.dat` to tylko `18M` a powiększa finalny plik wykonywalny o `210M`! No cóż, może to kiedyś naprawię :/.
+
+Ecl jest w stanie zbudować 15-megabajtowy plik wykonywalny, ale na 100% ładuje coś podczas wykonywania...
+
 ## grafika
 
 Funkcje które przejmują mainloop (np. żeby pokazać jakieś menu wyboru / menu główne) często korzystają z makra `with-continued-mainloop [cont-sym &body b]`
@@ -80,5 +106,4 @@ jest to (moim zdaniem) dość konkretny i zwięzły sposób na napisanie funkcji
 \epigraph{``\emoji{cross-mark} 97818 is expected to be 97862"}{--- t/test.lisp}
 \epigraph{``safe piece type of point (7 7) is NIL in contrary to the unsafe one which is ROOK"}{--- \textup{maybe-castling-moves}, leszcz.lisp}
 \epigraph{``King couldn't be found in \#S(FAST-BOARD-1 ...)"}{--- fb1-king-of, fast.lisp}
-
 

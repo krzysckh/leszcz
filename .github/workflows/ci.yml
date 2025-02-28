@@ -17,7 +17,7 @@ jobs:
             texlive-base texlive-binaries texlive-fonts-recommended \
             texlive-latex-base texlive-latex-extra texlive-latex-recommended \
             texlive-luatex texlive-pictures texlive-plain-generic \
-            texlive-xetex texlive-science
+            texlive-xetex texlive-science texlive-games
       - name: download fonts
         run: |
           sudo mkdir -p /usr/share/fonts

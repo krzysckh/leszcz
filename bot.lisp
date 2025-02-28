@@ -172,7 +172,9 @@
            (cadr best-move)
            (caddr best-move))))))
 
-(defun game-search (g depth)
+(setf *random-state* (make-random-state t))
+
+(defun game-search (g depth &key (book *book*))
   (declare (type game g)
            (type fixnum depth))
 
@@ -180,14 +182,14 @@
   (leszcz::game-update-possible-moves-cache g)
 
   (when-let* ((z (hash-zobrist g))
-              (moves (gethash z *book*))
+              (moves (gethash z book))
               (move (random-elt moves))
               (p1 (car move))
               (p2 (cadr move))
               (p (piece-at-point g (car p1) (cadr p1)))
               (f (move-possible-p p (car p2) (cadr p2) g)))
 
-    (format t "found move to ~a in *book*~%" (lst->pos p2))
+    (format t "found move to ~a in book~%" (lst->pos p2))
 
     (return-from game-search
       (values 0 p1 (car p2) (cadr p2))))

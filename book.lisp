@@ -2,6 +2,7 @@
 
 (in-package :leszcz)
 
+;; default book from komodo
 (defparameter *book-data* (file->vec "res/book/komodo.bin"))
 (defparameter *book* (make-hash-table))
 
@@ -470,13 +471,15 @@
               (format t "left: ~a~%" n)
               (decf n))
             (setf data rest))
-        (t () ; something i didn't handle
-              ; but there are so many games i can just skip it lmao
-          (loop while (and (not (when (> (length (car data)) 0)
-                                  (equal (aref (car data) 0) "[")))
-                           data)
-                do
-                   (setf data (cdr data))))))
+        (t (e) ; something i didn't handle
+               ; but there are so many games i can just skip it lmao
+          (warn "caught: ~a" e)
+          (dotimes (_ 2)
+            (loop while (and (not (equal (car data) "")) data)
+                  do
+                     (setf data (cdr data)))
+            (setf data (cdr data)))
+          (format t "after error beginning of data is ~a~%" (car data)))))
     ht))
 
 (defun load-gm-ht (gm &key flush)
@@ -490,4 +493,29 @@
           (cl-store:store ht dat)
           ht))))
 
-(defparameter *kasparov-book* (load-gm-ht "Kasparov"))
+(defparameter *kasparov-book*   (load-gm-ht "Kasparov"))
+(defparameter *alekhine-book*   (load-gm-ht "Alekhine"))
+(defparameter *anand-book*      (load-gm-ht "Anand"))
+(defparameter *botvinnik-book*  (load-gm-ht "Botvinnik"))
+(defparameter *capablanca-book* (load-gm-ht "Capablanca"))
+(defparameter *carlsen-book*    (load-gm-ht "Carlsen"))
+(defparameter *caruana-book*    (load-gm-ht "Caruana"))
+(defparameter *fischer-book*    (load-gm-ht "Fischer"))
+(defparameter *morphy-book*     (load-gm-ht "Morphy"))
+(defparameter *nakamura-book*   (load-gm-ht "Nakamura"))
+(defparameter *polgarj-book*    (load-gm-ht "PolgarJ"))
+(defparameter *tal-book*        (load-gm-ht "Tal"))
+
+(defparameter %player-vs-bot        (make-player-vs-bot *book*))
+(defparameter %player-vs-kasparov   (make-player-vs-bot *kasparov-book*))
+(defparameter %player-vs-alekhine   (make-player-vs-bot *alekhine-book*))
+(defparameter %player-vs-anand      (make-player-vs-bot *anand-book*))
+(defparameter %player-vs-botvinnik  (make-player-vs-bot *botvinnik-book*))
+(defparameter %player-vs-capablanca (make-player-vs-bot *capablanca-book*))
+(defparameter %player-vs-carlsen    (make-player-vs-bot *carlsen-book*))
+(defparameter %player-vs-caruana    (make-player-vs-bot *caruana-book*))
+(defparameter %player-vs-fischer    (make-player-vs-bot *fischer-book*))
+(defparameter %player-vs-morphy     (make-player-vs-bot *morphy-book*))
+(defparameter %player-vs-nakamura   (make-player-vs-bot *nakamura-book*))
+(defparameter %player-vs-polgarj    (make-player-vs-bot *polgarj-book*))
+(defparameter %player-vs-tal        (make-player-vs-bot *tal-book*))

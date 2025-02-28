@@ -1,8 +1,7 @@
 ;; fallback if ql not loaded by userinit
 (load (truename #P"~/quicklisp/setup.lisp"))
-(require 'uiop)
 
-(declaim (optimize (speed 3) (debug 0) (safety 0)))
+(declaim (optimize (speed 3) (space 3) (debug 0) (safety 0)))
 
 (push (pathname (uiop:getcwd)) ql:*local-project-directories*)
 

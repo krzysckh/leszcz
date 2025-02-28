@@ -21,8 +21,8 @@ run:
 build: all
 all: *.lisp
 	mkdir -p build
-	# rm -f *.fasl
-	# $(SBCL) --load build.lisp --quit
+	rm -f *.fasl
+	$(SBCL) --load build.lisp --quit
 	rm -f *.fasl
 	wine sbcl.exe --core sbcl.core --load build.lisp --quit
 test:
@@ -43,6 +43,7 @@ test-p2p:
 docs:
 	( for d in $(DOCS); do printf '\n\n\\newpage\n\n'; cat $$d ; done ; printf '\n\n\\newpage\n\n# Odniesienia' ) \
 		| pandoc $(PANDOC_COMMON_FLAGS) $(PANDOC_PDF_FLAGS) -t pdf -o doc/leszcz.pdf
+
 	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) \
 		--eval "(load (truename #P\"~/quicklisp/setup.lisp\"))" \
 		--eval "(ql:quickload \"net.didierverna.declt\")" \
