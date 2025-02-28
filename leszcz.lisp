@@ -1234,6 +1234,19 @@
            (ws (- wleft (* wm 60)))
            (bm (floor (/ bleft 60)))
            (bs (- bleft (* bm 60))))
+
+      (when (<= wleft 0)
+        (setf (game-result g) 'black)
+        (when (eq (game-side g) 'white)
+          (game-resign g))
+        (display-win g))
+
+      (when (<= bleft 0)
+        (setf (game-result g) 'white)
+        (when (eq (game-side g) 'black)
+          (game-resign g))
+        (display-win g))
+
       (draw-text
        (apply #'format (append '(nil "~a:~2,'0d") (if (eq 'white (game-side g)) `(,bm ,bs) `(,wm ,ws))))
        (car dmh/rect)
@@ -1282,6 +1295,9 @@
     (net:write-packets c (net:make-client-packet 'gdata :gdata-surrender t)))
   (when (game-interactive-p g)
     (display-win g)))
+
+(defun game-resign (g)
+  (game-surrender g))
 
 (defun game-propose-or-accept-draw (g)
   (declare (type game g))

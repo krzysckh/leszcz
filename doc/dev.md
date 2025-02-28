@@ -41,6 +41,11 @@ Piony i króle cały czas generowane są przez wolniejszy ``algorytm" ale reszta
 Przy grze z botem (`bot.lisp`, `leszcz.lisp`) odpalany jest w nowym wątku serwer (domyślnie na porcie `net:+port+` = 3317) który przez
 [protokół](#protokół) dogaduje się z głównym (interaktywnym) wątkiem symulując grę p2p.
 
+## książka debiutów
+
+Zaimplementowałem reader dla plików w formacie [polyglot](http://hgm.nubati.net/book_format.html) (`polyglot.lisp`), przez co leszcz może korzystać
+ze sporej ilości standardowych książek. Domyślnie używam 11-letniej [książki](https://github.com/michaeldv/donna_opening_books/) silnika komodo używanej też w silniku donna.
+
 ## grafika
 
 Funkcje które przejmują mainloop (np. żeby pokazać jakieś menu wyboru / menu główne) często korzystają z makra `with-continued-mainloop [cont-sym &body b]`
