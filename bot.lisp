@@ -180,7 +180,8 @@
   (leszcz::game-update-possible-moves-cache g)
 
   (when-let* ((z (hash-zobrist g))
-              (move (gethash z *book*))
+              (moves (gethash z *book*))
+              (move (random-elt moves))
               (p1 (car move))
               (p2 (cadr move))
               (p (piece-at-point g (car p1) (cadr p1)))

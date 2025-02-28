@@ -1,3 +1,5 @@
+;;; book.lisp --- routines for decoding polyglot blobs and pgn game lists
+
 (in-package :leszcz)
 
 (defparameter *book-data* (file->vec "res/book/komodo.bin"))
@@ -26,7 +28,7 @@
                   (2 'bishop)
                   (3 'rook)
                   (4 'queen))))
-    (setf (gethash key *book*) (list (list x1 y1) (list x2 y2) promo))))
+    (setf (gethash key *book*) (list (list (list x1 y1) (list x2 y2) promo)))))
 
 (defparameter *random-table*
   #(#x9D39247E33776D41 #x2AF7398005AAA5C7 #x44DB015024623547 #x9C15F73E62A76AE2
@@ -289,3 +291,203 @@
     (loop for p in (game-pieces game) do
       (setf h (logxor h (aref *random-table* (+ (* 64 (piece->zobrist-hash-enum p)) (* 8 (- 7 (point-y (piece-point p)))) (point-x (piece-point p)))))))
     h))
+
+;;; pgn reader
+
+(defstruct (pgn (:conc-name pgn-))
+  (event            "" :type string)
+  (site             "" :type string)
+  (date             "" :type string)
+  (round            "" :type string)
+  (white            "" :type string)
+  (black            "" :type string)
+  (result           "" :type string)
+  (additional-tags nil :type list)
+  (moves           nil :type list))
+
+(defmacro cnump (c)
+  (let ((s (gensym)))
+    `(let ((,s ,c))
+       (and (>= (char-int ,s) (char-int #\0))
+            (<= (char-int ,s) (char-int #\9))))))
+
+(defmacro cchrp (c)
+  (let ((s (gensym)))
+    `(let ((,s ,c))
+       (and (>= (char-int ,s) (char-int #\a))
+            (<= (char-int ,s) (char-int #\h))))))
+
+;; unsafe
+(defmacro s-begins-with (s with)
+  `(if (> (length ,with) (length ,s))
+       nil
+       (string= ,s ,with :end1 (length ,with))))
+
+;; str is a string containing the algebraic move
+;; TODO: pawn upgrading to type
+(defun algebraic->lst (g str)
+  (declare (type game g)
+           (type string str)
+           (values list))          ; ((x1 y1) (x2 y2) additional-data)
+  (if (eq (aref str 0) #\O)
+      (if (s-begins-with str "O-O-O")
+          (if (game-turn-white-p g)
+              '((4 7) (2 7))
+              '((4 0) (2 0)))
+          (if (game-turn-white-p g)
+              '((4 7) (6 7))
+              '((4 0) (6 0))))
+      (let-values ((type str
+                         (case (aref str 0)
+                           (#\N (values 'knight (subseq str 1)))
+                           (#\B (values 'bishop (subseq str 1)))
+                           (#\R (values 'rook   (subseq str 1)))
+                           (#\Q (values 'queen  (subseq str 1)))
+                           (#\K (values 'king   (subseq str 1)))
+                           (#\P (values 'pawn   (subseq str 1)))
+                           (t   (values 'pawn   str)))))
+        (let ((str (delete #\x str))) ; skip x as we don't care
+          (cond
+            ((and (>= (length str) 4) (cchrp (aref str 0)) (cnump (aref str 1)) (cchrp (aref str 2)) (cnump (aref str 3))) ; exact disambiguation
+             (list
+              (pos->lst (coerce (subseq str 0 2) 'string))
+              (pos->lst (coerce (subseq str 2 4) 'string))))
+            ((and (>= (length str) 3) (cchrp (aref str 0)) (cchrp (aref str 1)) (cnump (aref str 2))) ; file disambiguation
+             (let* ((x (- (char-int (aref str 0)) (char-int #\a)))
+                    (target (pos->lst (coerce (subseq str 1 3) 'string)))
+                    (l (remove-if-not
+                        #'(lambda (p)
+                            (and
+                             (eq (piece-type p) type)
+                             (= (point-x (piece-point p)) x)
+                             (move-possible-p p (car target) (cadr target) g)))
+                        (game-pieces g))))
+               (if (= (length l) 1)
+                   `((,(point-x (piece-point (car l))) ,(point-y (piece-point (car l)))) ,target)
+                   (error "Couldn't find piece that has to be moved to ~a, possible candidates: ~a." (subseq str 1 3) l))))
+            ((and (>= (length str) 3) (cnump (aref str 0)) (cchrp (aref str 1)) (cnump (aref str 2))) ; rank disambiguation
+             (let* ((y (- 8 (- (char-int (aref str 0)) (char-int #\0))))
+                    (target (pos->lst (coerce (subseq str 1 3) 'string)))
+                    (l (remove-if-not
+                        #'(lambda (p)
+                            (and
+                             (eq (piece-type p) type)
+                             (= (point-y (piece-point p)) y)
+                             (move-possible-p p (car target) (cadr target) g)))
+                        (game-pieces g))))
+               (if (= (length l) 1)
+                   `((,(point-x (piece-point (car l))) ,(point-y (piece-point (car l)))) ,target)
+                   (error "Couldn't find piece that has to be moved to ~a, possible candidates: ~a." (subseq str 1 3) l))))
+            ((and (cchrp (aref str 0)) (cnump (aref str 1))) ; no disambiguation
+             (let* ((target (pos->lst (coerce (subseq str 0 2) 'string)))
+                    (l (remove-if-not
+                        #'(lambda (p)
+                            (and
+                             (eq (piece-type p) type)
+                             (move-possible-p p (car target) (cadr target) g)))
+                        (game-pieces g))))
+               (if (= (length l) 1)
+                   `((,(point-x (piece-point (car l))) ,(point-y (piece-point (car l)))) ,target)
+                   (error "Couldn't find piece that has to be moved to ~a, possible candidates: ~a." (subseq str 0 2) l))))
+            (t
+             (error "Malformed pgn data in ~a." str)))))))
+
+
+;; Read pgn data from list of lines upto end of game, returns (values (pgn rest))
+;; warning: hacky
+(defun read-pgn (lst)
+  (declare (type list lst)
+           (values pgn list))
+  (let ((p (make-pgn))
+        (g (fen->game +initial-fen+)))
+    (initialize-game g 'white nil)
+    (loop while (not (equal (car lst) "")) ; get STR
+          do
+             (let* ((s (car lst))
+                    (l (read-from-string (format nil "(~a)" (subseq s 1 (- (length s) 1)))))) ; <- LMAO
+               (case (car l)
+                 (event  (setf (pgn-event p) (cadr l)))
+                 (site   (setf (pgn-site p) (cadr l)))
+                 (date   (setf (pgn-date p) (cadr l)))
+                 (round  (setf (pgn-round p) (cadr l)))
+                 (white  (setf (pgn-white p) (cadr l)))
+                 (black  (setf (pgn-black p) (cadr l)))
+                 (result (setf (pgn-result p) (cadr l)))
+                 (t
+                  (push (cons (car l) (cadr l)) (pgn-additional-tags p))))
+               (setf lst (cdr lst))))
+    (setf lst (cdr lst))
+    (let ((moves nil))
+      (loop while (and (not (equal (car lst) "")) lst) ; get movetext
+            do
+               (setf moves (append
+                            moves
+                            (remove-if
+                             #'(lambda (s)
+                                 (or
+                                  (equal s "")
+                                  (equal s "1/2-1/2")
+                                  (equal s "1-0")
+                                  (equal s "0-1")
+                                  (equal s "*")))
+                             (cl-ppcre:split
+                              "(?:(?:\\s+)|(?:{.*?})|(?:\\d+\\.+))+"
+                              (car lst)))))
+               (setf lst (cdr lst)))
+      (loop for m in moves do
+        (let* ((ml (algebraic->lst g m))
+               (from (car ml))
+               (to (cadr ml)))
+          (game-do-move g (piece-at-point g (car from) (cadr from)) (car to) (cadr to) :no-display-check-mates t :no-history t :no-update-timers t)
+          (setf (pgn-moves p) (append (pgn-moves p) (list ml))))))
+    (values p (cdr lst))))
+
+;; this can be done in read-pgn to save time
+;; but this is done at compile-time so idk if i should bother
+;; do %s/[^ -~\n\r]//g if uiop:read-file-lines whines about ascii
+(defun gm-book->ht (filename &optional n)
+  (let ((data (uiop:read-file-lines filename))
+        (ht (make-hash-table)))
+    (loop while data do
+      (handler-case
+          (let-values ((pgn rest (read-pgn data))
+                       (g (fen->game +initial-fen+))
+                       (moves (pgn-moves pgn)))
+            (initialize-game g 'white nil)
+            (loop for i from 0
+                  while (and (< i 20) moves)
+                  do
+                     (let* ((m (car moves))
+                            (from (car m))
+                            (to (cadr m))
+                            (h (hash-zobrist g))
+                            (old (gethash h ht)))
+                       (when (not (hasp m old))
+                         (setf (gethash h ht) (append old (list m))))
+                       (game-do-move g (piece-at-point g (car from) (cadr from)) (car to) (cadr to))
+                       (setf moves (cdr moves))))
+            (when n
+              (format t "left: ~a~%" n)
+              (decf n))
+            (setf data rest))
+        (t () ; something i didn't handle
+              ; but there are so many games i can just skip it lmao
+          (loop while (and (not (when (> (length (car data)) 0)
+                                  (equal (aref (car data) 0) "[")))
+                           data)
+                do
+                   (setf data (cdr data))))))
+    ht))
+
+(defun load-gm-ht (gm &key flush)
+  (declare (type string gm))
+  (let ((dat (format nil "res/dat/~a.dat" gm))
+        (pgn (format nil "res/pgn/~a.pgn" gm)))
+
+    (if (and (uiop/filesystem:file-exists-p dat) (not flush))
+        (cl-store:restore dat)
+        (let ((ht (gm-book->ht pgn)))
+          (cl-store:store ht dat)
+          ht))))
+
+(defparameter *kasparov-book* (load-gm-ht "Kasparov"))

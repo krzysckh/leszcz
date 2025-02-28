@@ -13,3 +13,6 @@ res/book/komodo.bin
   https://github.com/michaeldv/donna_opening_books/
   "Free"
   Sam silnik donna jest na licencji MIT więc sądzę, że z tą książką jest podobnie
+res/pgn/*.pgn
+  https://www.pgnmentor.com/files.html
+  Licencji opisanej nie ma, ale nie sądzę, żeby dało się mieć prawa do cudzych gier szachowych :)

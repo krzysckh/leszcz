@@ -34,11 +34,6 @@
 
 (in-package :fast)
 
-;;; TODO: to będzie biblioteka która po przekonwertowaniu typu `game' na
-;; coś bardziej optymalnego będzie przyspieszała generowanie ruchów itp
-;; lol
-
-
 (locally
     (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (defstruct (fast-board-1 (:conc-name fb-))
