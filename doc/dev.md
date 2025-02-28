@@ -56,13 +56,8 @@ np. funkcja która pokazuje interaktywnie błąd złapany przez najwyższy `hand
 
 ```lisp
 (defun show-exception-interactively-and-continue (e)
-  (let-values ((mesg (format nil "An unexcpected error has occurred: ~a~%" e))
-               (btn w1 h1 (gui:make-button*
-                           "Ok"
-                           :height 24
-                           :font-data alagard-data
-                           :font-hash raylib::*alagard*
-                           :text-draw-fn #'draw-text-alagard)))
+  (let-values ((mesg (format nil "An unexcpected error has occurred: ~%~a~%" e))
+               (btn w1 h1 (abtn "Ok" :height 24)))
     (with-continued-mainloop continuation
       (draw-text mesg 10 10 24 +color-white+)
       (funcall
