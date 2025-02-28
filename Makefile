@@ -21,8 +21,8 @@ run:
 build: all
 all: *.lisp
 	mkdir -p build
-	rm -f *.fasl
-	$(SBCL) --load build.lisp --quit
+	# rm -f *.fasl
+	# $(SBCL) --load build.lisp --quit
 	rm -f *.fasl
 	wine sbcl.exe --core sbcl.core --load build.lisp --quit
 test:
