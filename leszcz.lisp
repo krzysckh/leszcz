@@ -1662,14 +1662,18 @@
   `(progn
      (maybe-initialize-window!)
      (let ((,cont nil))
-       (loop until (or (window-close-p) ,cont) do
+       (loop until ,cont do
+         (when (window-close-p)
+           (error 'finalize-condition)) ; <- unwind stack up to 1st main.
+                                        ; if we were in scheme land i'd catch the continuation in main and call it here
+
          (setf *current-screen* (screen->image)) ;; TODO: this sucks
          (begin-drawing)
 
          (clear-background +color-grayish+)
          (animate-menu-bg)
 
-         (when (key-pressed-p-1 256)
+         (when (key-pressed-p-1 +key-escape+)
            (setf ,cont #'%main))
 
          (progn
@@ -1872,6 +1876,8 @@
                                   (cleanup-threads!)
                                   (main))))))))
 
+(define-condition finalize-condition (simple-error) ())
+
 (defmacro maybe-catch-all-exceptions (&body b)
   `(if *prod*
        (handler-case (progn ,@b)
@@ -1879,8 +1885,16 @@
            (show-exception-interactively-and-continue e)))
        (progn ,@b)))
 
+(defmacro maybe-catch-finish (&body b)
+  `(handler-case (progn ,@b)
+     (finalize-condition (e)
+       t)))
+
 (defun main ()
-  (unwind-protect (maybe-catch-all-exceptions (maybe-trap-floats (%main)))
+  (unwind-protect (maybe-catch-all-exceptions
+                    (maybe-catch-finish
+                      (maybe-trap-floats
+                        (%main))))
     (cleanup-threads!)
     (when (window-ready-p)
       (close-window))))

@@ -79,6 +79,8 @@
    +cursor-pointer+
    +cursor-normal+
 
+   +key-escape+
+
    ;; exported variables
    *font*
    *alagard*
@@ -107,6 +109,8 @@
 
 (defconstant +cursor-pointer+ 4)
 (defconstant +cursor-normal+ 0)
+
+(defconstant +key-escape+ 256)
 
 (defcstruct (color :class type-color)
   (r :uint8)
