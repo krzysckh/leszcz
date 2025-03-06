@@ -465,7 +465,7 @@
                             (old (gethash h ht)))
                        (when (not (hasp m old))
                          (setf (gethash h ht) (append old (list m))))
-                       (game-do-move g (piece-at-point g (car from) (cadr from)) (car to) (cadr to))
+                       (game-do-move g (piece-at-point g (car from) (cadr from)) (car to) (cadr to) :no-display-check-mates)
                        (setf moves (cdr moves))))
             (when n
               (format t "left: ~a~%" n)

@@ -35,6 +35,68 @@
        ,pt
        (- 7 ,pt)))
 
+(defmacro abtn (&rest r)
+  `(gui:make-button* ,@r :font-data alagard-data :font-hash raylib:*alagard* :text-draw-fn #'draw-text-alagard))
+
+(defmacro upy (y-sym height pad &body b)
+  `(progn
+     ,@b
+     (incf ,y-sym (+ ,height ,pad))))
+
+(defmacro with-continued-mainloop (cont &body b)
+  `(progn
+     (maybe-initialize-window!)
+     (let ((,cont nil))
+       (loop until ,cont do
+         (when (window-close-p)
+           (error 'finalize-condition)) ; <- unwind stack up to 1st main.
+                                        ; if we were in scheme land i'd catch the continuation in main and call it here
+
+         (setf *current-screen* (screen->image)) ;; TODO: this sucks
+         (begin-drawing)
+
+         (clear-background +color-grayish+)
+         (animate-menu-bg)
+
+         (when (key-pressed-p-1 +key-escape+)
+           (setf ,cont #'%main))
+
+         (progn
+           ,@b)
+
+         (end-drawing)
+         (unless ,cont
+           (unload-image! *current-screen*)))
+       (when ,cont
+         (shade-screen *current-screen* 10)
+         (funcall ,cont)))))
+
+(defmacro with-scrolling (sym &body b)
+  `(progn
+     ,@b
+     (setf ,sym (max 0 (+ ,sym (* 20 (* -1 (scroll-delta))))))))
+
+;; buttons = ((text . fn) ...)
+(defun %bmenu (title buttons)
+  (let ((btns (loop for b in buttons
+                    collect (let-values ((f w h (gui:make-button* (car b) :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
+                              (list f w h (cdr b)))))
+        (scroll 0))
+    (with-continued-mainloop continuation
+      (with-scrolling scroll
+        (let ((y (- (cdr *board-begin*) scroll)))
+          (upy y 110 20 (draw-text-alagard-centered title (/ *window-width* 2) y 110 '(#x33 #xda #xf5 #xff)))
+          (loop for b in btns do
+            (upy y (caddr b) 32
+              (funcall
+               (the function (car b))
+               (- (/ *window-width* 2) (/ (cadr b) 2))
+               y
+               (lambda (&rest _)
+                 (declare (ignore _))
+                 (setf continuation (cadddr b)))))))))))
+
+
 (defparameter draw-piece/anim-frame-ticker 0)
 (defparameter draw-piece/anim-frame 0)
 (defparameter draw-piece/piece-on-point nil)
@@ -691,16 +753,56 @@
         (return-from b p)))
     (error "couldn't find a king of ~a in game ~a!" color game (game-move-history game))))
 
+(defun display-game-finish-menu (game text)
+  (let-values ((bg (image->texture *current-screen*))
+               (b w h (abtn "powrot do menu" :height 24)))
+    (with-continued-mainloop cont
+      (draw-texture
+       bg
+       (floatize (list 0 0 *window-width* *window-height*))
+       (floatize (list 0 0 *window-width* *window-height*))
+       (floatize '(0 0)) (float 0) +color-white+)
+      (draw-rectangle
+       (+ (car *board-begin*) 30)
+       (+ (cdr *board-begin*) 120)
+       (- (* 8 +piece-size+) 60)
+       (- (* 8 +piece-size+) 240)
+       +color-grayish+)
+      (draw-rectangle-lines-2
+       (floatize
+        (list
+         (+ (car *board-begin*) 30)
+         (+ (cdr *board-begin*) 120)
+         (- (* 8 +piece-size+) 60)
+         (- (* 8 +piece-size+) 240)))
+       8.0
+       '(#xde #xde #xde #xff))
+      (draw-text-alagard-centered
+       text
+       (/ *window-width* 2)
+       (+ (cdr *board-begin*) 120 30) 30 +color-white+)
+      (funcall
+       b
+       (- (/ *window-width* 2) (/ w 2))
+       (/ *window-height* 2)
+       #'(lambda (_)
+           (cleanup-threads!)
+           (setf cont #'%main))))))
+
 (defun display-win (game)
   (declare (type game game))
-  (format t "Koniec Gry! ~a~%" (if (eq (game-result game) (game-side game))
-                                   "Wygrana!"
-                                   "Przegrana... :(")))
+  (display-game-finish-menu
+   game
+   (format nil "Koniec Gry! ~a~%"
+           (if (eq (game-result game) (game-side game))
+               "Wygrana!"
+               "Przegrana... :("))))
 
 (defun display-draw (game &optional why)
-  (declare (type game game)
-           (ignore game))
-  (format t "Remis! (~a)~%" why))
+  (declare (type game game))
+  (display-game-finish-menu
+   game
+   (format nil "Remis! (~a)~%" why)))
 
 ;; game-possible-moves-cache: ((x y ((x' y') ...)))
 (defmethod game-update-possible-moves-cache ((g game))
@@ -1404,6 +1506,7 @@
                   (packet->movedata p)
                 (format t "received movedata of ~a -> ~a~%" (lst->pos (list x1 y1)) (lst->pos (list x2 y2)))
                 (game-do-move game (piece-at-point game x1 y1) x2 y2
+                              :no-display-check-mates (not (game-interactive-p game)) ; <- ja pierdole, -30 minut zycia przez debugowanie double free przez to  ~ kpm
                               :no-funcall upgrade-p
                               :upgrade-type upgrade-t)))
         (gdata
@@ -1554,7 +1657,9 @@
         (when-let ((c (game-connection game)))
           (net:write-packets c (net:make-client-packet 'gdata :gdata-eval t :gdata-eval-data eval)))
         (maybe-trace ;; debugging
-          (game-do-move game (piece-at-point game (car pp) (cadr pp)) mx my))))))
+          (game-do-move
+           game (piece-at-point game (car pp) (cadr pp)) mx my
+           :no-display-check-mates t))))))
 
       ;; (let* ((pre-ps (remove-if #'(lambda (p) (not (eq (piece-color p) (game-side game)))) (game-pieces game)))
       ;;        (ps (remove-if #'(lambda (p) (null (possible-moves-for game p))) pre-ps)))
@@ -1674,37 +1779,6 @@
 (defun unshade-screen (screen n-frames &key flip)
   (shade--screen screen n-frames #'(lambda (x) x) :flip flip))
 
-(defmacro with-continued-mainloop (cont &body b)
-  `(progn
-     (maybe-initialize-window!)
-     (let ((,cont nil))
-       (loop until ,cont do
-         (when (window-close-p)
-           (error 'finalize-condition)) ; <- unwind stack up to 1st main.
-                                        ; if we were in scheme land i'd catch the continuation in main and call it here
-
-         (setf *current-screen* (screen->image)) ;; TODO: this sucks
-         (begin-drawing)
-
-         (clear-background +color-grayish+)
-         (animate-menu-bg)
-
-         (when (key-pressed-p-1 +key-escape+)
-           (setf ,cont #'%main))
-
-         (progn
-           ,@b)
-
-         (end-drawing)
-         (unless ,cont 
-           (unload-image! *current-screen*)))
-       (when ,cont 
-         (shade-screen *current-screen* 10)
-         (funcall ,cont)))))
-
-(defmacro abtn (&rest r)
-  `(gui:make-button* ,@r :font-data alagard-data :font-hash raylib:*alagard* :text-draw-fn #'draw-text-alagard))
-
 (defun %host-game-menu ()
   (let-values ((color port time fen (%game-options-menu "Hostuj w LAN")))
     (start-master-server
@@ -1712,11 +1786,6 @@
      :port port
      :time time
      :fen fen)))
-
-(defmacro upy (y-sym height pad &body b)
-  `(progn
-     ,@b
-     (incf ,y-sym (+ ,height ,pad))))
 
 ;; options = ((text type val) ...)
 ;;   where type is one of (input-box (choice-of exp ...))
@@ -1780,31 +1849,6 @@
                                                                          (connect-to-master
                                                                           :server (coerce (gethash ipsym input-box/content-ht) 'string)
                                                                           :port (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))))))))))
-
-(defmacro with-scrolling (sym &body b)
-  `(progn
-     ,@b
-     (setf ,sym (max 0 (+ ,sym (* 20 (* -1 (scroll-delta))))))))
-
-;; buttons = ((text . fn) ...)
-(defun %bmenu (title buttons)
-  (let ((btns (loop for b in buttons
-                    collect (let-values ((f w h (gui:make-button* (car b) :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
-                              (list f w h (cdr b)))))
-        (scroll 0))
-    (with-continued-mainloop continuation
-      (with-scrolling scroll
-        (let ((y (- (cdr *board-begin*) scroll)))
-          (upy y 110 20 (draw-text-alagard-centered title (/ *window-width* 2) y 110 '(#x33 #xda #xf5 #xff)))
-          (loop for b in btns do
-            (upy y (caddr b) 32
-              (funcall
-               (the function (car b))
-               (- (/ *window-width* 2) (/ (cadr b) 2))
-               y
-               (lambda (&rest _)
-                 (declare (ignore _))
-                 (setf continuation (cadddr b)))))))))))
 
 (defun %info-menu ()
   (let-values ((scroll 0)
