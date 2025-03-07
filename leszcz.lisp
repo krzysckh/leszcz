@@ -71,10 +71,21 @@
          (shade-screen *current-screen* 10)
          (funcall ,cont)))))
 
-(defmacro with-scrolling (sym &body b)
-  `(progn
-     ,@b
-     (setf ,sym (max 0 (+ ,sym (* 20 (* -1 (scroll-delta))))))))
+(defparameter scroll-multiplier 30)
+
+(defmacro with-scrolling (sym y &body b) ;; y from upy is assumed to be the maximum y after ,@b
+  (let ((sd (gensym))
+        (y* (gensym))) ; wow such hygiene
+    `(progn
+       ,@b
+       (let* ((,sd (scroll-delta))
+              (,y* (max 0 (+ ,sym (* scroll-multiplier (* -1 ,sd))))))
+         (if (< ,sd 0)
+             (when (>= ,y *window-height*)
+               (setf ,sym ,y*))
+             (when (>= ,y* 0)
+               (setf ,sym ,y*)))
+         ))))
 
 ;; buttons = ((text . fn) ...)
 (defun %bmenu (title buttons)
@@ -83,18 +94,18 @@
                               (list f w h (cdr b)))))
         (scroll 0))
     (with-continued-mainloop continuation
-      (with-scrolling scroll
-        (let ((y (- (cdr *board-begin*) scroll)))
-          (upy y 110 20 (draw-text-alagard-centered title (/ *window-width* 2) y 110 '(#x33 #xda #xf5 #xff)))
+      (let ((y (- (cdr *board-begin*) scroll)))
+        (with-scrolling scroll y
+          (upy y 110 60 (draw-text-alagard-centered title (/ *window-width* 2) y 110 '(#x33 #xda #xf5 #xff)))
           (loop for b in btns do
             (upy y (caddr b) 32
-              (funcall
-               (the function (car b))
-               (- (/ *window-width* 2) (/ (cadr b) 2))
-               y
-               (lambda (&rest _)
-                 (declare (ignore _))
-                 (setf continuation (cadddr b)))))))))))
+                 (funcall
+                  (the function (car b))
+                  (- (/ *window-width* 2) (/ (cadr b) 2))
+                  y
+                  (lambda (&rest _)
+                    (declare (ignore _))
+                    (setf continuation (cadddr b)))))))))))
 
 
 (defparameter draw-piece/anim-frame-ticker 0)
@@ -1855,8 +1866,8 @@
                (w1 h1 (measure-text-1 (load-font spleen-data 18) license-text-1 18.0 0.0))
                (w2 h2 (measure-text-1 (load-font spleen-data 18) license-text-2 18.0 0.0)))
     (with-continued-mainloop continuation
-      (with-scrolling scroll
-        (let ((y (- (cdr *board-begin*) scroll)))
+      (let ((y (- (cdr *board-begin*) scroll)))
+        (with-scrolling scroll y
           ;; (upy y 80 20 (draw-text-alagard-centered "Info" (/ *window-width* 2) y 80 '(#x33 #xda #xf5 #xff)))
           (upy y 50 20 (draw-text-alagard-centered "Licencja" (/ *window-width* 2) y 50 '(#x33 #xda #xf5 #xff)))
           (upy y h1 20 (draw-text license-text-1 (- (/ *window-width* 2) (/ w1 2)) y 18 +color-white+))
