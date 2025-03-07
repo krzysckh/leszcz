@@ -35,79 +35,6 @@
        ,pt
        (- 7 ,pt)))
 
-(defmacro abtn (&rest r)
-  `(gui:make-button* ,@r :font-data alagard-data :font-hash raylib:*alagard* :text-draw-fn #'draw-text-alagard))
-
-(defmacro upy (y-sym height pad &body b)
-  `(progn
-     ,@b
-     (incf ,y-sym (+ ,height ,pad))))
-
-(defmacro with-continued-mainloop (cont &body b)
-  `(progn
-     (maybe-initialize-window!)
-     (let ((,cont nil))
-       (loop until ,cont do
-         (when (window-close-p)
-           (error 'finalize-condition)) ; <- unwind stack up to 1st main.
-                                        ; if we were in scheme land i'd catch the continuation in main and call it here
-
-         (setf *current-screen* (screen->image)) ;; TODO: this sucks
-         (begin-drawing)
-
-         (clear-background +color-grayish+)
-         (animate-menu-bg)
-
-         (when (key-pressed-p-1 +key-escape+)
-           (setf ,cont #'%main))
-
-         (progn
-           ,@b)
-
-         (end-drawing)
-         (unless ,cont
-           (unload-image! *current-screen*)))
-       (when ,cont
-         (shade-screen *current-screen* 10)
-         (funcall ,cont)))))
-
-(defparameter scroll-multiplier 30)
-
-(defmacro with-scrolling (sym y &body b) ;; y from upy is assumed to be the maximum y after ,@b
-  (let ((sd (gensym))
-        (y* (gensym))) ; wow such hygiene
-    `(progn
-       ,@b
-       (let* ((,sd (scroll-delta))
-              (,y* (max 0 (+ ,sym (* scroll-multiplier (* -1 ,sd))))))
-         (if (< ,sd 0)
-             (when (>= ,y *window-height*)
-               (setf ,sym ,y*))
-             (when (>= ,y* 0)
-               (setf ,sym ,y*)))
-         ))))
-
-;; buttons = ((text . fn) ...)
-(defun %bmenu (title buttons)
-  (let ((btns (loop for b in buttons
-                    collect (let-values ((f w h (gui:make-button* (car b) :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
-                              (list f w h (cdr b)))))
-        (scroll 0))
-    (with-continued-mainloop continuation
-      (let ((y (- (cdr *board-begin*) scroll)))
-        (with-scrolling scroll y
-          (upy y 110 60 (draw-text-alagard-centered title (/ *window-width* 2) y 110 '(#x33 #xda #xf5 #xff)))
-          (loop for b in btns do
-            (upy y (caddr b) 32
-                 (funcall
-                  (the function (car b))
-                  (- (/ *window-width* 2) (/ (cadr b) 2))
-                  y
-                  (lambda (&rest _)
-                    (declare (ignore _))
-                    (setf continuation (cadddr b)))))))))))
-
-
 (defparameter draw-piece/anim-frame-ticker 0)
 (defparameter draw-piece/anim-frame 0)
 (defparameter draw-piece/piece-on-point nil)
@@ -767,7 +694,7 @@
 (defun display-game-finish-menu (game text)
   (let-values ((bg (image->texture *current-screen*))
                (b w h (abtn "powrot do menu" :height 24)))
-    (with-continued-mainloop cont
+    (with-continued-mainloop cont %main
       (draw-texture
        bg
        (floatize (list 0 0 *window-width* *window-height*))
@@ -1485,6 +1412,13 @@
     (t
      (setf *arrow-last-point* nil))))
 
+(defun draw-menu-button (g &rest _)
+  (declare (type game g)
+           (ignore _))
+
+  (let-values ((btn w h (make-button* (cdr (assoc 'settings icon-texture-alist)) :height 32 :width 32 :no-bg t :no-pad t)))
+    (funcall btn 10 10 (lambda (_) (configure-menu)))))
+
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
@@ -1495,6 +1429,7 @@
 (add-draw-hook 'draw-time)
 (add-draw-hook 'draw-game-control-buttons)
 (add-draw-hook 'maybe-set-cursor)
+(add-draw-hook 'draw-menu-button)
 
 (add-draw-hook 'maybe-send-ping)
 ;; (add-draw-hook 'maybe-draw-arrow)
@@ -1551,21 +1486,6 @@
     (setf (game-interactive-p game) nil))
   (game-update-points-cache game)
   (game-update-possible-moves-cache game))
-
-(defun initialize-window! ()
-  (init-window *window-width* *window-height* ":leszcz")
-  ;; TODO: unset target fps when the engine is thinking or switch contexts or wtv
-  (set-target-fps! 60)
-  (set-exit-key! -1)
-
-  (switch-textures-to 'pixel)
-
-  (format t "white-texture-alist: ~a~%" white-texture-alist)
-  (format t "black-texture-alist: ~a~%" black-texture-alist))
-
-(defun maybe-initialize-window! ()
-  (when (not (window-ready-p))
-    (initialize-window!)))
 
 (defun game-main-loop (game side conn)
   (declare (type game game)
@@ -1683,7 +1603,7 @@
 (defun cleanup-threads! ()
   (loop for thr in *threads* do
     (ignore-errors
-     (terminate-thread thr)))
+     (destroy-thread thr)))
   (setf *threads* nil))
 
 (defmacro thread (name &body b)
@@ -1738,58 +1658,6 @@
     (setf *debug* nil)
     (close-window)))
 
-(defparameter menu/bg-light '(#x2e #x2e #x2e #xff))
-(defparameter menu/bg-dark  '(#x22 #x22 #x22 #xff))
-(defparameter menu/frame-ctr 0)
-(defparameter menu/frame-ctr-magic 4)
-(defparameter menu/frame-ctr-mod (* menu/frame-ctr-magic +piece-size+))
-
-(defun f/ (a b)
-  (floor (/ a b)))
-
-(defun animate-menu-bg ()
-  (loop for y from (- +piece-size+) to *window-height* by +piece-size+ do
-    (loop for x from (- +piece-size+) to *window-width* by +piece-size+ do
-      (let ((color (if (= (mod (+ (f/ y +piece-size+) (f/ x +piece-size+)) 2) 0)
-                       menu/bg-light
-                       menu/bg-dark))
-            (n (f/ menu/frame-ctr menu/frame-ctr-magic)))
-        (draw-rectangle (+ x n) (+ y n) +piece-size+ +piece-size+ color))))
-  (setf menu/frame-ctr (mod (1+ menu/frame-ctr) menu/frame-ctr-mod)))
-
-(defun shade--screen (screen n-frames func &key flip)
-  (declare (type fixnum n-frames))
-  (let ((step (ceiling (/ 255 n-frames)))
-        (shade 0)
-        (tx (image->texture screen)))
-    (loop for i from 0 below n-frames do
-      (begin-drawing)
-
-      (clear-background (list 0 0 0 0))
-      (if flip
-          (draw-texture
-           tx
-           (floatize (list 0 0 *window-width* (- *window-height*)))
-           (floatize (list 0 0 *window-width* *window-height*))
-           (floatize '(0 0)) (float 0)
-           (list 255 255 255 (min 255 (funcall (the function func) shade))))
-          (draw-texture
-           tx
-           (floatize (list 0 0 *window-width* *window-height*))
-           (floatize (list 0 0 *window-width* *window-height*))
-           (floatize '(0 0)) (float 0)
-           (list 255 255 255 (min 255 (funcall (the function func) shade)))))
-
-      (incf shade step)
-      (end-drawing))
-    (unload-texture! tx)))
-
-(defun shade-screen (screen n-frames &key flip)
-  (shade--screen screen n-frames #'(lambda (x) (- 255 x)) :flip flip))
-
-(defun unshade-screen (screen n-frames &key flip)
-  (shade--screen screen n-frames #'(lambda (x) x) :flip flip))
-
 (defun %host-game-menu ()
   (let-values ((color port time fen (%game-options-menu "Hostuj w LAN")))
     (start-master-server
@@ -1813,7 +1681,7 @@
                  (bw w1 h1   (abtn "jasne" :height 24))
                  (bb w2 h2   (abtn "ciemne" :height 24))
                  )
-      (with-continued-mainloop cont
+      (with-continued-mainloop cont %main
         (let ((y (cdr *board-begin*)))
           (upy y 150 0 (draw-text-alagard-centered title (/ *window-width* 2) y 80 '(#x33 #xda #xf5 #xff)))
           (upy y 0 0   (draw-text-alagard "port " 128 y 24 +color-white+))
@@ -1847,7 +1715,7 @@
                (port pw ph (gui:make-input-box portsym :width 128 :height 24 :text-draw-fn #'draw-text-alagard :default-value (format nil "~a" net:+port+)))
                (ip   iw ih (gui:make-input-box ipsym   :width 128 :height 24 :text-draw-fn #'draw-text-alagard :default-value "localhost"))
                (ok   ow oh (gui:make-button* "Ok" :height 24 :font-data alagard-data :font-hash raylib::*alagard* :text-draw-fn #'draw-text-alagard)))
-  (with-continued-mainloop cont
+  (with-continued-mainloop cont %main
     (draw-text-alagard-centered "Dolacz do gry w LAN" (/ *window-width* 2) (cdr *board-begin*) 80 '(#x33 #xda #xf5 #xff))
     (draw-text-alagard "port: " 128 (+ (cdr *board-begin*) 150) 24 +color-white+)
     (funcall port 256 (+ (cdr *board-begin*) 150) 24 +color-white+)
@@ -1865,7 +1733,7 @@
   (let-values ((scroll 0)
                (w1 h1 (measure-text-1 (load-font spleen-data 18) license-text-1 18.0 0.0))
                (w2 h2 (measure-text-1 (load-font spleen-data 18) license-text-2 18.0 0.0)))
-    (with-continued-mainloop continuation
+    (with-continued-mainloop continuation %main
       (let ((y (- (cdr *board-begin*) scroll)))
         (with-scrolling scroll y
           ;; (upy y 80 20 (draw-text-alagard-centered "Info" (/ *window-width* 2) y 80 '(#x33 #xda #xf5 #xff)))
@@ -1882,7 +1750,7 @@
                (b3 w3 h3 (abtn "info"    :height 24)))
     (let ((r `(,(float (car *board-begin*)) ,(float (cdr *board-begin*)) 512.0 256.0))
           (r2 `(,(+ (float (car *board-begin*)) 128) ,(+ (float (cdr *board-begin*)) 64) 256.0 128.0)))
-    (with-continued-mainloop continuation
+    (with-continued-mainloop continuation %main
       (let ((y (/ *window-height* 2)))
         (draw-texture
          (cdr (assoc (if (point-in-rect-p (floatize (mouse-pos-1)) r2) 'leszcz2 'leszcz1) leszcz-logos-alist))
@@ -1901,6 +1769,7 @@
              (setf continuation #'(lambda ()
                                     (%bmenu
                                      "Online"
+                                     #'%main
                                      `(("zahostuj gre w LAN" . ,#'%host-game-menu)
                                        ("dolacz do gry w LAN" . ,#'%join-game-menu))))))))
 
@@ -1913,10 +1782,12 @@
              (setf continuation #'(lambda ()
                                     (%bmenu
                                      "Offline"
+                                     #'%main
                                      `(("zagraj se na bota" . ,%player-vs-bot)
                                        ("zagraj na arcymistra" . ,#'(lambda ()
                                                                       (%bmenu
                                                                        "Na arcymistrza"
+                                                                       #'%bmenu
                                                                        `(("Garry Kasparov"       . ,%player-vs-kasparov)
                                                                          ("Bobby Fischer"        . ,%player-vs-fischer)
                                                                          ("Magnus Carlsen"       . ,%player-vs-carlsen)
@@ -1949,7 +1820,7 @@
 (defun show-exception-interactively-and-continue (e)
   (let-values ((mesg (format nil "An unexcpected error has occurred: ~%~a~%" e))
                (btn w1 h1 (abtn "Ok" :height 24)))
-    (with-continued-mainloop continuation
+    (with-continued-mainloop continuation %main
       (draw-text mesg 10 10 24 +color-white+)
       (funcall
        btn
@@ -1960,8 +1831,6 @@
            (setf continuation #'(lambda ()
                                   (cleanup-threads!)
                                   (main))))))))
-
-(define-condition finalize-condition (simple-error) ())
 
 (defmacro maybe-catch-all-exceptions (&body b)
   `(if *prod*

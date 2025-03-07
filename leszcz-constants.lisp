@@ -1,5 +1,6 @@
 (defpackage :leszcz-constants
   (:use :common-lisp :alexandria)
+  (:import-from :str from-file)
   (:export
    file->vec
    white-texture-data-list
@@ -37,6 +38,7 @@
    *prod*
    +inf
    -inf
+   finalize-condition
 
    license-text-1
    license-text-2
@@ -65,6 +67,7 @@
 
    flag
    draw
+   settings
    ))
 
 
@@ -82,10 +85,12 @@
     vec))
 
 (defparameter license-text-1
-  (map 'string #'code-char (file->vec "LICENSE")))
+  (str:from-file "LICENSE" :external-format :utf-8))
+  ;; (map 'string #'code-char (file->vec "LICENSE")))
 
 (defparameter license-text-2
-  (map 'string #'code-char (file->vec "LICENSE.third-party")))
+  (str:from-file "LICENSE.third-party" :external-format :utf-8))
+  ;; (map 'string #'code-char (file->vec "LICENSE.third-party")))
 
 (defparameter white-texture-data-list-sleek
   (list
@@ -193,8 +198,9 @@
 
 (defparameter icon-data-alist
   (list
-   (cons 'flag (file->vec "res/png/flag.png"))
-   (cons 'draw (file->vec "res/png/draw.png"))
+   (cons 'flag     (file->vec "res/png/flag.png"))
+   (cons 'draw     (file->vec "res/png/draw.png"))
+   (cons 'settings (file->vec "res/png/settings.png"))
    ))
 
 (defparameter white-texture-data-list white-texture-data-list-pixel)
@@ -268,3 +274,5 @@
         (setf l (append v (if listp (list l) l)))
         (setf listp t)))
     l))
+
+(define-condition finalize-condition (simple-error) ())
