@@ -252,10 +252,13 @@
 
 (defconstant +inf
   #+sbcl sb-ext:short-float-positive-infinity
-  #+ecl ext:short-float-positive-infinity)
+  #+ecl ext:short-float-positive-infinity
+  #+ccl ccl::double-float-positive-infinity)
+
 (defconstant -inf
   #+sbcl sb-ext:short-float-negative-infinity
-  #+ecl ext:short-float-negative-infinity)
+  #+ecl ext:short-float-negative-infinity
+  #+ccl ccl::double-float-negative-infinity)
 
 (defmacro let-values (bindings &body b)
   (let ((l b)

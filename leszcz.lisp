@@ -1933,7 +1933,7 @@
   #+sbcl`(sb-int:with-float-traps-masked ;; TODO: weird untraceable problems on ms windows
              (:invalid :overflow :underflow :divide-by-zero :inexact)
            ,@b)
-  #+ecl`(progn ,@b))
+  #-sbcl `(progn ,@b))
 
 (defun show-exception-interactively-and-continue (e)
   (let-values ((mesg (format nil "An unexcpected error has occurred: ~%~a~%" e))

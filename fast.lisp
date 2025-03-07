@@ -45,8 +45,8 @@
     (king   0 :type (unsigned-byte 64))))
 
 (defstruct (fast-board (:conc-name fb-))
-  (black (make-instance 'fast-board-1) :type fast-board-1)
-  (white (make-instance 'fast-board-1) :type fast-board-1)
+  (black (make-fast-board-1) :type fast-board-1)
+  (white (make-fast-board-1) :type fast-board-1)
   (ticker 0 :type fixnum)
   (wck-p t :type boolean)
   (wcq-p t :type boolean)
@@ -57,7 +57,7 @@
 ;; "ups"
 (defun copy-fast-board (fb)
   (declare (type fast-board fb))
-  (let ((fb* (make-instance 'fast-board)))
+  (let ((fb* (make-fast-board)))
     (setf (fb-ticker fb*) (fb-ticker fb))
     (setf (fb-wck-p  fb*) (fb-wck-p  fb))
     (setf (fb-wcq-p  fb*) (fb-wcq-p  fb))
@@ -73,9 +73,9 @@
 (defmacro set-bit! (thing bit to &key (type-size 64))
   (assert (= type-size 64))
   #+sbcl `(setf (logbitpr ,thing ,bit :type-size ,type-size) ,to)
-  #+ecl`(if ,to
-            (setf ,thing (logior ,thing (ash 1 (- ,type-size 1 ,bit))))
-            (setf ,thing (logand ,thing (lognot64 (ash 1 (- ,type-size 1 ,bit))))))
+  #-sbcl `(if ,to
+              (setf ,thing (logior ,thing (ash 1 (- ,type-size 1 ,bit))))
+              (setf ,thing (logand ,thing (lognot64 (ash 1 (- ,type-size 1 ,bit))))))
   )
 
 (defmacro for-every-bb (as n &body b)
@@ -95,7 +95,7 @@
 
 (defun game->fast-board (g)
   (declare (type game g))
-  (let ((fb (make-instance 'fast-board)))
+  (let ((fb (make-fast-board)))
     #+ecl(progn
            (setf (fb-white fb) (make-instance 'fast-board-1))
            (setf (fb-black fb) (make-instance 'fast-board-1))

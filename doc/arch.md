@@ -11,4 +11,4 @@ budowanie pliku wykonywalnego (albo użyje [buildapp](https://www.xach.com/lisp/
 być uruchamiana innych implementacjach CL.
 
 [^1]: przynajmniej MS Windows (x64), Debian GNU/Linux, OpenBSD.
-[^2]: sprawdziłem, działa przynajmniej w ECL
+[^2]: sprawdziłem, działa przynajmniej w ECL i CCL

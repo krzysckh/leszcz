@@ -78,3 +78,8 @@ build-ecl:
 		--eval "(asdf:load-system :leszcz)" \
 		--eval "(asdf:make-build :leszcz :type :program :monolithic t :move-here #P\"./\" :prologue-code '(progn (require 'asdf) (require 'sb-bsd-sockets)) :epilogue-code '(progn (leszcz:main) (ext:quit)))" \
 		--eval "(quit)"
+run-ccl:
+	CL_SOURCE_REGISTRY=$(PWD) /home/kpm/soft/ccl/lx86cl64 \
+		-e "(ql:quickload :leszcz)" \
+		-e "(leszcz:main)" \
+		-e "(quit)"
