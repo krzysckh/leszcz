@@ -4,6 +4,7 @@
                :cl-store
                :local-time
                :bordeaux-threads
+               :file-select
                :leszcz-types
                :leszcz-constants
                :raylib

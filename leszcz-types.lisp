@@ -19,6 +19,7 @@
    game-turn-white-p
    game-turn-black-p
    game-in-progress-p
+   game->pgn
    ;; game
    game-pieces
    game-move-history
@@ -221,3 +222,6 @@
              :connection (game-connection g)
              :interactive-p (game-interactive-p g)
        )))
+
+(defmethod game->pgn ((g game))
+  (error "game->pgn is not implemented yet for ~a." g))

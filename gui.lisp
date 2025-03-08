@@ -40,6 +40,7 @@
    menu/frame-ctr                       ;
    menu/frame-ctr-magic                 ; but wcyd
    menu/frame-ctr-mod                   ;
+   tb/padx                              ;
 
    %bmenu
    ))

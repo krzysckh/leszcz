@@ -314,8 +314,8 @@
   (case mode
     (p2p (start-p2p-server
           game-handler
-          ;; :fen "7k/1Q6/R7/8/8/8/8/K7 w - - 0 1" ; fen
-          :fen fen
+          :fen "7k/1Q6/R7/8/8/8/8/K7 w - - 0 1" ; fen
+          ;; :fen fen
           :opponent-side opponent-side
           :time time
           :port port))

@@ -1,7 +1,10 @@
 ;;; Leszcz entrypoint
 
 (defpackage :leszcz
-  (:use :common-lisp :leszcz-constants :leszcz-types :raylib :gui :alexandria :cl-ppcre :net :fast :local-time :bordeaux-threads)
+  (:use
+   :common-lisp
+   :local-time :bordeaux-threads :alexandria :cl-ppcre :org.shirakumo.file-select
+   :leszcz-constants :leszcz-types :raylib :gui :net :fast)
   (:export
    main))
 
@@ -13,7 +16,7 @@
 (defparameter *current-game* nil)
 (defparameter *current-screen* nil)
 
-(defparameter *current-board-evaluation* nil)
+(defparameter *current-board-evaluation* nil) ; <- this is used mostly for testing
 
 (defun hasp (el l)
   (member el l :test #'equal))
@@ -691,41 +694,55 @@
         (return-from b p)))
     (error "couldn't find a king of ~a in game ~a!" color game (game-move-history game))))
 
+(defun save-game-to-pgn (game path)
+  (with-open-file (f path
+                     :direction :output
+                     :if-exists :supersede
+                     :if-does-not-exist :create)
+    (format f (game->pgn game))))
+
 (defun display-game-finish-menu (game text)
   (let-values ((bg (image->texture *current-screen*))
-               (b w h (abtn "powrot do menu" :height 24)))
+               (b w1 h1 (abtn "powrot do menu" :height 24))
+               (pgn w2 h2 (abtn "eksportuj jako pgn" :height 16))
+               (x y w h (values
+                         (+ (car *board-begin*) 30)
+                         (+ (cdr *board-begin*) 120)
+                         (- (* 8 +piece-size+) 60)
+                         (- (* 8 +piece-size+) 240)))) ; rect
     (with-continued-mainloop cont %main
       (draw-texture
        bg
-       (floatize (list 0 0 *window-width* *window-height*))
-       (floatize (list 0 0 *window-width* *window-height*))
+       (floatize (list (car *board-begin*) (cdr *board-begin*) *board-size* *board-size*))
+       (floatize (list (car *board-begin*) (cdr *board-begin*) *board-size* *board-size*))
+       ;; (floatize (list 0 0 *window-width* *window-height*))
        (floatize '(0 0)) (float 0) +color-white+)
-      (draw-rectangle
-       (+ (car *board-begin*) 30)
-       (+ (cdr *board-begin*) 120)
-       (- (* 8 +piece-size+) 60)
-       (- (* 8 +piece-size+) 240)
-       +color-grayish+)
-      (draw-rectangle-lines-2
-       (floatize
-        (list
-         (+ (car *board-begin*) 30)
-         (+ (cdr *board-begin*) 120)
-         (- (* 8 +piece-size+) 60)
-         (- (* 8 +piece-size+) 240)))
-       8.0
-       '(#xde #xde #xde #xff))
+      (draw-rectangle x y w h +color-grayish+)
+      (draw-rectangle-lines-2 (floatize (list x y w h)) 8.0 '(#xde #xde #xde #xff))
       (draw-text-alagard-centered
        text
        (/ *window-width* 2)
-       (+ (cdr *board-begin*) 120 30) 30 +color-white+)
+       (+ y 30)
+       30
+       +color-white+)
+
       (funcall
        b
-       (- (/ *window-width* 2) (/ w 2))
+       (- (/ *window-width* 2) (/ w1 2))
        (/ *window-height* 2)
        #'(lambda (_)
            (cleanup-threads!)
-           (setf cont #'%main))))))
+           (setf cont #'%main)))
+
+      (funcall
+       pgn
+       (- (/ *window-width* 2) (/ w2 2))
+       (+ (/ *window-height* 2) h1 40)
+       #'(lambda (_) ; this does not update continuation
+           (let-values ((path okp (org.shirakumo.file-select:new)))
+             (when okp
+               (save-game-to-pgn game path)))))
+      )))
 
 (defun display-win (game)
   (declare (type game game))
@@ -765,6 +782,8 @@
     (setf (game-points-cache g) a)))
 
 (defmethod game-check-for-mates ((g game) &key (call-display t))
+  ;; (when call-display
+  ;;   (sb-debug:backtrace))
   (let ((c (game-possible-moves-cache g))
         (k (king-of g (game-turn g))))
     (cond
@@ -964,8 +983,10 @@
                                         no-history
                                         no-update-timers
                                         )
-  (declare (type game game)
-           (type piece piece))
+  (declare
+   (type game game)
+   (type piece piece)
+   (ignore no-display-check-mates))
   ;; (warn "game-do-move move ~a to ~a" piece (list mx my))
   (when (not (move-possible-p piece mx my game))
     (warn "game-do-move called with invalid data: ~a -> (~a ~a)" piece mx my))
@@ -1100,7 +1121,7 @@
         )
 
       (unless no-check-mates
-        (game-check-for-mates game :call-display (not no-display-check-mates))))))
+        (game-check-for-mates game :call-display nil))))) ;(not no-display-check-mates))))))
 
 (defun base-texture-of (thing)
   (if (vectorp thing)
@@ -1527,14 +1548,22 @@
 
     (begin-drawing)
 
-    (maybe-receive-something game)
     (clear-background +color-grayish+)
+    (maybe-receive-something game)
+
     (draw-game game)
+
+    (when (not (eq (game-result game) 'in-progress)) ; only display the game finished menu after a frame with the winning position is rendered
+      (end-drawing)
+      (unload-image! *current-screen*)               ; TODO: this sucks even more
+      (setf *current-screen* (screen->image))        ; <- and this too
+      (game-check-for-mates game :call-display t))
 
     (dolist (h mainloop-draw-hooks)
       (funcall h game))
 
     (end-drawing)
+
     (unload-image! *current-screen*)))
 
 ;; Become a p2p "Master" server, accept a connection and begin game
