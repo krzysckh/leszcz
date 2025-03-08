@@ -68,6 +68,7 @@
    flag
    draw
    settings
+   takeback
    ))
 
 
@@ -201,6 +202,7 @@
    (cons 'flag     (file->vec "res/png/flag.png"))
    (cons 'draw     (file->vec "res/png/draw.png"))
    (cons 'settings (file->vec "res/png/settings.png"))
+   (cons 'takeback (file->vec "res/png/takeback.png"))
    ))
 
 (defparameter white-texture-data-list white-texture-data-list-pixel)

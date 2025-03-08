@@ -16,6 +16,9 @@
    to-s16
    from-s16
    ifz
+   rdata-packets->string
+   string->rdata
+   receive-packets
 
    +hii-type+
    +gdata-type+
@@ -160,7 +163,8 @@
 (defun make-client-packet (type &key
                                   (hii-nickname "")
                                   move-x1 move-y1 move-x2 move-y2 move-upgrade-type move-upgrade-p
-                                  gdata-drawp gdata-draw-ok gdata-surrender gdata-eval (gdata-eval-data 0)
+                                  gdata-drawp gdata-draw-ok gdata-surrender gdata-eval gdata-eval-data gdata-takeback-p
+                                  gdata-takeback-ok gdata-takeback-ok-ok gdata-takeback-ok-fen
                                   (ping-payload (random #xffff)) ping-response-p
                                   )
   (case type
@@ -186,16 +190,27 @@
                         (bishop #b0110)
                         (t      #b0000)))
                      0)))
-    (gdata (let* ((eval (to-s16 gdata-eval-data)))
+    (gdata (let* ((cont-rdata (when gdata-takeback-ok-ok (string->rdata gdata-takeback-ok-fen)))
+                  (_ (assert (<= (length cont-rdata) 255))) ; uhhh
+                  (eval-or-ncont (if gdata-eval-data
+                                     (to-s16 gdata-eval-data)
+                                     (list
+                                      #xff
+                                      (length cont-rdata)))))
              `(,(vector
-                 (logior +gdata-type+
-                         (ifz gdata-drawp     #b1000)
-                         (ifz gdata-draw-ok   #b0100)
-                         (ifz gdata-surrender #b0010)
-                         (ifz gdata-eval      #b0001))
-                 0
-                 (car eval)
-                 (cadr eval)))))
+                 (logior
+                  +gdata-type+
+                  (ifz gdata-drawp     #b1000)
+                  (ifz gdata-draw-ok   #b0100)
+                  (ifz gdata-surrender #b0010)
+                  (ifz gdata-eval      #b0001))
+                 (logior
+                  (ifz gdata-takeback-p     #b10000000)
+                  (ifz gdata-takeback-ok    #b01000000)
+                  (ifz gdata-takeback-ok-ok #b00100000))
+                 (car eval-or-ncont)
+                 (cadr eval-or-ncont))
+               ,@cont-rdata)))
     (ping `(,(vector (logior +ping-type+ (ifz ping-response-p #b00010000))
                      0
                      (ash (logand #xff00 ping-payload) -8)
@@ -314,8 +329,8 @@
   (case mode
     (p2p (start-p2p-server
           game-handler
-          :fen "7k/1Q6/R7/8/8/8/8/K7 w - - 0 1" ; fen
-          ;; :fen fen
+          ;; :fen "7k/1Q6/R7/8/8/8/8/K7 w - - 0 1" ; fen
+          :fen fen
           :opponent-side opponent-side
           :time time
           :port port))

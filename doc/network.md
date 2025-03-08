@@ -1,5 +1,14 @@
 # Sieć
 
+Protokół operuje przy założeniu że **oba** klienty działają *w dobrej wierze* i nie są
+zmodyfikowane. Klienty (np. w przypadku cofnięcia ruchów) **nie robią** żadnych dodatkowych sprawdzeń
+żeby upewnić się że nowa pozycja przesyłana przez przeciwnika jest faktycznie `aktualną pozycją - ruch (lub 2)`.
+
+Zaprojektowany jest żeby działać przez TCP/IP dlatego nie robione są żadne kontrole integralności pakietów - 
+nie ma żadnych crc itp.
+
+Przy grze z botem stawiany jest serwer lokalny i symulowana gra p2p.
+
 ## p2p
 
 1v1 po lokalnej sieci LUB sieci internet przy otwartych portach
@@ -116,11 +125,32 @@ i *nicklen* pakietami kontynuacyjnymi
     \bitbox{1}{\rotatebox{90}{eval}} &
     \bitbox{1}{\rotatebox{90}{cofnij?}} &
     \bitbox{1}{\rotatebox{90}{cofnij-ok}} &
-    \bitbox{6}{zarez.} &
-    \bitbox{16}{eval-data lub n-cont} \\
+    \bitbox{1}{\rotatebox{90}{cofnij-ok-ok}} &
+    \bitbox{5}{zarez.} &
+    \bitbox{16}{eval-data lub #xff i n-rdata} \\
   \end{bytefield}
   \rmfamily
   \caption{Pakiet gdata do wysyłania zaszłości w grze}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{sequencediagram}
+    \newinst{a}{A}{}
+    \newinst[1]{b}{B}{}
+    \begin {sdblock}{cofnięcie ruchu}{}
+      \mess[1]{a}{gdata [cofnij?]}{b}
+      \mess[1]{b}{gdata [cofnij-ok]}{a}
+    \end{sdblock}
+    \begin {sdblock}{wysłanie nowego FENu}{}
+      \mess[1]{a}{gdata [cofnij-ok-ok + ostatni bajt to N rdata jako uint8]}{b}
+      \mess[1]{a}{rdata z fenem}{b}
+      \mess[1]{a}{rdata [kont] ...}{b}
+    \end{sdblock}
+  \end{sequencediagram}
+  \rmfamily
+  \caption{Diagram przedstawiający dogadywanie cofania ruchu.}
 \end{figure}
 
 * *lgames*
