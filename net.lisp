@@ -19,6 +19,9 @@
    rdata-packets->string
    string->rdata
    receive-packets
+   rdatas->list
+   universal-start-server
+   p2p-connect-and-return-fen-and-side-data ; believe it or not i have defined it before it became so useful
 
    +hii-type+
    +gdata-type+
@@ -120,6 +123,28 @@
         (setf acc (append acc (list vec)))))
     acc))
 
+;; lst = (packet ...)
+(defun rdatas->list (lst)
+  (declare (type list lst)              ; mocne
+           (values list))
+
+  (let ((acc nil)
+        (cur nil))
+    (loop for p in lst do
+      (when (not (fast:bit-set-p (aref p 0) 3 :type-size 8))
+        (when cur
+          (push (coerce cur 'string) acc))
+        (setf cur nil))
+      (setf cur (append
+                 cur
+                 (if (not (= 0 (aref p 1))) `(,(code-char (aref p 1))) nil)
+                 (if (not (= 0 (aref p 2))) `(,(code-char (aref p 2))) nil)
+                 (if (not (= 0 (aref p 3))) `(,(code-char (aref p 3))) nil))))
+
+    (when cur
+      (push (coerce cur 'string) acc))
+    (reverse acc)))
+
 (defun make-server-packet (type &key
                                   (hii-p2p t)
                                   (gdata-color 'white)
@@ -166,6 +191,7 @@
                                   gdata-drawp gdata-draw-ok gdata-surrender gdata-eval gdata-eval-data gdata-takeback-p
                                   gdata-takeback-ok gdata-takeback-ok-ok gdata-takeback-ok-fen
                                   (ping-payload (random #xffff)) ping-response-p
+                                  pgame-nick
                                   )
   (case type
     (hii (let ((nl-packets (string->rdata hii-nickname)))
@@ -215,6 +241,9 @@
                      0
                      (ash (logand #xff00 ping-payload) -8)
                      (logand #xff ping-payload))))
+    (lgames `(,(vector +lgames-type+ 0 0 0)))
+    (pgame  (let ((cont-rdata (string->rdata pgame-nick)))
+              `(,(vector +pgame-type+ 0 0 (length cont-rdata)) ,@cont-rdata)))
     (t
      (error "unsupported type for make-client-packet ~a" type))))
 
@@ -297,6 +326,12 @@
              nil)))
       (error "expected MOVE packet, got ~a instead" p)))
 
+(defun universal-start-server (conn game-handler &key (fen +initial-fen+) (opponent-side 'white) (time 10))
+  (write-packets conn (make-server-packet 'gdata :gdata-color opponent-side :gdata-fen fen :gdata-time time))
+
+  (funcall game-handler fen (if (eq 'white opponent-side) 'black 'white) conn time)
+  (format t "[SERVER] Closing p2p socket and connection~%"))
+
 ;; TODO: s/127.0.0.1/0.0.0.0/
 (defun start-p2p-server (game-handler &key fen (opponent-side 'white) (time 10) port)
   (format t "[SERVER] starting p2p server @ port ~a~%" port)
@@ -311,10 +346,8 @@
       (let* ((hii-back (receive-packet conn)))
         (assert (packet-of-type-p hii-back +hii-type+)))
 
-      (write-packets conn (make-server-packet 'gdata :gdata-color opponent-side :gdata-fen fen :gdata-time time))
+      (universal-start-server conn game-handler :fen fen :opponent-side opponent-side :time time :port port))))
 
-      (funcall game-handler fen (if (eq 'white opponent-side) 'black 'white) conn time)
-      (format t "[SERVER] Closing p2p socket and connection~%"))))
       ;; (usocket:socket-close conn)
       ;; (usocket:socket-close sock))))
 
@@ -349,8 +382,8 @@
      conn
      time)))
 
-(defun connect-to-server (ip nickname &key (port +port+))
-  (let ((conn (socket-connect ip port :element-type '(unsigned-byte 8))))
+(defun connect-to-server (ip-or-conn nickname &key (port +port+) online-handler)
+  (let ((conn (if (stringp ip-or-conn) (socket-connect ip-or-conn port :element-type '(unsigned-byte 8)) ip-or-conn)))
     (let ((hii (receive-packet conn)))
       (format t "[CLIENT] got hii: ~a (~a)~%" hii (packet->name hii))
       (if* (logand (aref hii 0) #b00010000)
@@ -359,4 +392,6 @@
             (p2p-connect-and-return-fen-and-side-data conn))
           (progn
             (write-packets conn (make-client-packet 'hii :hii-nickname nickname))
-            (error "non-p2p servers unsupported"))))))
+            (prog1 conn
+              (when online-handler
+                (funcall online-handler conn))))))))

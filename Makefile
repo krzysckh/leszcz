@@ -52,7 +52,7 @@ docs:
 		--quit
 	makeinfo --no-split --pdf leszcz.texi -o doc/leszcz-reference-manual.pdf
 	makeinfo --no-split --html --css-include=doc/doc.css leszcz.texi -o doc/leszcz-reference-manual.html
-pubcpy: docs dist
+pubcpy: dist docs
 	rm -f leszcz-win64-dist.tgz leszcz-win64-dist.zip
 	tar cvzf leszcz-win64-dist.tgz dist
 	zip -r leszcz-win64-dist.zip dist
@@ -83,3 +83,6 @@ run-ccl:
 		-e "(ql:quickload :leszcz)" \
 		-e "(leszcz:main)" \
 		-e "(quit)"
+
+test-online:
+	./t/test-online.sh

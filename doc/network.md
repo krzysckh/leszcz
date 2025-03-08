@@ -116,7 +116,7 @@ i *nicklen* pakietami kontynuacyjnymi
 \begin{figure}[H]
   \centering
   \ttfamily
-  \begin{bytefield}[bitheight=\widthof{~draw-ok~},boxformatting={\centering\small}]{32}
+  \begin{bytefield}[bitheight=\widthof{~cofnij-ok-ok~},boxformatting={\centering\small}]{32}
     \bitheader{0-31} \\
     \bitbox{3}{typ} & \bitbox{29}{dane} \\
     \bitboxes{1}{001} & \bitbox{1}{\rotatebox{90}{nieu.}} &
@@ -126,7 +126,8 @@ i *nicklen* pakietami kontynuacyjnymi
     \bitbox{1}{\rotatebox{90}{cofnij?}} &
     \bitbox{1}{\rotatebox{90}{cofnij-ok}} &
     \bitbox{1}{\rotatebox{90}{cofnij-ok-ok}} &
-    \bitbox{5}{zarez.} &
+    \bitbox{4}{zarez.} &
+    \bitbox{1}{\rotatebox{90}{bailing out}} &
     \bitbox{16}{eval-data lub 0xff i n-rdata} \\
   \end{bytefield}
   \rmfamily
@@ -153,6 +154,25 @@ i *nicklen* pakietami kontynuacyjnymi
   \caption{Diagram przedstawiający dogadywanie cofania ruchu.}
 \end{figure}
 
+* *pgame*
+  * Przy wyborze gry
+    * klient wysyła
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{bytefield}[bitheight=\widthof{~biały?~},boxformatting={\centering\small}]{32}
+    \bitheader{0-31} \\
+    \bitbox{3}{typ} & \bitbox{29}{dane} \\
+    \bitboxes{1}{011} & 
+    \bitbox{21}{zar.} &
+    \bitbox{8}{ilość rdata kont.} \\
+  \end{bytefield}
+  \rmfamily
+  \caption{Pakiet pgame do wybierania gry}
+\end{figure}
+
+i *N* pakietów kontynuacyjnych z nickiem właściciela wybranej gry
+
 * *lgames*
   * klient wysyła
 \begin{figure}[H]
@@ -160,8 +180,8 @@ i *nicklen* pakietami kontynuacyjnymi
   \ttfamily
   \begin{bytefield}{32}
     \bitheader{0-31} \\
-    \bitbox{3}{typ} & \bitbox{29}{maksymalna ilość odebranych gier} \\
-    \bitboxes{1}{010} & \bitbox{29}{j.w.} \\
+    \bitbox{3}{typ} & \bitbox{29}{} \\
+    \bitboxes{1}{010} & \bitbox{29}{nieużywane} \\
   \end{bytefield}
   \rmfamily
   \caption{Pakiet lgames do proszenia o listę możliwych gier}
@@ -173,8 +193,8 @@ i *nicklen* pakietami kontynuacyjnymi
   \ttfamily
   \begin{bytefield}{32}
     \bitheader{0-31} \\
-    \bitbox{3}{typ} & \bitbox{29}{ilość pakietów kontynuacyjnych} \\
-    \bitboxes{1}{010} & \bitbox{29}{j.w.} \\
+    \bitbox{3}{typ} & \bitbox{29}{dane} \\
+    \bitboxes{1}{010} & \bitbox{13}{nieużywane} & \bitbox{16}{N rdata kont.} \\
   \end{bytefield}
   \rmfamily
   \caption{Pakiet lgames odpowiadający na prośbę o listę możliwych gier}
@@ -193,6 +213,28 @@ i *nicklen* pakietami kontynuacyjnymi
   \end{bytefield}
   \rmfamily
   \caption{Pakiety rdata z danymi (nazwami) gier}
+\end{figure}
+
+
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{sequencediagram}
+    \newinst{a}{A}{}
+    \newinst[1]{b}{B}{}
+      \mess[1]{a}{lgames}{b}
+      \mess[1]{b}{lgames ncont=8}{a}
+      \mess[1]{b}{rdata naz}{a}
+      \mess[1]{b}{rdata wa1 [kont]}{a}
+      \mess[1]{b}{rdata naz}{a}
+      \mess[1]{b}{rdata wa2 [kont]}{a}
+      \mess[1]{b}{rdata dlu}{a}
+      \mess[1]{b}{rdata ga  [kont]}{a}
+      \mess[1]{b}{rdata naz [kont]}{a}
+      \mess[1]{b}{rdata wa  [kont]}{a}
+  \end{sequencediagram}
+  \rmfamily
+  \caption{wysyłanie wielu nazw gier poprzez manipulowanie flagą kontynuacji}
 \end{figure}
 
 * *ping*

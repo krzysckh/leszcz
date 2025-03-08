@@ -1474,7 +1474,7 @@
   (declare (type game game))
 
   ;; (when (and (not (eq (game-side game) (game-turn game))) (game-connection game))
-  (when (game-connection game)
+  (when-let ((c (game-connection game)))
     (when-let ((p (maybe-receive-packet (game-connection game))))
       (format t "got packet with type ~a~%" (packet->name p))
       (packet-case p
@@ -1485,6 +1485,11 @@
                               :no-display-check-mates (not (game-interactive-p game)) ; <- ja pierdole, -30 minut zycia przez debugowanie double free przez to  ~ kpm
                               :no-funcall upgrade-p
                               :upgrade-type upgrade-t)))
+        (lgames
+         (let* ((ncont  (logior (ash (aref p 2) 8) (aref p 3)))
+                (_ (format t "ncont is: ~a~%" ncont))
+                (unames (rdatas->list (receive-packets c ncont))))
+           (format t "received unames: ~a~%" unames)))
         (gdata
          (when (fast:bit-set-p (aref p 0) 7 :type-size 8)
            (let ((eval-data (net:from-s16 (aref p 2) (aref p 3))))
@@ -1759,6 +1764,12 @@
                             +initial-fen+           ; TODO
                             )))))))))))
 
+(defun %online-host-menu ()
+  t)
+
+(defun %online-join-menu ()
+  t)
+
 (defun %join-game-menu ()
   (let-values ((portsym (gensym "joinport"))
                (ipsym (gensym "joinip"))
@@ -1820,8 +1831,11 @@
                                     (%bmenu
                                      "Online"
                                      #'%main
-                                     `(("zahostuj gre w LAN" . ,#'%host-game-menu)
-                                       ("dolacz do gry w LAN" . ,#'%join-game-menu))))))))
+                                     `(("zahostuj w LAN" . ,#'%host-game-menu)
+                                       ("dolacz w LAN" . ,#'%join-game-menu)
+                                       ("zahostuj w sieci internet" . ,#'%online-host-menu)
+                                       ("dolacz w sieci" . ,#'%online-join-menu)
+                                       )))))))
 
       (upy y h2 32
         (funcall
