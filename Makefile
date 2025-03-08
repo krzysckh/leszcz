@@ -40,6 +40,13 @@ test-p2p:
 	  sleep 1 ; \
 	  CL_SOURCE_REGISTRY=$(PWD) $(SBCL) --eval "(ql:quickload :leszcz)" --eval "(leszcz::connect-to-master)" --quit & \
 	  wait )
+test-online-2:
+	( \
+	  ol -r server/leszcz-server.scm & \
+	  CL_SOURCE_REGISTRY=$(PWD) $(SBCL) --eval "(ql:quickload :leszcz)" --eval "(leszcz::%online-host-menu)" --quit & \
+	  sleep 1 ; \
+	  CL_SOURCE_REGISTRY=$(PWD) $(SBCL) --eval "(ql:quickload :leszcz)" --eval "(leszcz::%online-join-menu)" --quit & \
+	  wait )
 docs:
 	( for d in $(DOCS); do printf '\n\n\\newpage\n\n'; cat $$d ; done ; printf '\n\n\\newpage\n\n# Odniesienia' ) \
 		| pandoc $(PANDOC_COMMON_FLAGS) $(PANDOC_PDF_FLAGS) -t pdf -o doc/leszcz.pdf

@@ -1615,7 +1615,7 @@
       (setf (game-interactive-p g) t)
       (setf (game-time-white g) (* time 60))
       (setf (game-time-black g) (* time 60))
-      (setf (game-interactive-p g) t)
+      (initialize-game g side conn :no-overwrite-interactive t)
       (game-main-loop g side conn))))
 
 ;; (setf *trace-p* t)
@@ -1671,7 +1671,7 @@
 
 (defun make-player-vs-bot (book)
   #'(lambda ()
-      (let-values ((color port time fen (%game-options-menu "Zagraj na bota")))
+      (let-values ((color port time fen _uname (%game-options-menu "Zagraj na bota")))
         (thread "bot thread (server)"
           (net:start-server
            #'(lambda (fen side conn time)
@@ -1714,7 +1714,7 @@
     (close-window)))
 
 (defun %host-game-menu ()
-  (let-values ((color port time fen (%game-options-menu "Hostuj w LAN")))
+  (let-values ((color port time fen _uname (%game-options-menu "Hostuj w LAN")))
     (start-master-server
      :side color
      :port port
@@ -1725,13 +1725,15 @@
 ;;   where type is one of (input-box (choice-of exp ...))
 ;; (defun %game-options-menu (title options)
 
-(defun %game-options-menu (title)
+(defun %game-options-menu (title &key no-port (no-nick t))
   (declare (type string title))
   (let ((current-color 'white))
     (let-values ((portsym    (gensym "port"))
                  (timesym    (gensym "time"))
+                 (nicksym    (gensym "nick"))
                  (port pw ph (gui:make-input-box portsym :width 128 :height 24 :text-draw-fn #'draw-text-alagard :default-value "3317"))
                  (time tw th (gui:make-input-box timesym :width 128 :height 24 :text-draw-fn #'draw-text-alagard :default-value "15"))
+                 (nick nw nh (gui:make-input-box nicksym :width 128 :height 24 :text-draw-fn #'draw-text-alagard :default-value (symbol-name (gensym (format nil "~auser" (machine-instance))))))
                  (ok ow oh   (abtn "Ok" :height 24))
                  (bw w1 h1   (abtn "jasne" :height 24))
                  (bb w2 h2   (abtn "ciemne" :height 24))
@@ -1739,8 +1741,10 @@
       (with-continued-mainloop cont %main
         (let ((y (cdr *board-begin*)))
           (upy y 150 0 (draw-text-alagard-centered title (/ *window-width* 2) y 80 '(#x33 #xda #xf5 #xff)))
-          (upy y 0 0   (draw-text-alagard "port " 128 y 24 +color-white+))
-          (upy y ph 30 (funcall port 230 y 150))
+
+          (unless no-port
+            (upy y 0 0   (draw-text-alagard "port " 128 y 24 +color-white+))
+            (upy y ph 30 (funcall port 230 y 150)))
 
           (upy y 0 0   (draw-text-alagard "kolor " 128 y 24 +color-white+))
           (upy y h1 30 (funcall (if (eq current-color 'white) bw bb)
@@ -1750,6 +1754,10 @@
 
           (upy y 0 0   (draw-text-alagard "czas" 128 y 24 +color-white+))
           (upy y th 30 (funcall time 230 y))
+
+          (unless no-nick
+            (upy y 0 0   (draw-text-alagard "nick " 128 y 24 +color-white+))
+            (upy y nh 30 (funcall nick 230 y 150)))
 
           (funcall
            ok (/ *window-width* 2) y
@@ -1762,13 +1770,89 @@
                             (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))
                             (parse-integer (coerce (gethash timesym input-box/content-ht) 'string))
                             +initial-fen+           ; TODO
+                            (coerce (gethash nicksym input-box/content-ht) 'string)
                             )))))))))))
 
+(defun %ask-uname ()
+  (let-values ((nicksym    (gensym "nick"))
+               (nick nw nh (gui:make-input-box nicksym :width 128 :height 24 :text-draw-fn #'draw-text-alagard :default-value (symbol-name (gensym (format nil "~auser" (machine-instance))))))
+               (ok ow oh   (abtn "Ok" :height 24))
+               )
+    (with-continued-mainloop cont %main
+      (let ((y (cdr *board-begin*)))
+        (upy y 150 0 (draw-text-alagard-centered "Wybierz nick" (/ *window-width* 2) y 80 '(#x33 #xda #xf5 #xff)))
+
+        (upy y 0 0   (draw-text-alagard "nick " 128 y 24 +color-white+))
+        (upy y nh 30 (funcall nick 230 y 150))
+
+        (funcall
+         ok (/ *window-width* 2) y
+         #'(lambda (&rest _) ;; can i cont like this? lmao
+             (setf cont
+                   #'(lambda ()
+                       (return-from %ask-uname (coerce (gethash nicksym input-box/content-ht) 'string))))))))))
+
 (defun %online-host-menu ()
-  t)
+  (let-values ((color _ time fen uname (%game-options-menu "Hostuj w sieci internet" :no-port t :no-nick nil)))
+    (net:connect-to-server
+     *online-host*
+     uname
+     :online-handler #'(lambda (conn)
+                         ;; (net:write-packets conn (net:make-client-packet 'lgames))
+                         (net:universal-start-server
+                          conn
+                          #'(lambda (fen side conn time)
+                              (let ((g (fen->game fen)))
+                                (initialize-game g side conn)
+                                (setf (game-interactive-p g) t)
+                                (setf (game-time-white g) (* 60 time))
+                                (setf (game-time-black g) (* 60 time))
+                                (let ((okp nil))
+                                  (loop until (or okp (window-close-p)) do
+                                    (sleep 0.01)
+                                    (when-let ((p (maybe-receive-packet conn)))
+                                      (packet-case p
+                                        (ping (when (fast:bit-set-p (aref p 0) 4 :type-size 8)
+                                                (setf okp t)))
+                                        (t
+                                         (warn "Unexpected packet ~a while waiting for WAKEUP from server: ~a." (packet->name p) p))))))
+                                (game-main-loop g side conn)))
+                          :fen fen
+                          :opponent-side (if (eq color 'black) 'white 'black)
+                          :time time)))))
 
 (defun %online-join-menu ()
-  t)
+  (let ((uname (%ask-uname)))
+    (net:connect-to-server
+     *online-host*
+     uname
+     :online-handler
+     #'(lambda (conn)
+         (write-packets conn (make-client-packet 'lgames))
+         (let ((chosen nil))
+           (loop until (or chosen (window-close-p)) do
+             (sleep 0.01)
+             (when-let ((p (maybe-receive-packet conn)))
+               (packet-case p
+                 (lgames
+                  (flet ((cont (nick)
+                           (net:write-packets conn (net:make-client-packet 'pgame :pgame-nick nick))
+                           (let-values ((fen side _ time (p2p-connect-and-return-fen-and-side-data conn)))
+                             (format t "server declared ~a minutes per player~%" time)
+                             (let ((g (fen->game fen)))
+                               (setf (game-interactive-p g) t)
+                               (setf (game-time-white g) (* time 60))
+                               (setf (game-time-black g) (* time 60))
+                               (initialize-game g side conn :no-overwrite-interactive t)
+                               (write-packets conn (make-client-packet 'ping :ping-wakeup t))
+                               (game-main-loop g side conn)))))
+                    (let* ((ncont (logior (ash (aref p 2) 8) (aref p 3)))
+                           (unames (rdatas->list (receive-packets conn ncont)))
+                           (buttons (loop for u in unames
+                                          collecting `(,u . ,(lambda () (cont u))))))
+                      (format t "received unames: ~a~%" unames)
+                      (%bmenu "wybierz gre" #'%main buttons)
+                      )))))))))))
 
 (defun %join-game-menu ()
   (let-values ((portsym (gensym "joinport"))

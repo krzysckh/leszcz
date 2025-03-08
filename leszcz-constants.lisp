@@ -2,6 +2,7 @@
   (:use :common-lisp :alexandria)
   (:import-from :str from-file)
   (:export
+   *online-host*
    file->vec
    white-texture-data-list
    black-texture-data-list
@@ -76,6 +77,9 @@
 
 (defparameter *debug* nil)
 (defparameter *prod* nil)
+
+;; (defparameter *online-host* "pub.krzysckh.org")
+(defparameter *online-host* "localhost")
 
 (defun file->vec (fname)
   (let* ((f (open fname :element-type '(unsigned-byte 8)))

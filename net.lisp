@@ -190,7 +190,7 @@
                                   move-x1 move-y1 move-x2 move-y2 move-upgrade-type move-upgrade-p
                                   gdata-drawp gdata-draw-ok gdata-surrender gdata-eval gdata-eval-data gdata-takeback-p
                                   gdata-takeback-ok gdata-takeback-ok-ok gdata-takeback-ok-fen
-                                  (ping-payload (random #xffff)) ping-response-p
+                                  (ping-payload (random #xffff)) ping-response-p ping-wakeup
                                   pgame-nick
                                   )
   (case type
@@ -237,7 +237,7 @@
                  (car eval-or-ncont)
                  (cadr eval-or-ncont))
                ,@cont-rdata)))
-    (ping `(,(vector (logior +ping-type+ (ifz ping-response-p #b00010000))
+    (ping `(,(vector (logior +ping-type+ (ifz ping-response-p #b00010000) (ifz ping-wakeup #b00001000))
                      0
                      (ash (logand #xff00 ping-payload) -8)
                      (logand #xff ping-payload))))

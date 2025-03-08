@@ -21,15 +21,11 @@ Przy grze z botem stawiany jest serwer lokalny i symulowana gra p2p.
 
 ## przez sieć internet
 
-tego zupełnie nie napisałem
-
-- Komputer 1 łączy się z jakimśtam (pewnie moim) serwerem po adresie IP w sieci internet
+- Komputer 1 łączy się z moim serwerem po adresie IP w sieci internet
 - Komputer 2 łączy się z tym samym serwerem
-- dogadują się przez jakiśtam protokół
-- dogadują się **z kim** chcą grać (po nazwie użytkownika? po adresie ip? :3)
-- serwer (ten jakiśtam [pewnie mój]) przekazuje dane z Komputera 1 do Komputera 2 bez łączenia ich bezpośrednio ze sobą
-- ...
-- profit
+- dogadują się przez ten sam protokół
+- dogadują się **z kim** chcą grać po nazwie użytkownika
+- serwer (ten mój) przekazuje dane z Komputera 1 do Komputera 2 bez łączenia ich bezpośrednio ze sobą
 
 # protokół
 
@@ -242,13 +238,16 @@ i *N* pakietów kontynuacyjnych z nickiem właściciela wybranej gry
 w każdym momencie komputer może przesłać pakiet `ping` z prośbą o odpowiedź.
 Odpowiedź ma ustawiony bit `odp` na 1 i powinna odesłać ten sam payload.
 
+pakiet z flagą `wakeup` jest używany w trybie "przez internet" (symulowanym p2p) by powiadomić hosta o tym
+że ktoś dołączył do gry.
+
 \begin{figure}[H]
   \centering
   \ttfamily
-  \begin{bytefield}[bitheight=\widthof{~odp~},boxformatting={\centering\small}]{32}
+  \begin{bytefield}[bitheight=\widthof{~wakeup~},boxformatting={\centering\small}]{32}
     \bitheader{0-31} \\
     \bitbox{3}{typ} & \bitbox{1}{} & \bitbox{12}{} & \bitbox{16}{payload} \\
-    \bitboxes{1}{100} & \bitbox{1}{\rotatebox{90}{odp}} \bitbox{12}{nieu.} & \bitbox{16}{payload} \\
+    \bitboxes{1}{100} & \bitbox{1}{\rotatebox{90}{odp}} & \bitbox{1}{\rotatebox{90}{wakeup}} & \bitbox{11}{nieu.} & \bitbox{16}{payload} \\
   \end{bytefield}
   \rmfamily
   \caption{Pakiet ping}
@@ -332,4 +331,73 @@ Odpowiedź ma ustawiony bit `odp` na 1 i powinna odesłać ten sam payload.
   \end{Highlighting}
   \end{Shaded}
   \caption{Transkrypcja działania protokołu w trybie p2p}
+\end{figure}
+
+### przez sieć internet
+
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{sequencediagram}
+    \newinst{a}{Master}{}
+    \newinst[1]{b}{Przekaźnik}{}
+    \newinst[2]{c}{Slave}{}
+    \begin {sdblock}{Handshake 1}{}
+      \mess[1]{b}{hii :33}{a}
+      \mess[1]{a}{hii :33}{b}
+    \end{sdblock}
+    \begin {sdblock}{Handshake 2}{}
+      \mess[1]{b}{hii :33}{c}
+      \mess[1]{c}{hii :33}{b}
+    \end{sdblock}
+  \end{sequencediagram}
+  \rmfamily
+  \caption{Hanshake protokołu przez sieć internet (w symulowanym trybie p2p)}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{sequencediagram}
+    \newinst{a}{Master}{}
+    \newinst[1]{b}{Przekaźnik}{}
+    \newinst[2]{c}{Slave}{}
+    \begin {sdblock}{Stworzenie gry}{}
+      \mess[1]{a}{gdata}{b}
+      \mess[1]{a}{rdata z fenem}{b}
+      \mess[1]{a}{rdata [kont] ...}{b}
+    \end{sdblock}
+    \begin {sdblock}{Dołączenie do gry}{}
+      \mess[1]{c}{pgame}{b}
+      \mess[1]{c}{rdata z nickiem}{b}
+      \mess[1]{b}{ping [wakeup]}{a}
+      \mess[1]{b}{gdata}{c}
+      \mess[1]{b}{rdata z fenem}{c}
+      \mess[1]{b}{rdata [kont] ...}{c}
+    \end{sdblock}
+  \end{sequencediagram}
+  \rmfamily
+  \caption{Dołączenie do gry w symulowanym trybie p2p}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \ttfamily
+  \begin{sequencediagram}
+    \newinst{a}{Master}{}
+    \newinst[1]{b}{Przekaźnik}{}
+    \newinst[2]{c}{Slave}{}
+    \begin {sdblock}{Gra}{}
+      \mess[1]{a}{move}{b}
+      \mess[1]{b}{move}{c}
+      \mess[1]{c}{move}{b}
+      \mess[1]{b}{move}{a}
+      \mess[1]{a}{move}{b}
+      \mess[1]{b}{move}{c}
+      \mess[1]{c}{move}{b}
+      \mess[1]{b}{move}{a}
+    \end{sdblock}
+  \end{sequencediagram}
+  \rmfamily
+  \caption{Gra w symulowanym trybie p2p}
 \end{figure}

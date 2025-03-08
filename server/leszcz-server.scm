@@ -15,6 +15,7 @@
 ;; - [x] the client can get a list of games
 ;; - [x] the client can join a game -- start a new thread that literally just sends messages between the 2 clients.
 ;; - [ ] after a finished game disconnect both clients - close ports !!!!
+;; - [ ] handle errors on closed connections and don't literally just fail™
 
 (define type-hii    #b000)
 (define type-gdata  #b001)
