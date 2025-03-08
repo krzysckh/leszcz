@@ -352,7 +352,7 @@ pakiet z flagą `wakeup` jest używany w trybie "przez internet" (symulowanym p2
     \end{sdblock}
   \end{sequencediagram}
   \rmfamily
-  \caption{Hanshake protokołu przez sieć internet (w symulowanym trybie p2p)}
+  \caption{Handshake protokołu przez sieć internet (w symulowanym trybie p2p)}
 \end{figure}
 
 \begin{figure}[H]
