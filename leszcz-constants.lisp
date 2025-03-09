@@ -78,8 +78,8 @@
 (defparameter *debug* nil)
 (defparameter *prod* nil)
 
-;; (defparameter *online-host* "pub.krzysckh.org")
-(defparameter *online-host* "localhost")
+(defparameter *online-host* "pub.krzysckh.org")
+;; (defparameter *online-host* "localhost")
 
 (defun file->vec (fname)
   (let* ((f (open fname :element-type '(unsigned-byte 8)))

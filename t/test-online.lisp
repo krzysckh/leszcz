@@ -35,5 +35,11 @@
          (initialize-game g 'white conn)
          (format t "in game-handler w/ ~a ~a ~a ~a~%" fen side conn time)
          (send-ping-to g)
-         (loop do
-           (maybe-receive-something g))))))
+         (dotimes (_ 1000000)
+           (maybe-receive-something g))
+
+         (sleep 1)
+
+         (usocket:socket-close conn)
+         (format t "finished client process~%")
+         ))))

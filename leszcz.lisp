@@ -1511,7 +1511,10 @@
          (when (fast:bit-set-p (aref p 1) 2 :type-size 8)
            (format t "received TAKEBACK-OK-OK w/ CONT~%")
            (format t "NEW FEN is said to be ~a~%" (rdata-packets->string (receive-packets (game-connection game) (aref p 3))))
-           ))
+           )
+         (when (fast:bit-set-p (aref p 1) 7 :type-size 8)
+           (error "Server decided to BAIL OUT (opponent disconnect / invalid data sent)."))
+         )
         (ping
          (let ((res-p (fast:bit-set-p (aref p 0) 3 :type-size 8))
                (payl (logior (ash (aref p 2) 8) (aref p 3))))

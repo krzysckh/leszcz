@@ -2,6 +2,7 @@
 
 (import
  (owl toplevel)
+ (owl thread)
  (prefix (owl sys) sys/))
 
 (define *port* 3317)
@@ -58,6 +59,12 @@
 (define (delete-game! id) (mail 'game-data-handler (tuple 'delete! id)))
 (define (list-games!)     (interact 'game-data-handler (tuple 'list!)))
 
+(define (maybe-next-mail)
+  (let ((envelope (check-mail)))
+    (if (tuple? envelope)
+        (values (ref envelope 1) (ref envelope 2))
+        (values #f #f))))
+
 ;; lmao
 (define (cdddr* l)
   (cdr* (cdr* (cdr* l))))
@@ -99,34 +106,55 @@
          (packets (get-packets fd cont)))
     (rdatas->string packets)))
 
+(define (bail-out! fd)
+  (format stdout "bailing out for ~a!~%" fd)
+  (try-thunk
+   (λ ()
+     (when (writeable? fd)
+       (write-bytes fd '(#b00100000 #b00000001 0 0)))
+     (print "fd is: " fd)
+     (close-port fd))
+   (λ (e) (print "bail-out: failed to write-bytes: " e))
+   (string->symbol (str "_bailout" (time-ns)))))
+
 (define (simulate-p2p slave g)
   (let ((master (lref g 0)))
     (format stdout "will simulate p2p for ~a and ~a with game ~a~%" g master slave)
     (map (H write-bytes slave) (lref g 1)) ; write the initial gdata config packet
-    (thread
-     (let loop ()
-       (sleep 20)
-       (when (readable? master)
-         (print "yes readable master")
-         (let ((packets (map bytevector->list (get-packets master 1))))
-           (print "packets from master: " packets)
-           (map (H write-bytes slave) packets)
-           (print "written to slave")))
-       (loop)))
-    (thread
-     (let loop ()
-       (sleep 20)
-       (when (readable? slave)
-         (print "yes readable slave")
-         (let ((packets (map bytevector->list (get-packets slave 1))))
-           (print "packets from slave: " packets)
-           (map (H write-bytes master) packets)
-           (print "written to master")))
-       (loop)))))
 
-(define (bail-out! fd)
-  (format stdout "bailing out for ~a!~%" fd)
-  (write-bytes fd (#b00100000 #b00000001 0 0)))
+    (format stdout "slave=~a, master=~a~%" slave master)
+
+    (thread
+     (let loop ()
+       (sleep 20)
+       (if (readable? master)
+           (if-lets ((packet (car* (get-packets master 1)))
+                     (_ (bytevector? packet))) ; <- a hackish thing but heh
+             (begin
+               (print "packet from master is " packet)
+               (write-bytes slave (bytevector->list packet))
+               (loop))
+             (begin
+               (bail-out! master)
+               (bail-out! slave)))
+           (loop))))
+
+    (thread
+     (let loop ()
+       (sleep 20)
+       (if (readable? slave)
+           (if-lets ((packet (car* (get-packets slave 1)))
+                     (_ (bytevector? packet)))
+             (begin
+               (print "packet from slave is " packet)
+               (write-bytes master (bytevector->list packet))
+               (loop))
+             (begin
+               (bail-out! slave)
+               (bail-out! master)))
+           (loop))))
+    ))
+
 
 (define (make-client fd ip)
   (let ((thrname (string->symbol (str "client@" ip "-" (time-ns)))))
