@@ -124,7 +124,11 @@
 
     (format stdout "slave=~a, master=~a~%" slave master)
 
+    (let ((id1 (string->symbol (str "master" (time-ns))))
+          (id2 (string->symbol (str "slave" (time-ns)))))
+
     (thread
+     id1
      (let loop ()
        (sleep 20)
        (if (readable? master)
@@ -136,10 +140,13 @@
                (loop))
              (begin
                (bail-out! master)
-               (bail-out! slave)))
+               (bail-out! slave)
+               (kill id2)
+               (kill id1)))
            (loop))))
 
     (thread
+     id2
      (let loop ()
        (sleep 20)
        (if (readable? slave)
@@ -151,9 +158,11 @@
                (loop))
              (begin
                (bail-out! slave)
-               (bail-out! master)))
+               (bail-out! master)
+               (kill id1)
+               (kill id2)))
            (loop))))
-    ))
+    )))
 
 
 (define (make-client fd ip)
