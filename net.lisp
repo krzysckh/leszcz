@@ -189,7 +189,7 @@
                                   (hii-nickname "")
                                   move-x1 move-y1 move-x2 move-y2 move-upgrade-type move-upgrade-p
                                   gdata-drawp gdata-draw-ok gdata-surrender gdata-eval gdata-eval-data gdata-takeback-p
-                                  gdata-takeback-ok gdata-takeback-ok-ok gdata-takeback-ok-fen gdata-uname
+                                  gdata-takeback-ok gdata-takeback-ok-ok gdata-takeback-ok-fen gdata-uname gdata-bail-out
                                   (ping-payload (random #xffff)) ping-response-p ping-wakeup
                                   pgame-nick
                                   )
@@ -237,6 +237,7 @@
                   (ifz gdata-takeback-ok    #b01000000)
                   (ifz gdata-takeback-ok-ok #b00100000)
                   (ifz gdata-uname          #b00010000)
+                  (ifz gdata-bail-out       #b00000001)
                   )
                  (car eval-or-ncont)
                  (cadr eval-or-ncont))

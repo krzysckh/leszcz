@@ -10,7 +10,10 @@ Dzięki takiemu podejściu aplikacja jest dość międzyplatformowa[^1] i jeśli
 budowanie pliku wykonywalnego (albo użyje [buildapp](https://www.xach.com/lisp/buildapp)) może[^2]
 być uruchamiana innych implementacjach CL.
 
-Serwer, który pozwala na grę online (nie tylko po LAN) napisany jest w języku [Owl Lisp](https://gitlab.com/owl-lisp/owl), bo taki miałem kaprys.
+Serwer, który pozwala na grę online (nie tylko po LAN) napisany jest w języku [Owl Lisp](https://gitlab.com/owl-lisp/owl), bo:
+- taki miałem kaprys 
+- nie chciałem mieć na serwerze uruchomionego common lispowego giganta
+- lubię multitasking w owl lispie - zielone wątki zamiast prawdziwych procesów-dzieci
 
 [^1]: przynajmniej MS Windows (x64), Debian GNU/Linux, OpenBSD.
 [^2]: sprawdziłem, działa przynajmniej w ECL i CCL

@@ -1599,7 +1599,9 @@
 
     (end-drawing)
 
-    (unload-image! *current-screen*)))
+    (unload-image! *current-screen*))
+  (when-let ((c (game-connection game)))
+    (write-packets c (make-client-packet 'gdata :gdata-bail-out t))))
 
 ;; Become a p2p "Master" server, accept a connection and begin game
 (defun start-master-server (&key (port net:+port+) (side 'white) (time 10) (fen +initial-fen+))

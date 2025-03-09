@@ -44,7 +44,7 @@
     (queen  0 :type (unsigned-byte 64))
     (king   0 :type (unsigned-byte 64))))
 
-(defstruct (fast-board (:conc-name fb-))
+(defstruct (fast-board (:conc-name fb-) (:copier nil))
   (black (make-fast-board-1) :type fast-board-1)
   (white (make-fast-board-1) :type fast-board-1)
   (ticker 0 :type fixnum)
