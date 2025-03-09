@@ -189,7 +189,7 @@
                                   (hii-nickname "")
                                   move-x1 move-y1 move-x2 move-y2 move-upgrade-type move-upgrade-p
                                   gdata-drawp gdata-draw-ok gdata-surrender gdata-eval gdata-eval-data gdata-takeback-p
-                                  gdata-takeback-ok gdata-takeback-ok-ok gdata-takeback-ok-fen
+                                  gdata-takeback-ok gdata-takeback-ok-ok gdata-takeback-ok-fen gdata-uname
                                   (ping-payload (random #xffff)) ping-response-p ping-wakeup
                                   pgame-nick
                                   )
@@ -216,7 +216,9 @@
                         (bishop #b0110)
                         (t      #b0000)))
                      0)))
-    (gdata (let* ((cont-rdata (when gdata-takeback-ok-ok (string->rdata gdata-takeback-ok-fen)))
+    (gdata (let* ((cont-rdata (cond
+                                (gdata-takeback-ok-ok (string->rdata gdata-takeback-ok-fen))
+                                (gdata-uname (string->rdata gdata-uname))))
                   (_ (assert (<= (length cont-rdata) 255))) ; uhhh
                   (eval-or-ncont (if gdata-eval-data
                                      (to-s16 gdata-eval-data)
@@ -233,7 +235,9 @@
                  (logior
                   (ifz gdata-takeback-p     #b10000000)
                   (ifz gdata-takeback-ok    #b01000000)
-                  (ifz gdata-takeback-ok-ok #b00100000))
+                  (ifz gdata-takeback-ok-ok #b00100000)
+                  (ifz gdata-uname          #b00010000)
+                  )
                  (car eval-or-ncont)
                  (cadr eval-or-ncont))
                ,@cont-rdata)))
@@ -346,7 +350,7 @@
       (let* ((hii-back (receive-packet conn)))
         (assert (packet-of-type-p hii-back +hii-type+)))
 
-      (universal-start-server conn game-handler :fen fen :opponent-side opponent-side :time time :port port))))
+      (universal-start-server conn game-handler :fen fen :opponent-side opponent-side :time time))))
 
       ;; (usocket:socket-close conn)
       ;; (usocket:socket-close sock))))

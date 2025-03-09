@@ -41,6 +41,7 @@
    game-time-black
    game-time-white
    game-time-begin-turn
+   game-opponent-username
 
    ;; copiers
    copy-piece
@@ -142,6 +143,10 @@
     :initarg :time-black
     :initform 3600
     :accessor game-time-black)
+   (opponent-username
+    :initarg :opponent-username
+    :initform nil
+    :accessor game-opponent-username)
   ))
 
 (defmethod game-tick ((g game))

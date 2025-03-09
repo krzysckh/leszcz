@@ -122,7 +122,8 @@ i *nicklen* pakietami kontynuacyjnymi
     \bitbox{1}{\rotatebox{90}{cofnij?}} &
     \bitbox{1}{\rotatebox{90}{cofnij-ok}} &
     \bitbox{1}{\rotatebox{90}{cofnij-ok-ok}} &
-    \bitbox{4}{zarez.} &
+    \bitbox{1}{\rotatebox{90}{uname w/ cont}} &
+    \bitbox{3}{zarez.} &
     \bitbox{1}{\rotatebox{90}{bailing out}} &
     \bitbox{16}{eval-data lub 0xff i n-rdata} \\
   \end{bytefield}

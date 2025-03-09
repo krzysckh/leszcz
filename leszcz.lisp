@@ -219,6 +219,8 @@
   (let ((i (if (eq (game-side g) 'white) 0 1))
         (bx (car *board-begin*))
         (by (cdr *board-begin*)))
+    (when-let ((s (game-opponent-username g)))
+      (draw-text-alagard s (car *board-begin*) (- (cdr *board-begin*) 16) 16 +color-white+))
     (loop for y from 0 to 7 do
       (loop for x from 0 to 7 do
         (let ((color (if (= (mod (+ y x) 2) 0) *color-bg-light* *color-bg-dark*)))
@@ -1512,6 +1514,10 @@
            (format t "received TAKEBACK-OK-OK w/ CONT~%")
            (format t "NEW FEN is said to be ~a~%" (rdata-packets->string (receive-packets (game-connection game) (aref p 3))))
            )
+         (when (fast:bit-set-p (aref p 1) 3 :type-size 8)
+           (format t "received nickname w/ CONT~%")
+           (setf (game-opponent-username game) (rdata-packets->string (receive-packets c (aref p 3))))
+           )
          (when (fast:bit-set-p (aref p 1) 7 :type-size 8)
            (error "Server decided to BAIL OUT (opponent disconnect / invalid data sent)."))
          )
@@ -1813,12 +1819,14 @@
                                 (let ((okp nil))
                                   (loop until (or okp (window-close-p)) do
                                     (sleep 0.01)
+                                    (%display-waiting-for-connection)
                                     (when-let ((p (maybe-receive-packet conn)))
                                       (packet-case p
                                         (ping (when (fast:bit-set-p (aref p 0) 4 :type-size 8)
                                                 (setf okp t)))
                                         (t
                                          (warn "Unexpected packet ~a while waiting for WAKEUP from server: ~a." (packet->name p) p))))))
+                                (write-packets conn (make-client-packet 'gdata :gdata-uname uname))
                                 (game-main-loop g side conn)))
                           :fen fen
                           :opponent-side (if (eq color 'black) 'white 'black)
@@ -1848,6 +1856,7 @@
                                (setf (game-time-black g) (* time 60))
                                (initialize-game g side conn :no-overwrite-interactive t)
                                (write-packets conn (make-client-packet 'ping :ping-wakeup t))
+                               (write-packets conn (make-client-packet 'gdata :gdata-uname uname))
                                (game-main-loop g side conn)))))
                     (let* ((ncont (logior (ash (aref p 2) 8) (aref p 3)))
                            (unames (rdatas->list (receive-packets conn ncont)))
@@ -1876,6 +1885,12 @@
                                                                          (connect-to-master
                                                                           :server (coerce (gethash ipsym input-box/content-ht) 'string)
                                                                           :port (parse-integer (coerce (gethash portsym input-box/content-ht) 'string))))))))))
+
+(defun %display-waiting-for-connection ()
+  (begin-drawing)
+  (animate-menu-bg)
+  (draw-text-alagard "waiting for a connection..." 32 32 18 '(#xde #xde #xde #xff))
+  (end-drawing))
 
 (defun %info-menu ()
   (let-values ((scroll 0)
