@@ -1,7 +1,11 @@
 #!/bin/sh
 # -*- mode: sh; sh-basic-offset: 2 -*-
 
-ol -r server/leszcz-server.scm &
+if [ "$1" = "win" ]; then
+  wine ol.exe -r server/leszcz-server.scm &
+else
+  ol -r server/leszcz-server.scm &
+fi
 
 CL_SOURCE_REGISTRY=$PWD \
   sbcl \

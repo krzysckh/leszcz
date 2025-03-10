@@ -2016,6 +2016,8 @@
   (unwind-protect (maybe-catch-all-exceptions
                     (maybe-catch-finish
                       (maybe-trap-floats
+                        (when (uiop/filesystem:file-exists-p "config.lisp")
+                          (load "config.lisp"))
                         (%main))))
     (cleanup-threads!)
     (when (window-ready-p)

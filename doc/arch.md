@@ -11,6 +11,7 @@ budowanie pliku wykonywalnego (albo użyje [buildapp](https://www.xach.com/lisp/
 być uruchamiana innych implementacjach CL.
 
 Serwer, który pozwala na grę online (nie tylko po LAN) napisany jest w języku [Owl Lisp](https://gitlab.com/owl-lisp/owl), bo:
+
 - taki miałem kaprys 
 - nie chciałem mieć na serwerze uruchomionego common lispowego giganta
 - lubię multitasking w owl lispie - zielone wątki zamiast prawdziwych procesów-dzieci

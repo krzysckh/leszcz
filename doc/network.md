@@ -402,3 +402,33 @@ pakiet z flagą `wakeup` jest używany w trybie "przez internet" (symulowanym p2
   \rmfamily
   \caption{Gra w symulowanym trybie p2p}
 \end{figure}
+
+
+## Korzystanie z innego serwera gier online niż domyślnego
+
+Domyślny serwer do gier online to `pub.krzysckh.org`, żeby zmienić to ustawienie
+w pliku `config.lisp` dołączonym do dystrybucji programu należy znaleźć linię
+
+```lisp
+(setf *online-host* "pub.krzysckh.org")
+```
+
+i zmienić ją na
+
+```lisp
+(setf *online-host* "inna.domena.lub-adres.ip.net")
+```
+
+## Hostowanie własnego serwera do gier online
+
+Serwer do gier online działa tylko na systemach unixopodobnych (linux/*bsd/...).
+
+- zainstaluj [owl lisp](https://gitlab.com/owl-lisp/owl)
+- zainstaluj perl5 i moduł `Privileges::Drop`
+- uruchom server
+
+```
+$ perl start-server.pl
+```
+
+Taki serwer ***nie*** jest potrzebny do gry przez LAN - tylko gier przez sieć jako przekaźnik.
