@@ -1891,7 +1891,7 @@
 (defun %display-waiting-for-connection ()
   (begin-drawing)
   (animate-menu-bg)
-  (draw-text-alagard "waiting for a connection..." 32 32 18 '(#xde #xde #xde #xff))
+  (draw-text-alagard "oczekiwanie na połącznie..." 32 32 18 '(#xde #xde #xde #xff))
   (end-drawing))
 
 (defun %info-menu ()
