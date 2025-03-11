@@ -76,6 +76,14 @@
           ((vectorp texture)
            (setf texture (aref texture 0))))
 
+        (when (and (eq (piece-type p) 'king) (point-checked-p g (point-x point) (point-y point) (if (eq (piece-color p) 'white) 'black 'white)))
+          (draw-rectangle
+           (+ bx x)
+           (+ by y)
+           +piece-size+
+           +piece-size+
+           '(#xdd #x22 #x22 #x88)))
+
         (draw-texture
          texture
          (floatize (list 0 0 +texture-size+ +texture-size+))
@@ -1997,6 +2005,10 @@
        #'(lambda (_)
            (declare (ignore _))
            (setf continuation #'(lambda ()
+                                  (when-let ((c (game-connection *current-game*)))
+                                    (write-packets c (make-client-packet 'gdata :gdata-bail-out t))
+                                    (usocket:socket-close c)
+                                    (setf (game-connection *current-game*) nil))
                                   (cleanup-threads!)
                                   (main))))))))
 
