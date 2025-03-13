@@ -1,0 +1,23 @@
+program:
+
+  - lokalnie: leszcz.exe
+  - www:      https://pub.krzysckh.org/leszcz-win64-dist.zip
+
+źródła:
+
+  - www:      https://github.com/krzysckh/leszcz
+
+dokumentacja napisana przez ludzi dla ludzi (ciekawa):
+
+  - lokalnie: leszcz.pdf
+  - www:      https://pub.krzysckh.org/leszcz.pdf
+
+"dokumentacja" napisana przez komputer (mało ciekawa):
+
+  - lokalnie: leszcz-reference-manual.pdf
+  - www:      https://pub.krzysckh.org/leszcz-reference-manual.html
+
+---
+
+dzięki,
+  ~ kpm <kpm@krzysckh.org>

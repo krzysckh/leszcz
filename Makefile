@@ -72,6 +72,7 @@ dist: all docs
 	cp -v libffi-8.dll dist/
 	cp -v raylib5.5.dll dist/
 	cp -v doc/*.pdf dist/
+	cp -v README.dist dist/README.txt
 	cp config.default.lisp dist/config.lisp
 run-ecl:
 	CL_SOURCE_REGISTRY=$(PWD) ecl \
