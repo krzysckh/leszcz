@@ -70,6 +70,7 @@
    draw
    settings
    takeback
+   takeback-p
    ))
 
 
@@ -203,10 +204,11 @@
 
 (defparameter icon-data-alist
   (list
-   (cons 'flag     (file->vec "res/png/flag.png"))
-   (cons 'draw     (file->vec "res/png/draw.png"))
-   (cons 'settings (file->vec "res/png/settings.png"))
-   (cons 'takeback (file->vec "res/png/takeback.png"))
+   (cons 'flag       (file->vec "res/png/flag.png"))
+   (cons 'draw       (file->vec "res/png/draw.png"))
+   (cons 'settings   (file->vec "res/png/settings.png"))
+   (cons 'takeback   (file->vec "res/png/takeback.png"))
+   (cons 'takeback-p (file->vec "res/png/takeback-ok.png"))
    ))
 
 (defparameter white-texture-data-list white-texture-data-list-pixel)

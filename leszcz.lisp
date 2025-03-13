@@ -1007,7 +1007,8 @@
                     (or (= my 0) (= my 7)))))
     (when-let ((f (move-possible-p piece mx my game))
                (was-x (point-x (piece-point piece)))
-               (was-y (point-y (piece-point piece))))
+               (was-y (point-y (piece-point piece)))
+               (current-fen (or no-history (game->fen game))))
       (when-let ((p (piece-at-point game mx my)))
         (setf (game-halfmove-clock game) 0)
         (setf inc-halfmove-p nil)
@@ -1052,7 +1053,9 @@
           (push
            (list (copy-piece piece)
                  (list (point-x (piece-point piece)) (point-y (piece-point piece)))
-                 (list (point-x np) (point-y np)))
+                 (list (point-x np) (point-y np))
+                 current-fen
+                 )
            (game-move-history game)))
 
         ;; move the damn thing to np (new point)
@@ -1252,9 +1255,10 @@
 ;; TODO: taking (incorporate data into move history)
 ;; TODO: castling
 ;; TODO: ambiguous moves
-(defun move->algebraic (p from to)
+(defun move->algebraic (p from to &rest _)
   (declare (type piece p)
            (type list from to)
+           (ignore _)
            (values string))
   (let ((c (piece->char p)))
     (case (piece-type p)
@@ -1370,16 +1374,50 @@
 (defun game-resign (g)
   (game-surrender g))
 
+(defparameter *opponent-proposed-draw-p* nil)
+(defparameter *opponent-asked-for-takeback-p* nil)
+
+(defparameter *takeback-position* nil)
+
+(defun game-set-fen! (g fen)
+  (let* ((g* (fen->game fen)))
+    (setf (game-pieces g) (game-pieces g*)
+          (game-ticker g) (game-ticker g*)
+          (game-halfmove-clock g) (game-halfmove-clock g*)
+          (game-fullmove-clock g) (game-fullmove-clock g*)
+          (game-black-can-castle-kingside-p g) (game-black-can-castle-kingside-p g*)
+          (game-black-can-castle-queenside-p g) (game-black-can-castle-queenside-p g*)
+          (game-white-can-castle-kingside-p g) (game-white-can-castle-kingside-p g*)
+          (game-white-can-castle-queenside-p g) (game-white-can-castle-queenside-p g*)
+          (game-en-passant-target-square g) (game-en-passant-target-square g*)
+          (game-move-history g) nil)
+
+    (setf (game-fb g) (game->fast-board g))
+    (game-update-points-cache g)
+    (game-update-possible-moves-cache g)))
+
+(defun game-accept-takeback (g)
+  (when-let ((c (game-connection g))
+             (_ *opponent-asked-for-takeback-p*))
+    (let ((finish nil))
+      (net:write-packets c (net:make-client-packet 'gdata :gdata-takeback-ok t))
+      (loop until finish do
+        (let ((p (receive-packet c)))
+          (packet-case p
+            (gdata
+             (when (fast:bit-set-p (aref p 1) 2 :type-size 8)
+               (setf finish t)
+               (setf *opponent-asked-for-takeback-p* nil)
+               (let ((fen (rdata-packets->string (receive-packets c (aref p 3)))))
+                 (game-set-fen! g fen))))
+            (t
+             (warn "Received packet ~a when waiting for gdata-takeback-ok-ok" (packet->name p)))))))))
+
 (defun game-propose-or-accept-draw (g)
   (declare (type game g))
-  (error "TODO: game-propose-or-accept-draw is not implemented yet."))
-
-(defun game-propose-or-accept-takeback (g)
-  (declare (type game g))
-  (warn "TODO: game-propose-or-accept-takeback is not implemented yet.")
+  (warn "TODO: game-propose-or-accept-draw is not implemented yet.")
   (when-let ((c (game-connection g)))
     (write-packets c (make-client-packet 'gdata :gdata-takeback-p t))))
-  ;; (error "TODO: game-propose-or-accept-takeback is not implemented yet."))
 
 (defun draw-game-control-buttons (g &rest _)
   (declare (type game g)
@@ -1389,8 +1427,16 @@
       (game-surrender g))
     (when (draw-icon 'draw (+ (car rec) 32 8) (cadr rec) 32 32)
       (game-propose-or-accept-draw g))
-    (when (draw-icon 'takeback (+ (car rec) 32 8 32 8) (cadr rec) 32 32)
-      (game-propose-or-accept-takeback g))
+    (when (and (game-move-history g)
+               (>= (length (game-move-history g)) 2)
+               (eq (game-turn g) (game-side g)))
+      (when (draw-icon 'takeback (+ (car rec) 32 8 32 8) (cadr rec) 32 32)
+        (when-let ((c (game-connection g)))
+          (net:write-packets c (net:make-client-packet 'gdata :gdata-takeback-p t))
+          (setf *takeback-position* (nth 3 (cadr (game-move-history g)))))))
+    (when *opponent-asked-for-takeback-p*
+      (when (draw-icon 'takeback-p (+ (car rec) 32 8 32 8 32 8) (cadr rec) 32 32)
+        (game-accept-takeback g)))
     ))
 
 (defun maybe-set-cursor (g &rest _)
@@ -1512,15 +1558,15 @@
              (display-win game)))
          (when (fast:bit-set-p (aref p 1) 0 :type-size 8)
            (format t "received TAKEBACK-P~%")
-           (warn "TAKEBACK-P is not implemented yet.")
+           (setf *opponent-asked-for-takeback-p* t)
            )
          (when (fast:bit-set-p (aref p 1) 1 :type-size 8)
            (format t "received TAKEBACK-OK~%")
-           (warn "TAKEBACK-OK is not implemented yet.")
+           (write-packets c (make-client-packet 'gdata :gdata-takeback-ok-ok t :gdata-takeback-ok-fen *takeback-position*))
+           (game-set-fen! game *takeback-position*)
            )
          (when (fast:bit-set-p (aref p 1) 2 :type-size 8)
-           (format t "received TAKEBACK-OK-OK w/ CONT~%")
-           (format t "NEW FEN is said to be ~a~%" (rdata-packets->string (receive-packets (game-connection game) (aref p 3))))
+           (error "Received takeback-ok-ok when literally anything else expected.")
            )
          (when (fast:bit-set-p (aref p 1) 3 :type-size 8)
            (format t "received nickname w/ CONT~%")

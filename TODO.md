@@ -1,6 +1,7 @@
 * [ ] ПРЕЛЮДИЯ
   * [ ] grafika
-    * [ ] podświetl szachy
+    * [ ] takie wihajstry z opisami przycisków co się pojawiają jak najeżdżasz
+    * [x] podświetl szachy
     * [ ] nie pozwól ciągowi kontynuacji się zawalić, jeśli window-close-p po prostu zamknij program jakimś (exit) idk
     * [x] plansza typu dwukolorowa
     * [ ] ładniejsze figury
@@ -17,10 +18,12 @@
         * [ ] hetman
           * [x] jest
           * [ ] no ale mogłaby być ładniejsza
-      * [ ] możliwość wybrania figur i kolorów
-    * [ ] menu
+      * [x] możliwość wybrania figur i kolorów
+    * [x] menu
     * [ ] opcje
-  * [x] "gameplay"
+  * [ ] "gameplay"
+    * [ ] remis
+    * [x] cofnięcie ruchu
     * [x] tury
     * [x] zbijanie figur
     * [x] generowanie i podświetlanie możliwych ruchów
@@ -47,19 +50,19 @@
       * [x] meow meow meow meow 3
       * [x] meow meow meow meow 4
       * [x] meow meow meow meow 5
-      * [ ] meow meow meow meow 6
+      * [x] meow meow meow meow 6
       * [ ] meow meow meow meow 7
     * [x] roszada
       * [x] roszada typu roszada
       * [x] szach !!!!! !!! ! ! ! 
     * [x] szachmat
-  * [ ] "bot"
+  * [x] "bot"
     * [x] AAAAAAAAAAA !!!!!!
     * [x] bot typu losowy
     * [x] przyspiesz generacje ruchów
       * [x] może jest okej ale cache trzeba trzymać jako bitboard + eval + ???
     * [x] dodaj jakiś eval
-    * [ ] "zobrist hashing"
+    * [x] "zobrist hashing"
   * [ ] jeśli ci się będzie nudzić
     * [ ] [asdf:test-system](https://github.com/fukamachi/prove?tab=readme-ov-file#asdf-integration) zamiast make test
     * [ ] grep -R TODO
@@ -69,9 +72,9 @@
       * [x] ja pierdole
       * [x] już już jest
   * [x] wybór w menu (parz preludija → menu)
-  * [ ] timer
+  * [x] timer
     * [x] jest
-    * [ ] działa
+    * [x] działa
   * [ ] edytor pozycji
   * [ ] import FEN
   * [ ] odtwarzanie gry
@@ -100,29 +103,37 @@
     * [ ] napisz na krz org artykuł o implementowaniu tego w cl bo to ciekawe
           i źródło to http://hgm.nubati.net/book_format.html
     * [x] jakakolwiek książka
-    * [ ] lepsza książka
-    * [ ] kilka książek z debiutami różnych GMów i możliwość wyboru
+    * [x] lepsza książka
+    * [x] kilka książek z debiutami różnych GMów i możliwość wyboru
 * [ ] Gracz v Gracz na różnych komputerach w LAN (p2p)
   * [x] działa
-  * [ ] jakiekolwiek menu do hostowania/łączenia
+  * [x] jakiekolwiek menu do hostowania/łączenia
     * [x] do hostowania
-    * [ ] do łączenia
+    * [x] do łączenia
   * [ ] ładne menu do hostowania/łączenia
     * [ ] do hostowania
     * [ ] do łączenia
-* [ ] protokół
-  * [ ] napisane docsy w całości
-  * [ ] impl.
+* [ ] Gracz v Gracz na różnych komputerach w sieci internet (symulowane p2p)
+  * [x] działa
+  * [x] jakiekolwiek menu do hostowania/łączenia
+    * [x] do hostowania
+    * [x] do łączenia
+  * [ ] ładne menu do hostowania/łączenia
+    * [ ] do hostowania
+    * [ ] do łączenia
+* [x] protokół
+  * [x] napisane docsy w całości
+  * [x] impl.
     * [x] hii
-    * [ ] gdata
-    * [ ] lgames
-    * [ ] pgame
-    * [ ] ping
+    * [x] gdata
+    * [x] lgames
+    * [x] pgame
+    * [x] ping
     * [x] move
       * [x] dane o ruchu
       * [x] dane o upgrejdzie piona !!!!!
     * [x] rdata
-* [ ] napisz resztę todo
+* [x] napisz resztę todo
   * [x] pozdro
   * [x] pozdro 2
   * [x] pozdro 3
