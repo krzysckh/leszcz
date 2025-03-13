@@ -115,6 +115,8 @@
     * [ ] do łączenia
 * [ ] Gracz v Gracz na różnych komputerach w sieci internet (symulowane p2p)
   * [x] działa
+  * [ ] serwer powinien nie pozwalać połączyć się n graczom o takim samym nicku
+  * [ ] lepsze rozłączanie starych fd
   * [x] jakiekolwiek menu do hostowania/łączenia
     * [x] do hostowania
     * [x] do łączenia

@@ -1415,9 +1415,9 @@
 
 (defun game-propose-or-accept-draw (g)
   (declare (type game g))
-  (warn "TODO: game-propose-or-accept-draw is not implemented yet.")
-  (when-let ((c (game-connection g)))
-    (write-packets c (make-client-packet 'gdata :gdata-takeback-p t))))
+  (error "TODO: game-propose-or-accept-draw is not implemented yet."))
+  ;; (when-let ((c (game-connection g)))
+  ;;   (write-packets c (make-client-packet 'gdata :gdata-takeback-p t))))
 
 (defun draw-game-control-buttons (g &rest _)
   (declare (type game g)

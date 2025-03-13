@@ -445,7 +445,7 @@
               (car v2)
               :font-size height
               :text-draw-fn text-draw-fn))
-         (car v2)
+         (+ (car v2) (if no-pad 0 (* 2 tb/padx)))
          (cadr v2)))
       (progn
         (when (null width)
@@ -504,8 +504,8 @@
 
           (draw-text "Dostępne paczki tekstur: " 10 10 24 +color-white+)
 
-          (funcall b1 (+ 10 wt) 10 #'switch-textures-and-continue)
-          (funcall b2 (+ 10 wt w1 20) 10 #'switch-textures-and-continue)
+          (funcall b1 (+ 10 tb/padx wt) 10 #'switch-textures-and-continue)
+          (funcall b2 (+ 10 tb/padx wt w1 20) 10 #'switch-textures-and-continue)
           ))))
 
 ;; (defun maybe-configure-menu (&rest r)
