@@ -8,6 +8,8 @@ Niestety na optymalizacje nie zostało czasu.
 
 Nazwa leszcz nawiązuje do starego silnika szachowego *rybka*.
 
+Duże modele językowe ("sztuczna inteligencja") nie były wykorzystywane w tym projekcie. Został on od początku do końca napisany przez człowieka.
+
 ## Tryby gry
 
 - offline

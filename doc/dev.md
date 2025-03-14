@@ -99,6 +99,12 @@ np. funkcja która pokazuje interaktywnie błąd złapany przez najwyższy `hand
 
 jest to (moim zdaniem) dość konkretny i zwięzły sposób na napisanie funkcji z menu.
 
+## testowanie
+
+Testy są w folderze `t/`. uruchamiane przez `make test`, `make test-p2p`, `make test-online`, `make test-online-2`.
+Sprawdzają generatory ruchów, konstruktory pakietów i działanie przez sieć.
+
+
 ## cytaty
 
 \epigraph{jezu chryste p \textbf{(6 6)} to piece(PAWN[BLACK])@\textbf{point(5 7)}}{--- \textup{pre--possible-moves-for/upgrade}, leszcz.lisp}

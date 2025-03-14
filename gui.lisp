@@ -311,6 +311,7 @@
 (defparameter tb/padx 32)
 
 (defparameter input-box/content-ht (make-hash-table))
+(defparameter input-box/current nil)
 
 (defun make-input-box (id &key height width (font-data spleen-data) (font-hash raylib::*font*) (text-draw-fn #'draw-text) (default-value nil))
   (when default-value
@@ -329,6 +330,8 @@
   (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*)))
                (full-rect (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
                (at-point-p (point-in-rect-p (floatize (list (mouse-x) (mouse-y))) (floatize full-rect))))
+    (when at-point-p
+      (setf input-box/current id))
     (draw-rectangle (nth 0 full-rect)
                     (nth 1 full-rect)
                     (nth 2 full-rect)
@@ -340,11 +343,11 @@
     (draw-rectangle-lines-2
      (floatize (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
      (float 2)
-     (if at-point-p
+     (if (eq id input-box/current)
          tb/color-margin
          tb/color-margin-unselected))
 
-    (when at-point-p
+    (when (eq id input-box/current)
       (set-mouse-cursor! +cursor-pointer+)
       (when (key-pressed-p-1 259)
         (setf (gethash id input-box/content-ht) (butlast (gethash id input-box/content-ht))))
