@@ -171,7 +171,7 @@
      thrname
      (begin
        (write-bytes fd '(0 0 0 0)) ;; hii :3 w/ p2p=FALSE
-       (let loop ((uname "<USERNAME UNKNOWN>"))
+       (let loop ((uname #f))
          (if (readable? fd)
              (let* ((bv (try-get-block fd 4 #t)))
                ;; eq? instead of = bc (bytevector-length) on #f yields #f and = on #f yields an (loud-error)
@@ -185,16 +185,17 @@
                           (loop username)))
                        (type-gdata
                         (print "got a type gdata")
-                        (let* ((ncont (bvref bv 3))
-                               (_ (print "ncont: " ncont))
-                               (packets (append (list (bytevector->list bv))
-                                                (map bytevector->list (get-packets fd ncont)))))
-                          (print "packets: " packets)
-                          (add-game! (list uname fd packets)) ; > immutable (yeah right!)
-                          ;; We're cheating a bit as we're not actually holding the idividual gdata values
-                          ;; and just the packet and fd to send it when simulating p2p mode
-                          (print "Added a game! it's: " (get-game! uname))
-                          ))
+                        (if uname
+                            (let* ((ncont (bvref bv 3))
+                                   (_ (print "ncont: " ncont))
+                                   (packets (append (list (bytevector->list bv))
+                                                    (map bytevector->list (get-packets fd ncont)))))
+                              (print "packets: " packets)
+                              (add-game! (list uname fd packets)) ; > immutable (yeah right!)
+                              ;; We're cheating a bit as we're not actually holding the idividual gdata values
+                              ;; and just the packet and fd to send it when simulating p2p mode
+                              (print "Added a game! it's: " (get-game! uname)))
+                            (bail-out! fd))) ;; <- bail out if username is unknown, yet it wants to start a game -- did not say hii >:(, probably some random traffic
                           ;; (loop uname)))
                        (type-pgame ; pick game
                         (print "pgame!")
