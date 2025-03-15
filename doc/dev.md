@@ -43,7 +43,7 @@ Przy grze z botem (`bot.lisp`, `leszcz.lisp`) odpalany jest w nowym wątku serwe
 
 ## książka debiutów
 
-Zaimplementowałem reader dla plików w formacie [polyglot](http://hgm.nubati.net/book_format.html) (`polyglot.lisp`), przez co leszcz może korzystać
+Zaimplementowałem reader dla plików w formacie [polyglot](http://hgm.nubati.net/book_format.html) (`book.lisp`), przez co leszcz może korzystać
 ze sporej ilości standardowych książek. Domyślnie używam 11-letniej [książki](https://github.com/michaeldv/donna_opening_books/) silnika komodo używanej też w silniku donna.
 
 ## książka debiutów arcymistrzów

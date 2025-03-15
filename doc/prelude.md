@@ -25,3 +25,5 @@ Duże modele językowe ("sztuczna inteligencja") nie były wykorzystywane w tym 
 
 Przytrzymaj figurę i przesuń myszkę na dane pole by wykonać ruch. Figury można przesuwać tylko na podświetlone pola.
 W przypadku zakończenia gry pokaże się na ekranie stosowny komunikat.
+
+Podczas gry można przycisnąć na klawiaturze przycisk `N`, by włączyć/wyłączyć *tryb nerda* \emoji{nerd-face}.

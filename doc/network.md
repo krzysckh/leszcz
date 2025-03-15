@@ -43,8 +43,6 @@ Przy grze z botem stawiany jest serwer lokalny i symulowana gra p2p.
 
 ## opisy pakietów
 
-TODO: każda gra musi mieć ID i musi być ich mniej niż 2^29
-
 * *hii :3*
   * serwer wysyła
 \begin{figure}[H]
@@ -70,8 +68,6 @@ TODO: każda gra musi mieć ID i musi być ich mniej niż 2^29
   \rmfamily
   \caption{Pakiet hii :3 wysyłany przez klient}
 \end{figure}
-
-TODO: nicklen w ilości pakietów? łoł czyli 0-`3*255`
 
 i *nicklen* pakietami kontynuacyjnymi
 
@@ -424,7 +420,7 @@ i zmienić ją na
 Serwer do gier online działa tylko na systemach unixopodobnych (linux/*bsd/...).
 
 - zainstaluj [owl lisp](https://gitlab.com/owl-lisp/owl)
-- zainstaluj perl5 i moduł `Privileges::Drop`
+- zainstaluj perl 5 i moduł `Privileges::Drop` z cpan
 - uruchom server
 
 ```

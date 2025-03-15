@@ -12,9 +12,12 @@
 
 (defvar *threads* nil)
 
+(defparameter *nerd-p* nil)
+
 ;; do not use this, this is only for eval in repl
 (defparameter *current-game* nil)
 (defparameter *current-screen* nil)
+(defparameter *current-ping* nil)
 
 (defparameter *current-board-evaluation* nil) ; <- this is used mostly for testing
 
@@ -1455,12 +1458,19 @@
     (setf (gethash payl *last-ping-ht*) (local-time:now))
     (net:write-packets c (net:make-client-packet 'ping :ping-payload payl))))
 
-(defun maybe-send-ping (g &rest _)
+;; (defun maybe-send-ping (g &rest _)
+;;   (declare (type game g)
+;;            (ignore _))
+
+;;   (when (key-pressed-p #\P)
+;;     (send-ping-to g)))
+
+(defun maybe-switch-nerd (g &rest _)
   (declare (type game g)
            (ignore _))
 
-  (when (key-pressed-p #\P)
-    (send-ping-to g)))
+  (when (key-pressed-p #\N)
+    (setf *nerd-p* (not *nerd-p*))))
 
 (defparameter *arrow-color* '(#x50 #xd9 #x80 #xaa))
 
@@ -1505,6 +1515,43 @@
   (let-values ((btn w h (make-button* (cdr (assoc 'settings icon-texture-alist)) :height 32 :width 32 :no-bg t :no-pad t)))
     (funcall btn 10 10 (lambda (_) (configure-menu)))))
 
+(defun dta+bgshade (text x y size color)
+  (let-values ((font (load-font alagard-data size :loaded-font-hash raylib::*alagard*))
+               (w h (measure-text-1 font text (float size) 0.0)))
+    (draw-rectangle x y (floor w) size '(0 0 0 #x77))
+    (draw-text-alagard text x y size color)))
+
+(defun maybe-draw-nerd-stuff (g &rest _)
+  (declare (type game g)
+           (ignore _))
+
+  (when-let ((p *current-ping*)
+             (_ *nerd-p*)
+             (y 52))
+    (upy y 16 10
+      (dta+bgshade
+       (format nil "Ping: ~,2f ms~%" *current-ping*)
+       10 y 16 +color-white+))
+
+    (let-values ((px py (coords->point (mouse-x) (mouse-y))))
+      (when (and (>= px 0) (< px 8) (>= py 0) (< py 8))
+        (let ((bw (point-checked-p g px py 'white))
+              (bb (point-checked-p g px py 'black))
+              (p  (piece-at-point g px py)))
+          (upy y 16 10
+            (dta+bgshade
+             (format nil "checked by white?: ~a~%" bw)
+             10 y 16 +color-white+))
+          (upy y 16 10
+            (dta+bgshade
+             (format nil "checked by black?: ~a~%" bb)
+             10 y 16 +color-white+))
+          (upy y 16 10
+            (dta+bgshade
+             (format nil "piece-at-point: ~a~%" p)
+             10 y 16 +color-white+))
+          )))))
+
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
@@ -1516,8 +1563,10 @@
 (add-draw-hook 'draw-game-control-buttons)
 (add-draw-hook 'maybe-set-cursor)
 (add-draw-hook 'draw-menu-button)
+(add-draw-hook 'maybe-switch-nerd)
 
-(add-draw-hook 'maybe-send-ping)
+;; (add-draw-hook 'maybe-send-ping)
+(add-draw-hook 'maybe-draw-nerd-stuff)
 ;; (add-draw-hook 'maybe-draw-arrow)
 
 (add-draw-hook 'gui:toplevel-console-listener)
@@ -1579,8 +1628,10 @@
          (let ((res-p (fast:bit-set-p (aref p 0) 3 :type-size 8))
                (payl (logior (ash (aref p 2) 8) (aref p 3))))
            (if res-p
-               (when-let ((stamp (gethash payl *last-ping-ht*)))
-                 (format t "Ping: ~,2f ms~%" (* (timestamp-difference (local-time:now) stamp) 1000)))
+               (when-let* ((stamp (gethash payl *last-ping-ht*))
+                           (p (* (timestamp-difference (local-time:now) stamp) 1000)))
+                 (setf *current-ping* p)
+                 (format t "Ping: ~,2f ms~%" p))
                (net:write-packets
                 (game-connection game)
                 (net:make-client-packet 'ping
@@ -1596,6 +1647,8 @@
     (setf (game-interactive-p game) nil))
   (game-update-points-cache game)
   (game-update-possible-moves-cache game))
+
+(defparameter gml/ping-ticker 0)
 
 (defun game-main-loop (game side conn)
   (declare (type game game)
@@ -1629,6 +1682,10 @@
 
   (loop :while (not (window-close-p)) :do
     (setf *current-screen* (screen->image)) ;; TODO: this sucks
+    (incf gml/ping-ticker)
+    (when (>= gml/ping-ticker (+ 60 (random 10)))
+      (send-ping-to game)
+      (setf gml/ping-ticker 0))
     ;; (when (key-pressed-p #\R)
     ;;   (setf game (fen->game +initial-fen+))
     ;;   (setf maybe-drag/piece nil)
@@ -1945,7 +2002,7 @@
 (defun %display-waiting-for-connection ()
   (begin-drawing)
   (animate-menu-bg)
-  (draw-text-alagard "oczekiwanie na połącznie..." 32 32 18 '(#xde #xde #xde #xff))
+  (draw-text-alagard "oczekiwanie na polaczenie..." 32 32 18 '(#xde #xde #xde #xff))
   (end-drawing))
 
 (defun %info-menu ()
