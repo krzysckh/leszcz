@@ -1339,7 +1339,36 @@
        '(#xde #xde #xde #xff))
       )))
 
-(defun draw-icon (iname x y w h)
+(defun dta+bgshade (text x y size color)
+  (let-values ((font (load-font alagard-data size :loaded-font-hash raylib::*alagard*))
+               (w h (measure-text-1 font text (float size) 0.0)))
+    (draw-rectangle x y (floor w) size '(0 0 0 #x77))
+    (draw-text-alagard text x y size color)))
+
+(defun dts+bgshade (text x y size color)
+  (let-values ((font (load-font spleen-data size))
+               (w h (measure-text-1 font text (float size) 0.0)))
+    (draw-rectangle x y (floor w) size '(0 0 0 #x77))
+    (draw-text text x y size color)))
+
+(defparameter *current-tooltip* nil)
+
+(defun delete-current-tooltip! (&rest _)
+  (setf *current-tooltip* nil))
+
+(defparameter dct/size 16)
+(defun draw-current-tooltip (&rest _)
+  (when *current-tooltip*
+    (let-values ((font (load-font spleen-data dct/size))
+                 (w h (measure-text-1 font *current-tooltip* (float dct/size) 0.0))
+                 (x (floor (min (- *window-width* w) (mouse-x))))
+                 (y (floor (min (- *window-height* h) (mouse-y)))))
+      (dts+bgshade *current-tooltip* x y dct/size +color-white+))))
+
+(defmacro set-current-tooltip! (v)
+  `(setf *current-tooltip* ,v))
+
+(defun draw-icon (iname x y w h &optional tooltip)
   (declare (type symbol iname)
            (type number x y w h))
 
@@ -1350,6 +1379,7 @@
                (mousep (point-in-rect-p (floatize (list px py)) rec2)))
     (when mousep
       (set-mouse-cursor! +cursor-pointer+))
+
     (draw-rectangle-rounded
      rec2
      0.2
@@ -1363,6 +1393,9 @@
      rec1
      '(0.0 0.0) 0.0
      +color-white+)
+
+    (when mousep
+      (set-current-tooltip! tooltip))
 
     (and mousep (mouse-pressed-p 0))))
 
@@ -1426,19 +1459,19 @@
   (declare (type game g)
            (ignore _))
   (let ((rec (list (car dmh/rect) (+ (cadr dmh/rect) (cadddr dmh/rect) dt/font-size) (caddr dmh/rect) 32)))
-    (when (draw-icon 'flag (car rec) (cadr rec) 32 32)
+    (when (draw-icon 'flag (car rec) (cadr rec) 32 32 "poddaj partię")
       (game-surrender g))
-    (when (draw-icon 'draw (+ (car rec) 32 8) (cadr rec) 32 32)
+    (when (draw-icon 'draw (+ (car rec) 32 8) (cadr rec) 32 32 "zaproponuj remis")
       (game-propose-or-accept-draw g))
     (when (and (game-move-history g)
                (>= (length (game-move-history g)) 2)
                (eq (game-turn g) (game-side g)))
-      (when (draw-icon 'takeback (+ (car rec) 32 8 32 8) (cadr rec) 32 32)
+      (when (draw-icon 'takeback (+ (car rec) 32 8 32 8) (cadr rec) 32 32 "poproś o cofnięcie ruchu")
         (when-let ((c (game-connection g)))
           (net:write-packets c (net:make-client-packet 'gdata :gdata-takeback-p t))
           (setf *takeback-position* (nth 3 (cadr (game-move-history g)))))))
     (when *opponent-asked-for-takeback-p*
-      (when (draw-icon 'takeback-p (+ (car rec) 32 8 32 8 32 8) (cadr rec) 32 32)
+      (when (draw-icon 'takeback-p (+ (car rec) 32 8 32 8 32 8) (cadr rec) 32 32 "zaakceptuj cofnięcie ruchu przeciwnika")
         (game-accept-takeback g)))
     ))
 
@@ -1515,12 +1548,6 @@
   (let-values ((btn w h (make-button* (cdr (assoc 'settings icon-texture-alist)) :height 32 :width 32 :no-bg t :no-pad t)))
     (funcall btn 10 10 (lambda (_) (configure-menu)))))
 
-(defun dta+bgshade (text x y size color)
-  (let-values ((font (load-font alagard-data size :loaded-font-hash raylib::*alagard*))
-               (w h (measure-text-1 font text (float size) 0.0)))
-    (draw-rectangle x y (floor w) size '(0 0 0 #x77))
-    (draw-text-alagard text x y size color)))
-
 (defun maybe-draw-nerd-stuff (g &rest _)
   (declare (type game g)
            (ignore _))
@@ -1552,6 +1579,7 @@
              10 y 16 +color-white+))
           )))))
 
+(add-draw-hook 'delete-current-tooltip!)
 (add-draw-hook 'show-point-at-cursor)
 (add-draw-hook 'maybe-drag)
 (add-draw-hook 'highlight-possible-moves)
@@ -1570,6 +1598,9 @@
 ;; (add-draw-hook 'maybe-draw-arrow)
 
 (add-draw-hook 'gui:toplevel-console-listener)
+
+;; last draw hook (maybe)
+(add-draw-hook 'draw-current-tooltip)
 
 ;; (defparameter test-fen "5qk1/1q6/8/8/8/8/8/R3K2R w KQ-- - 0 1")
 
@@ -1607,7 +1638,8 @@
              (display-win game)))
          (when (fast:bit-set-p (aref p 1) 0 :type-size 8)
            (format t "received TAKEBACK-P~%")
-           (setf *opponent-asked-for-takeback-p* t)
+           (when (game-interactive-p game)
+             (setf *opponent-asked-for-takeback-p* t))
            )
          (when (fast:bit-set-p (aref p 1) 1 :type-size 8)
            (format t "received TAKEBACK-OK~%")
@@ -2088,6 +2120,7 @@
          #'(lambda (_)
              (declare (ignore _))
              (setf continuation #'%info-menu))))
+        ;; (draw-line-1 (list (/ *window-width* 2.0) 0.0) (list (/ *window-width* 2.0) (float *window-height*)) 3.0 +color-white+)
         )))))
 
 (defmacro maybe-trap-floats (&body b)
