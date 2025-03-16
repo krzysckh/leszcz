@@ -30,7 +30,7 @@ Jeśli repl nie jest czymś co Ci się podoba, można wykonać `make run` by aut
 ## bitboardy 
 
 Na początku zimplementowałem szachy w sposób *mega* obiektowy, t.j. każdy `piece` ma swój `point`; gra ma *n* `pieces` i sprawiło to,
-że kod działał ale był wybitnie wolny. Dlatego jako łatkę na ten spory problem użyłem bitboardów [@bitb] (tak jakby).
+że kod działał ale był wybitnie wolny. Dlatego jako łatkę na ten spory problem użyłem [bitboardów](https://www.chessprogramming.org/Bitboards#General_Bitboard_Techniques) (tak jakby).
 plansza w grze (`game`) jest odwzorowywana jako `fast-board` (2 x `fast-board-1`) - bitboardowa reprezentacja tego samego.
 Sporo generacji ruchów opiera się właśnie na bitboardach przez co udało się *koda* lekko przyspieszyć.
 
@@ -101,7 +101,7 @@ jest to (moim zdaniem) dość konkretny i zwięzły sposób na napisanie funkcji
 
 ## testowanie
 
-Testy są w folderze `t/`. uruchamiane przez `make test`, `make test-p2p`, `make test-online`, `make test-online-2`.
+[Testy](https://github.com/fukamachi/prove) są w folderze `t/`. uruchamiane przez `make test`, `make test-p2p`, `make test-online`, `make test-online-2`.
 Sprawdzają generatory ruchów, konstruktory pakietów i działanie przez sieć.
 
 
