@@ -1566,17 +1566,50 @@
 
   (when-let ((p *current-ping*)
              (_ *nerd-p*)
-             (y 52))
+             (y 52)
+             (bx (car *board-begin*))
+             (by (cdr *board-begin*)))
+
+    (upy y 16 10
+      (dta+bgshade
+       (format nil "shallow-eval: ~a~%" (- (evaluate-position g)))
+       10 y 16 +color-white+))
+
+    (upy y 16 10
+      (dta+bgshade
+       (format nil "*bot-depth*: ~a~%" *bot-depth*)
+       10 y 16 +color-white+))
+
     (upy y 16 10
       (dta+bgshade
        (format nil "Ping: ~,2f ms~%" *current-ping*)
        10 y 16 +color-white+))
 
-    (let-values ((px py (coords->point (mouse-x) (mouse-y))))
+    (let-values ((px py (coords->point (mouse-x) (mouse-y)))
+                 (px py (values (maybe-reverse g px) (maybe-reverse g py))))
       (when (and (>= px 0) (< px 8) (>= py 0) (< py 8))
         (let ((bw (point-checked-p g px py 'white))
               (bb (point-checked-p g px py 'black))
               (p  (piece-at-point g px py)))
+          (when p
+            (loop for y from 0 below 8 do
+              (loop for x from 0 below 8 do
+                (when-let* ((al (cdr (assoc (piece-type p)
+                                            *bonus-table*)))
+                                            ;; (if (eq (piece-color p) 'white)
+                                            ;;     *bonus-table*
+                                            ;;     *rev-bonus-table*))))
+                            (v (normalize
+                                (aref (aref al y) x)
+                                (vmin al)
+                                (vmax al)))
+                            (color (list #x22 #x33 (floor (* 255 v)) (floor (* 180 v)))))
+                  (draw-rectangle
+                   (+ bx (* x +piece-size+))
+                   (+ by (* y +piece-size+))
+                   +piece-size+
+                   +piece-size+
+                   color)))))
           (upy y 16 10
             (dta+bgshade
              (format nil "checked by white?: ~a~%" bw)
@@ -1665,10 +1698,12 @@
            ((fast:bit-set-p (aref p 1) 7 :type-size 8)
             (error "Server decided to BAIL OUT (opponent disconnect / invalid data sent)."))
            ((fast:bit-set-p (aref p 0) 4 :type-size 8)
-            (setf *opponent-proposed-draw-p* t))
+            (when (game-interactive-p game)
+              (setf *opponent-proposed-draw-p* t)))
            ((fast:bit-set-p (aref p 0) 5 :type-size 8)
-            (setf (game-result game) 'draw)
-            (display-draw game "po dogadaniu"))
+            (when (game-interactive-p game)
+              (setf (game-result game) 'draw)
+              (display-draw game "po dogadaniu")))
            ))
         (ping
          (let ((res-p (fast:bit-set-p (aref p 0) 3 :type-size 8))
@@ -1802,11 +1837,13 @@
 ;;         ,@b)
 ;;       (tracer:save-report "leszcz-trace.json"))))
 
+(defparameter *bot-depth* 3)
+
 (defun maybe-move-bot (game &key (book *book*))
   (declare (type game game))
   (when (game-in-progress-p game)
     (when (eq (game-turn game) (game-side game))
-      (let-values ((eval pp mx my (game-search game 3 :book book)))
+      (let-values ((eval pp mx my (game-search game *bot-depth* :book book)))
         (format t "bot chose position with eval ~a~%" eval)
         (when-let ((c (game-connection game)))
           (net:write-packets c (net:make-client-packet 'gdata :gdata-eval t :gdata-eval-data eval)))

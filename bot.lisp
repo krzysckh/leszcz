@@ -8,6 +8,10 @@
 (define-constant +rook-value+   500.0)
 (define-constant +queen-value+  900.0)
 
+(defun normalize (val start end)
+  (/ (- val start)
+     (- end start)))
+
 ;; defined for white
 (defparameter *bonus-table*
   '((pawn   . #(#(0  0  0   0   0   0   0  0)
@@ -52,6 +56,12 @@
                 #(-20 -10 -10  -5  -5 -10 -10 -20)))
     ;; TODO: king
               ))
+
+(defun vmin (v)
+  (apply #'min (mapcar #'(lambda (vec) (apply #'min (coerce vec 'list))) (coerce v 'list))))
+
+(defun vmax (v)
+  (apply #'max (mapcar #'(lambda (vec) (apply #'max (coerce vec 'list))) (coerce v 'list))))
 
 (defparameter *rev-bonus-table*
   (mapcar #'(lambda (c) `(,(car c) . ,(reverse (cdr c)))) *bonus-table*))
