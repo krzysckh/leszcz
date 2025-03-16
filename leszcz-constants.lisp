@@ -68,6 +68,7 @@
 
    flag
    draw
+   draw-p
    settings
    takeback
    takeback-p
@@ -206,6 +207,7 @@
   (list
    (cons 'flag       (file->vec "res/png/flag.png"))
    (cons 'draw       (file->vec "res/png/draw.png"))
+   (cons 'draw-p     (file->vec "res/png/draw-ok.png"))
    (cons 'settings   (file->vec "res/png/settings.png"))
    (cons 'takeback   (file->vec "res/png/takeback.png"))
    (cons 'takeback-p (file->vec "res/png/takeback-ok.png"))

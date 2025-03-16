@@ -1,4 +1,5 @@
 * [ ] ПРЕЛЮДИЯ
+  * [ ] i18n
   * [ ] grafika
     * [ ] takie wihajstry z opisami przycisków co się pojawiają jak najeżdżasz
     * [x] podświetl szachy
@@ -21,8 +22,8 @@
       * [x] możliwość wybrania figur i kolorów
     * [x] menu
     * [ ] opcje
-  * [ ] "gameplay"
-    * [ ] remis
+  * [x] "gameplay"
+    * [x] remis
     * [x] cofnięcie ruchu
     * [x] tury
     * [x] zbijanie figur
