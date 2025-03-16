@@ -501,7 +501,7 @@
         (flet ((switch-textures-and-continue (&optional id)
                  (when id
                    (switch-textures-to id))
-                 (format t "ja pierdole ~%")
+                 ;; (format t "ja pierdole ~%")
                  (setf cont #'(lambda () t))))
 
           (clear-background +color-grayish+)

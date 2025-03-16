@@ -104,6 +104,9 @@ jest to (moim zdaniem) dość konkretny i zwięzły sposób na napisanie funkcji
 [Testy](https://github.com/fukamachi/prove) są w folderze `t/`. uruchamiane przez `make test`, `make test-p2p`, `make test-online`, `make test-online-2`.
 Sprawdzają generatory ruchów, konstruktory pakietów i działanie przez sieć.
 
+## CI
+
+Napisałem CI dla github actions żeby sprawdzić czy każdy commit może być poprawnie zbudowany do pliku wykonywalnego (`.github/workflows/ci.yml`).
 
 ## cytaty
 
@@ -112,4 +115,21 @@ Sprawdzają generatory ruchów, konstruktory pakietów i działanie przez sieć.
 \epigraph{``\emoji{cross-mark} 97818 is expected to be 97862"}{--- t/test.lisp}
 \epigraph{``safe piece type of point (7 7) is NIL in contrary to the unsafe one which is ROOK"}{--- \textup{maybe-castling-moves}, leszcz.lisp}
 \epigraph{``King couldn't be found in \#S(FAST-BOARD-1 ...)"}{--- fb1-king-of, fast.lisp}
+\epigraph{;; Steal mainloop and show a menu that can configure data from :leszcz-constants (not so constant now huh?)}{--- gui.lisp}
 
+```lisp
+(defmacro for-every-bb (as n &body b)
+  ;; n to tak naprawdę fb tylko dużo zabawniejszy jest let pacan
+  (append                                        ;          |
+   '(progn)                                      ;          |
+   (apply                                        ;          |
+    #'append                                     ;          |
+    (loop                                        ;          |
+      for ca in '(fb-white fb-black)             ;          |
+      collect (loop for pa in '(fb-pawn fb-rook fb-knight fb-bishop fb-queen fb-king)
+                    collect                      ;          |
+                    `(let ((,as (,pa (,ca ,n)))) ; <- tu o -+
+                       ,@b                       ;
+                       (setf (,pa (,ca ,n)) ,as) ; a tu to nawet pacanas!
+                       ))))))
+```
