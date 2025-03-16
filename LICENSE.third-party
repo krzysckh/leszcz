@@ -1,6 +1,6 @@
-res/{png,svg}/[prnbqk][ld][0-9]+.*
+res/{png,svg}/[prnbqk][ld][0-9]+.*  -- czyli figury animowane, pikselowe
   maciuś je narysował
-res/{png,svg}/[prnbqk][ld].*
+res/{png,svg}/[prnbqk][ld].* -- czyli figury "sleek"
   są (c) https://commons.wikimedia.org/wiki/User:Cburnett
   z wybraną licencją BSD 3-klauzulową
 res/font/spleen-16x32.otf
@@ -15,4 +15,5 @@ res/book/komodo.bin
   Sam silnik donna jest na licencji MIT więc sądzę, że z tą książką jest podobnie
 res/pgn/*.pgn
   https://www.pgnmentor.com/files.html
-  Licencji opisanej nie ma, ale nie sądzę, żeby dało się mieć prawa do cudzych gier szachowych :)
+  Licencji opisanej nie ma, ale nie sądzę,
+  żeby dało się mieć prawa do cudzych gier szachowych :)

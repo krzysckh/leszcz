@@ -2108,7 +2108,7 @@
                                     (%bmenu
                                      "Offline"
                                      #'%main
-                                     `(("zagraj se na bota" . ,%player-vs-bot)
+                                     `(("zagraj na bota" . ,%player-vs-bot)
                                        ("zagraj na arcymistra" . ,#'(lambda ()
                                                                       (%bmenu
                                                                        "Na arcymistrza"
@@ -2125,7 +2125,7 @@
                                                                          ("Mikhail Botvinnik"    . ,%player-vs-botvinnik)
                                                                          ("Judit Polgar"         . ,%player-vs-polgarj)
                                                                          ("Alexander Alekhine"   . ,%player-vs-alekhine)))))
-                                       ("lokalnie na zioma" . ,#'%local-player-vs-player))))))))
+                                       ("zagraj lokalnie 1v1" . ,#'%local-player-vs-player))))))))
 
       (upy y h3 32
         (funcall

@@ -1,7 +1,7 @@
 * [ ] ПРЕЛЮДИЯ
   * [ ] i18n
   * [ ] grafika
-    * [ ] takie wihajstry z opisami przycisków co się pojawiają jak najeżdżasz
+    * [x] takie wihajstry z opisami przycisków co się pojawiają jak najeżdżasz
     * [x] podświetl szachy
     * [ ] nie pozwól ciągowi kontynuacji się zawalić, jeśli window-close-p po prostu zamknij program jakimś (exit) idk
     * [x] plansza typu dwukolorowa
@@ -71,7 +71,7 @@
   * [x] ej bo to juz w sumie jest
     * [x] kłamałem
       * [x] ja pierdole
-      * [x] już już jest
+        * [x] już już jest
   * [x] wybór w menu (parz preludija → menu)
   * [x] timer
     * [x] jest
