@@ -750,8 +750,9 @@
            (cleanup-threads!)
            (setf *opponent-proposed-draw-p* nil)      ; <- TODO: FUcK, figure out a better way to do shit w/ global vars
            (setf *opponent-asked-for-takeback-p* nil) ; or move that to the game class
-           (usocket:socket-close (game-connection game))
-           (setf (game-connection game) nil)
+           (when game
+             (usocket:socket-close (game-connection game))
+             (setf (game-connection game) nil))
            (setf cont #'%main)))
 
       (funcall
@@ -2229,10 +2230,11 @@
        #'(lambda (_)
            (declare (ignore _))
            (setf continuation #'(lambda ()
-                                  (when-let ((c (game-connection *current-game*)))
-                                    (write-packets c (make-client-packet 'gdata :gdata-bail-out t))
-                                    (usocket:socket-close c)
-                                    (setf (game-connection *current-game*) nil))
+                                  (when *current-game*
+                                    (when-let ((c (game-connection *current-game*)))
+                                      (write-packets c (make-client-packet 'gdata :gdata-bail-out t))
+                                      (usocket:socket-close c)
+                                      (setf (game-connection *current-game*) nil)))
                                   (cleanup-threads!)
                                   (main))))))))
 
