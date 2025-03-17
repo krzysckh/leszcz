@@ -1009,14 +1009,18 @@
     (warn "game-do-move called with invalid data: ~a -> (~a ~a)" piece mx my))
 
   (let ((inc-halfmove-p t)
+        (take-p nil)
         (upgrade-p (and
                     (eq (piece-type piece) 'pawn)
                     (or (= my 0) (= my 7)))))
     (when-let ((f (move-possible-p piece mx my game))
                (was-x (point-x (piece-point piece)))
                (was-y (point-y (piece-point piece)))
-               (current-fen (or no-history (game->fen game))))
+               (was-type (piece-type piece))
+               (current-fen (or no-history (game->fen game)))
+               (current-game (or no-history (copy-game game))))
       (when-let ((p (piece-at-point game mx my)))
+        (setf take-p t)
         (setf (game-halfmove-clock game) 0)
         (setf inc-halfmove-p nil)
         (setf (game-pieces game) (remove p (game-pieces game) :test #'equal)))
@@ -1056,15 +1060,6 @@
       (setf (game-en-passant-target-square game) nil)
 
       (let ((np (make-instance 'point :x mx :y my)))
-        (unless no-history
-          (push
-           (list (copy-piece piece)
-                 (list (point-x (piece-point piece)) (point-y (piece-point piece)))
-                 (list (point-x np) (point-y np))
-                 current-fen
-                 )
-           (game-move-history game)))
-
         ;; move the damn thing to np (new point)
         (setf (piece-point piece) np))
 
@@ -1095,6 +1090,26 @@
           ;;  * delete a pawn after en passant
           ;;  * update the piece-type of a pawn after an upgrade
           (funcall f game)))
+
+      ;; Okay so game-move-history is a list:
+      ;; ((piece (old-x old-y) (new-x new-y) fen algebraic) ...)
+      (unless no-history
+        (setf (game-fb current-game) (game->fast-board current-game))
+        (game-update-points-cache current-game)
+        (game-update-possible-moves-cache current-game)
+        (push
+         (list (copy-piece piece)
+               (list was-x was-y)
+               (list (point-x (piece-point piece)) (point-y (piece-point piece)))
+               current-fen
+               (move->algebraic
+                current-game
+                piece
+                (list was-x was-y)
+                (list (point-x (piece-point piece)) (point-y (piece-point piece)))
+                take-p
+                (if (eq (piece-type piece) was-type) nil (piece-type piece))))
+         (game-move-history game)))
 
       ;; Received a upgrade-p packet, no-funcall is probably set and we can upgrade the
       ;; piece type manually
@@ -1259,20 +1274,33 @@
        (+ (cdr *board-begin*) (* y2 +piece-size+))
        +piece-size+ +piece-size+ +hlm/last-to+))))
 
-;; TODO: taking (incorporate data into move history)
 ;; TODO: castling
 ;; TODO: ambiguous moves
-(defun move->algebraic (p from to &rest _)
-  (declare (type piece p)
-           (type list from to)
-           (ignore _)
-           (values string))
-  (let ((c (piece->char p)))
-    (case (piece-type p)
-      (pawn (lst->pos `(,(car to) ,(cadr to))))
-      (king "TODO")
-      (t
-       (format nil "~a~a" c (lst->pos `(,(car to) ,(cadr to))))))))
+;; TODO: well, it's too unambiguous for it's own good :/
+(defun move->algebraic (g p from to take-p maybe-update)
+  (declare
+   (type game g)
+   (type piece p)
+   (type list from to)
+   (type boolean take-p)
+   (type symbol maybe-update)
+   (values string))
+
+  (let ((c (if (eq (piece-type p) 'pawn) "" (string (piece->char p)))))
+    (if (eq (piece-type p) 'king)
+        "TODO"
+        (let* ((ps-t (remove-if-not #'(lambda (pc) (eq (piece-type p) (piece-type pc))) (game-pieces g)))
+               (ps (remove-if-not #'(lambda (pc) (move-possible-p pc (car to) (cadr to) g)) ps-t)))
+              (format nil "~a~a~a~a"
+                      (cond
+                        ((and take-p (eq (piece-type p) 'pawn))
+                         (aref (lst->pos from) 0) "")
+                        ((> (length ps) 1)
+                         (lst->pos from)) ;; TODO: <- too unambiguous
+                        (t ""))
+                      c
+                      (if take-p "x" "")
+                      (lst->pos `(,(car to) ,(cadr to))))))))
 
 (defparameter dmh/height 128)
 (defparameter dmh/xpad 32)
@@ -1288,11 +1316,10 @@
            (ignore _))
   (apply #'draw-rectangle (append dmh/rect '((#x55 #x55 #x55 #xff))))
 
-  (loop for m in (last (reverse (game-move-history g)) (+ (* dmh/show 2)
-                                                          (mod (length (game-move-history g)) 2)))
+  (loop for m in (last (reverse (game-move-history g)) (+ (* dmh/show 2) (mod (length (game-move-history g)) 2)))
         for i from 0 do
           (draw-text
-           (apply #'move->algebraic m)
+           (nth 4 m)
            (if (= (mod i 2) 0)
                (+ (car dmh/rect) 8)
                (+ (car dmh/rect) 8 (/ (nth 2 dmh/rect) 2)))
