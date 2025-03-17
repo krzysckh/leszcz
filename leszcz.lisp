@@ -2188,7 +2188,8 @@
                                                                          ("Fabiano Caruana"      . ,%player-vs-caruana)
                                                                          ("Mikhail Botvinnik"    . ,%player-vs-botvinnik)
                                                                          ("Judit Polgar"         . ,%player-vs-polgarj)
-                                                                         ("Alexander Alekhine"   . ,%player-vs-alekhine)))))
+                                                                         ("Alexander Alekhine"   . ,%player-vs-alekhine)
+                                                                         ))))
                                        ("zagraj lokalnie 1v1" . ,#'%local-player-vs-player))))))))
 
       (upy y h3 32
