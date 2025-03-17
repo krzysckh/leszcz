@@ -120,16 +120,19 @@
     (code-char (+ (- 8 (cadr l)) (char-int #\0))))
    'string))
 
+(defun type->char (tp)
+  (case tp
+    (king   #\k)
+    (queen  #\q)
+    (rook   #\r)
+    (bishop #\b)
+    (knight #\n)
+    (pawn   #\p)))
+
 (defun piece->char (p)
   (declare (type piece p)
            (values character))
-  (let ((c (case (piece-type p)
-             (king   #\k)
-             (queen  #\q)
-             (rook   #\r)
-             (bishop #\b)
-             (knight #\n)
-             (pawn   #\p))))
+  (let ((c (type->char (piece-type p))))
     (if (whitep p) (char-upcase c) c)))
 
 (defun game->fen (g)
@@ -712,7 +715,7 @@
                      :direction :output
                      :if-exists :supersede
                      :if-does-not-exist :create)
-    (format f (game->pgn game))))
+    (game->pgn game f)))
 
 (defun display-game-finish-menu (game text)
   (let-values ((bg (image->texture *current-screen*))
@@ -1018,6 +1021,7 @@
                (was-y (point-y (piece-point piece)))
                (was-type (piece-type piece))
                (current-fen (or no-history (game->fen game)))
+               (current-piece (copy-piece piece))
                (current-game (or no-history (copy-game game))))
       (when-let ((p (piece-at-point game mx my)))
         (setf take-p t)
@@ -1098,13 +1102,13 @@
         (game-update-points-cache current-game)
         (game-update-possible-moves-cache current-game)
         (push
-         (list (copy-piece piece)
+         (list current-piece
                (list was-x was-y)
                (list (point-x (piece-point piece)) (point-y (piece-point piece)))
                current-fen
                (move->algebraic
                 current-game
-                piece
+                current-piece
                 (list was-x was-y)
                 (list (point-x (piece-point piece)) (point-y (piece-point piece)))
                 take-p
@@ -1274,24 +1278,26 @@
        (+ (cdr *board-begin*) (* y2 +piece-size+))
        +piece-size+ +piece-size+ +hlm/last-to+))))
 
-;; TODO: castling
-;; TODO: ambiguous moves
 ;; TODO: well, it's too unambiguous for it's own good :/
-(defun move->algebraic (g p from to take-p maybe-update)
+(defun move->algebraic (g p from to take-p maybe-update-type)
   (declare
    (type game g)
    (type piece p)
    (type list from to)
    (type boolean take-p)
-   (type symbol maybe-update)
+   (type symbol maybe-update-type)
    (values string))
 
-  (let ((c (if (eq (piece-type p) 'pawn) "" (string (piece->char p)))))
+  (let ((c (if (eq (piece-type p) 'pawn) "" (string (char-upcase (piece->char p))))))
     (if (eq (piece-type p) 'king)
-        "TODO"
+        (let ((n (- (car to) (car from))))
+          (cond
+            ((< n -1) "O-O-O")
+            ((> n 1)  "O-O")
+            (t (format nil "~a~a" c (lst->pos to)))))
         (let* ((ps-t (remove-if-not #'(lambda (pc) (eq (piece-type p) (piece-type pc))) (game-pieces g)))
                (ps (remove-if-not #'(lambda (pc) (move-possible-p pc (car to) (cadr to) g)) ps-t)))
-              (format nil "~a~a~a~a"
+              (format nil "~a~a~a~a~a"
                       (cond
                         ((and take-p (eq (piece-type p) 'pawn))
                          (aref (lst->pos from) 0) "")
@@ -1300,7 +1306,10 @@
                         (t ""))
                       c
                       (if take-p "x" "")
-                      (lst->pos `(,(car to) ,(cadr to))))))))
+                      (lst->pos `(,(car to) ,(cadr to)))
+                      (if (and (eq (piece-type p) 'pawn) maybe-update-type)
+                          (format nil "=~a" (type->char maybe-update-type))
+                          ""))))))
 
 (defparameter dmh/height 128)
 (defparameter dmh/xpad 32)

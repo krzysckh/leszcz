@@ -228,5 +228,20 @@
              :interactive-p (game-interactive-p g)
        )))
 
-(defmethod game->pgn ((g game))
-  (error "game->pgn is not implemented yet for ~a." g))
+(defmethod game->pgn ((g game) f)
+  (format f "[Event \"none\"]~%")
+  (format f "[Site \"none\"]~%")
+  (format f "[Date \"unknown\"]~%")
+  (format f "[Round \"unknown\"]~%")
+  (format f "[White \"unknown\"]~%")
+  (format f "[Black \"unknown\"]~%")
+  (format f "[Result \"unknown\"]~%")   ; TODO: fill those up
+
+  (format f "~%")
+
+  (let ((l (mapcar #'(lambda (x) (nth 4 x)) (reverse (game-move-history g)))))
+    (loop for i from 1
+          while l
+          do
+             (format f "~a. ~a ~a" i (car l) (cadr l))
+             (setf l (cddr l)))))
