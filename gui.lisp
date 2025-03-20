@@ -328,6 +328,11 @@
   (declare (type function text-draw-fn))
   (declare #+sbcl(sb-ext:muffle-conditions sb-ext:compiler-note))
   (let-values ((x y w h (values (round x*) (round y*) (round w*) (round h*)))
+               (tw th (measure-text-1 (load-font alagard-data font-size
+                                                 :type ".ttf"
+                                                 :loaded-font-hash raylib::*alagard*)
+                                      (coerce (gethash id input-box/content-ht) 'string)
+                                      (float font-size) 0.0))
                (full-rect (list (- x tb/padx) (- y 8) (+ w (* tb/padx 2)) (+ h 16)))
                (at-point-p (point-in-rect-p (floatize (list (mouse-x) (mouse-y))) (floatize full-rect))))
     (when at-point-p
@@ -356,13 +361,18 @@
                                                        #'(lambda (c) (> (char-int c) 255))
                                                        (get-chars-pressed-1)))))
 
+    (apply #'begin-scissor-mode full-rect)
     (funcall
      text-draw-fn
      (coerce (gethash id input-box/content-ht) 'string)
-     (+ (nth 0 full-rect) 8)
+     (let ((_x (+ (nth 0 full-rect) 8)))
+       (- _x (max 0 (- (+ _x tw) (+ _x (nth 2 full-rect))))))
+       ;; (min _x (- _x tw)))
      y
      font-size
-     tb/color-text)))
+     tb/color-text)
+    (end-scissor-mode)
+    ))
 
 (defun text-button (x* y* w* h* text text-width &key (font-size (round (- h* 2))) (text-draw-fn #'raylib:draw-text))
   (declare (type function text-draw-fn))

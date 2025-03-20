@@ -2186,7 +2186,7 @@
                                        ("zagraj na arcymistra" . ,#'(lambda ()
                                                                       (%bmenu
                                                                        "Na arcymistrza"
-                                                                       #'%bmenu
+                                                                       #'%main
                                                                        `(("Garry Kasparov"       . ,%player-vs-kasparov)
                                                                          ("Bobby Fischer"        . ,%player-vs-fischer)
                                                                          ("Magnus Carlsen"       . ,%player-vs-carlsen)
@@ -2219,24 +2219,25 @@
   #-sbcl `(progn ,@b))
 
 (defun show-exception-interactively-and-continue (e)
-  (let-values ((mesg (format nil "An unexcpected error has occurred: ~%~a~%" e))
-               (btn w1 h1 (abtn "Ok" :height 24)))
-    (with-continued-mainloop continuation %main
-      (draw-text mesg 10 10 24 +color-white+)
-      (funcall
-       btn
-       (/ *window-width* 2)
-       (/ *window-height* 2)
-       #'(lambda (_)
-           (declare (ignore _))
-           (setf continuation #'(lambda ()
-                                  (when *current-game*
-                                    (when-let ((c (game-connection *current-game*)))
-                                      (write-packets c (make-client-packet 'gdata :gdata-bail-out t))
-                                      (usocket:socket-close c)
-                                      (setf (game-connection *current-game*) nil)))
-                                  (cleanup-threads!)
-                                  (main))))))))
+  (ignore-errors
+   (let-values ((mesg (format nil "An unexcpected error has occurred: ~%~a~%" e))
+                (btn w1 h1 (abtn "Ok" :height 24)))
+     (with-continued-mainloop continuation %main
+       (draw-text mesg 10 10 24 +color-white+)
+       (funcall
+        btn
+        (/ *window-width* 2)
+        (/ *window-height* 2)
+        #'(lambda (_)
+            (declare (ignore _))
+            (setf continuation #'(lambda () 0)))))))
+  (when *current-game*
+    (when-let ((c (game-connection *current-game*)))
+      (write-packets c (make-client-packet 'gdata :gdata-bail-out t))
+      (usocket:socket-close c)
+      (setf (game-connection *current-game*) nil)))
+  (cleanup-threads!)
+  (main))
 
 (defmacro maybe-catch-all-exceptions (&body b)
   `(if *prod*
