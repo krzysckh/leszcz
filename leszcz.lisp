@@ -2220,7 +2220,7 @@
 
 (defun show-exception-interactively-and-continue (e)
   (ignore-errors
-   (let-values ((mesg (format nil "An unexcpected error has occurred: ~%~a~%" e))
+   (let-values ((mesg (format nil "ups! problemik: ~%~a~%" e))
                 (btn w1 h1 (abtn "Ok" :height 24)))
      (with-continued-mainloop continuation %main
        (draw-text mesg 10 10 24 +color-white+)
@@ -2231,13 +2231,14 @@
         #'(lambda (_)
             (declare (ignore _))
             (setf continuation #'(lambda () 0)))))))
-  (when *current-game*
-    (when-let ((c (game-connection *current-game*)))
-      (write-packets c (make-client-packet 'gdata :gdata-bail-out t))
-      (usocket:socket-close c)
-      (setf (game-connection *current-game*) nil)))
+  (ignore-errors
+   (when *current-game*
+     (when-let ((c (game-connection *current-game*)))
+       (write-packets c (make-client-packet 'gdata :gdata-bail-out t))
+       (usocket:socket-close c)
+       (setf (game-connection *current-game*) nil))))
   (cleanup-threads!)
-  (main))
+  (%main))
 
 (defmacro maybe-catch-all-exceptions (&body b)
   `(if *prod*

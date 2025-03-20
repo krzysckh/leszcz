@@ -24,7 +24,8 @@ all: *.lisp
 	# rm -f *.fasl
 	# $(SBCL) --load build.lisp --quit
 	rm -f *.fasl
-	wine sbcl.exe --core sbcl.core --load build.lisp --quit
+	wine sbcl.exe --noinform --core sbcl.core --load build.lisp --quit
+	wine sbcl.exe --noinform --core sbcl.core --eval '(setf COMMON-LISP-USER::WINDBG t)' --load build.lisp --quit
 test:
 	# i don't think prove should be in an asdf package for leszcz, as we're dumping core to save the executeble and it would still be lingering in there
 	CL_SOURCE_REGISTRY=$(PWD) $(SBCL) --dynamic-space-size 4096 \
@@ -70,6 +71,7 @@ pubcpy: dist docs
 dist: all docs
 	mkdir -p dist/
 	cp -v build/leszcz.exe dist/
+	cp -v build/leszcz-debug.exe dist/
 	cp -v libffi-8.dll dist/
 	cp -v raylib5.5.dll dist/
 	cp -v doc/*.pdf dist/

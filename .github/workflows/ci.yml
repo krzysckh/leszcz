@@ -58,6 +58,7 @@ jobs:
 
           cp -v libffi-8.dll build/
           cp -v raylib5.5.dll build/
+          rm build/leszcz-debug.exe
       # - name: build docs
       #   run: |
       #     make docs

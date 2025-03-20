@@ -197,7 +197,7 @@
     (hii (let ((nl-packets (string->rdata hii-nickname)))
            (append
             `(,(vector
-                (logior (ash +hii-type+ 3) (logand (length nl-packets) #b11111000))
+                (logior +hii-type+ (ash (logand (length nl-packets) #b11111000) -3))
                 (ash (logand (length nl-packets) #b111) 5)
                 0
                 0))
@@ -253,8 +253,8 @@
      (error "unsupported type for make-client-packet ~a" type))))
 
 (defun write-packet (conn packet)
-  ;; (format t "will write packet ~a to ~a~%" packet conn)
   (declare (type vector packet))
+  (format t "will write packet ~a to ~a~%" packet conn)
   (let ((s (usocket:socket-stream conn)))
     (loop for byte across packet do
       (write-byte byte s))
@@ -274,7 +274,7 @@
        seq))))
 
 (defun write-packets (conn packets)
-  (format t "will write packets: ~a to ~a~%" packets conn)
+  (format t "will write packets: ~a to ~a~%" packets (usocket:socket-stream conn))
   (dolist (p packets)
     (write-packet conn p)))
 

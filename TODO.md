@@ -1,5 +1,6 @@
 * [ ] ПРЕЛЮДИЯ
   * [ ] i18n
+  * [ ] usun przyciski w grze offline
   * [ ] grafika
     * [x] takie wihajstry z opisami przycisków co się pojawiają jak najeżdżasz
     * [x] podświetl szachy
