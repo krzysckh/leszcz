@@ -1402,8 +1402,8 @@
   (when *current-tooltip*
     (let-values ((font (load-font spleen-data dct/size))
                  (w h (measure-text-1 font *current-tooltip* (float dct/size) 0.0))
-                 (x (floor (min (- *window-width* w) (mouse-x))))
-                 (y (floor (min (- *window-height* h) (mouse-y)))))
+                 (x (floor (min (- *window-width* w) (+ 8 (mouse-x)))))
+                 (y (floor (min (- *window-height* h) (+ 8 (mouse-y))))))
       (dts+bgshade *current-tooltip* x y dct/size +color-white+))))
 
 (defmacro set-current-tooltip! (v)
