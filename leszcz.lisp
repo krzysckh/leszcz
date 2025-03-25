@@ -354,6 +354,7 @@
           (null (piece-at-point game 6 7))
           (not (point-checked-p game 5 7 'black))
           (not (point-checked-p game 6 7 'black))
+          (not (point-checked-p game (point-x (piece-point p)) (point-y (piece-point p)) 'black))
           (eq (safe-piece-type (piece-at-point game 7 7)) 'rook))
      (list
       (list 6 7 #'(lambda (g*)
@@ -369,6 +370,7 @@
           (null (piece-at-point game 3 7))
           (not (point-checked-p game 2 7 'black))
           (not (point-checked-p game 3 7 'black))
+          (not (point-checked-p game (point-x (piece-point p)) (point-y (piece-point p)) 'black))
           (eq (safe-piece-type (piece-at-point game 0 7)) 'rook))
      (list
       (list 2 7 #'(lambda (g*)
@@ -384,6 +386,7 @@
           (null (piece-at-point game 6 0))
           (not (point-checked-p game 5 0 'white))
           (not (point-checked-p game 6 0 'white))
+          (not (point-checked-p game (point-x (piece-point p)) (point-y (piece-point p)) 'white))
           (eq (safe-piece-type (piece-at-point game 7 0)) 'rook))
      (list
       (list 6 0 #'(lambda (g*)
@@ -399,6 +402,7 @@
           (null (piece-at-point game 3 0))
           (not (point-checked-p game 2 0 'white))
           (not (point-checked-p game 3 0 'white))
+          (not (point-checked-p game (point-x (piece-point p)) (point-y (piece-point p)) 'white))
           (eq (safe-piece-type (piece-at-point game 0 0)) 'rook))
      (list
       (list 2 0 #'(lambda (g*)
@@ -1487,6 +1491,9 @@
                (setf *opponent-asked-for-takeback-p* nil)
                (let ((fen (rdata-packets->string (receive-packets c (aref p 3)))))
                  (game-set-fen! g fen))))
+            (ping
+             ;; LOL!
+             t)
             (t
              (warn "Received packet ~a when waiting for gdata-takeback-ok-ok" (packet->name p)))))))))
 
